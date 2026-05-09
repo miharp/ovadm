@@ -1,0 +1,7 @@
+{
+  "description": "Report running status of OpenVox Server services",
+  "input_method": "environment",
+  "parameters": {},
+  "files": [],
+  "supports_noop": false
+}

@@ -1,0 +1,14 @@
+# Bolt
+.resource/
+.modules/
+.task_cache/
+
+# Ruby
+vendor/
+.bundle/
+*.gem
+Gemfile.lock
+
+# OS
+.DS_Store
+*.swp

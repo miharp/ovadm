@@ -1,0 +1,19 @@
+{
+  "name": "miharp-ovadm",
+  "version": "0.1.0",
+  "author": "miharp",
+  "license": "Apache-2.0",
+  "summary": "A Bolt module for installing and managing OpenVox Server infrastructure",
+  "source": "https://github.com/miharp/ovadm",
+  "issues_url": "https://github.com/miharp/ovadm/issues",
+  "project_page": "https://github.com/miharp/ovadm",
+  "tags": ["openvox", "bolt", "administration", "infrastructure"],
+  "description": "ovadm (OpenVox Administration Module) provides Bolt plans and tasks for deploying, upgrading, and managing OpenVox Server. It is modeled after puppetlabs-peadm and aims to reduce manual effort and human error in OpenVox infrastructure operations.",
+  "dependencies": [],
+  "requirements": [
+    {
+      "name": "bolt",
+      "version_requirement": ">= 3.17.0"
+    }
+  ]
+}
