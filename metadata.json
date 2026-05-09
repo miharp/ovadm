@@ -7,12 +7,12 @@
   "source": "https://github.com/miharp/ovadm",
   "issues_url": "https://github.com/miharp/ovadm/issues",
   "project_page": "https://github.com/miharp/ovadm",
-  "tags": ["openvox", "bolt", "administration", "infrastructure"],
+  "tags": ["openvox", "openbolt", "administration", "infrastructure"],
   "description": "ovadm (OpenVox Administration Module) provides Bolt plans and tasks for deploying, upgrading, and managing OpenVox Server. It is modeled after puppetlabs-peadm and aims to reduce manual effort and human error in OpenVox infrastructure operations.",
   "dependencies": [],
   "requirements": [
     {
-      "name": "bolt",
+      "name": "openbolt",
       "version_requirement": ">= 3.17.0"
     }
   ]
