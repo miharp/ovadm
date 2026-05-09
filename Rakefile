@@ -1,7 +1,13 @@
 # frozen_string_literal: true
 
-require 'puppet_litmus/rake_tasks'
-require 'puppetlabs_spec_helper/rake_tasks'
 require 'rspec/core/rake_task'
 
-task default: 'litmus:acceptance:parallel'
+RSpec::Core::RakeTask.new(:acceptance) do |t|
+  t.pattern = 'spec/acceptance/**/*_spec.rb'
+end
+
+RSpec::Core::RakeTask.new(:unit) do |t|
+  t.pattern = 'spec/plans/**/*_spec.rb'
+end
+
+task default: :unit

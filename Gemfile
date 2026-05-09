@@ -2,9 +2,7 @@ source 'https://rubygems.org'
 
 ruby '>= 3.2'
 
-gem 'puppet_litmus', require: false
-gem 'serverspec'
-gem 'puppetlabs_spec_helper'
+gem 'openbolt', require: false
 gem 'rake'
 gem 'rspec'
 
