@@ -4,23 +4,24 @@
 
 ## Overview
 
-The `ovadm::install` plan will automate the installation of a new OpenVox Server primary.
+The `ovadm::install` plan will automate the installation of a new OpenVox Server.
 
 ## Planned usage
 
 ```
 bolt plan run ovadm::install \
-  primary_host=ovox-primary.example.com \
+  server_host=ovox.example.com \
   ovox_version=8.x.x
 ```
 
 ## Parameters
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `primary_host` | TargetSpec | The node to install OpenVox Server on |
-| `ovox_version` | Optional[String] | Target OpenVox Server version |
-| `dns_alt_names` | Optional[Array[String]] | Additional SAN entries for the certificate |
+| Parameter        | Type                    | Description                                        |
+|------------------|-------------------------|----------------------------------------------------|
+| `server_host`    | TargetSpec              | The node to install OpenVox Server on              |
+| `compiler_hosts` | Optional[TargetSpec]    | Compiler pool nodes (omit for Standard topology)   |
+| `ovox_version`   | Optional[String]        | Target OpenVox Server version                      |
+| `dns_alt_names`  | Optional[Array[String]] | Additional SAN entries for the certificate         |
 
 ## Contributing
 

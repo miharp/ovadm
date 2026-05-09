@@ -14,16 +14,16 @@ OpenVox Server does not support HA replicas (that is a Puppet Enterprise feature
 A single OpenVox Server node managing agents.
 
 ```
-[Agents] → [OpenVox Server (primary)]
+[Agents] → [OpenVox Server]
 ```
 
 ### Large
-A primary plus one or more compilers to distribute compilation load across large agent populations.
+A server plus one or more compilers to distribute compilation load across large agent populations.
 
 ```
 [Agents] → [Load Balancer] → [Compiler Pool]
                                     ↓
-                          [OpenVox Server (primary)]
+                          [OpenVox Server]
 ```
 
 ---
@@ -38,7 +38,7 @@ A primary plus one or more compilers to distribute compilation load across large
 | `ovadm::upgrade` | Upgrade an existing deployment in-place | P0 |
 | `ovadm::status` | Report health of a running deployment | P0 |
 | `ovadm::convert` | Take over management of an existing unmanaged OpenVox Server | P1 |
-| `ovadm::add_compiler` | Add a new compiler to an existing deployment | P1 |
+| `ovadm::add_compiler` | Add a node to the `compiler_hosts` pool | P1 |
 
 ### Subplans (internal)
 
@@ -49,16 +49,16 @@ The top-level plans should be thin orchestrators that call focused subplans. Thi
 | Plan | Description |
 |------|-------------|
 | `ovadm::subplans::precheck` | Validate targets, OS, Java, ports, time sync |
-| `ovadm::subplans::install` | Install packages and start services on primary |
+| `ovadm::subplans::install` | Install packages and start services on the server |
 | `ovadm::subplans::configure` | Apply initial configuration (puppet.conf, auth.conf) |
-| `ovadm::subplans::agent_install` | Install OpenVox agent on compiler targets |
+| `ovadm::subplans::agent_install` | Install OpenVox agent on `compiler_hosts` targets |
 | `ovadm::subplans::cert_setup` | Submit and sign CSRs; configure DNS alt names |
 
 **Upgrade subplans:**
 
-| Plan | Description |
-|------|-------------|
-| `ovadm::subplans::upgrade_primary` | Upgrade the primary server |
+| Plan                                 | Description                 |
+|--------------------------------------|-----------------------------|
+| `ovadm::subplans::upgrade_server`    | Upgrade the server          |
 | `ovadm::subplans::upgrade_compilers` | Upgrade compiler pool nodes |
 
 ---
@@ -100,7 +100,7 @@ Tasks are the atomic operations that plans compose. The following are needed, gr
 | Task | Description | Notes |
 |------|-------------|-------|
 | `ovadm::submit_csr` | Submit a CSR from a target agent | |
-| `ovadm::sign_csr` | Sign pending CSRs on the CA (primary) | |
+| `ovadm::sign_csr` | Sign pending CSRs on the CA (server) | |
 | `ovadm::cert_data` | Return certificate metadata for a node | |
 | `ovadm::cert_valid_status` | Check if a cert is valid, expired, or missing | |
 | `ovadm::ssl_clean` | Clean SSL state for a node (regenerate cert) | Needed for convert and rebuild |
@@ -128,7 +128,7 @@ Tasks are the atomic operations that plans compose. The following are needed, gr
 | Task | Description | Notes |
 |------|-------------|-------|
 | `ovadm::infrastatus` | Return full deployment status as JSON | Summary view for operators |
-| `ovadm::get_config` | Return current ovadm-managed configuration | Stored in a known location on primary |
+| `ovadm::get_config` | Return current ovadm-managed configuration | Stored in a known location on the server |
 
 ### Utility
 
@@ -153,7 +153,7 @@ Goal: enough scaffolding to run against a real target and get meaningful output.
 - [ ] Bolt inventory example (`inventory.yaml.example`)
 - [ ] Basic spec tests for tasks
 
-**Deliverable:** `bolt plan run ovadm::status primary_host=<target>` returns a real health report.
+**Deliverable:** `bolt plan run ovadm::status server_host=<target>` returns a real health report.
 
 ### Phase 2 — Install (Standard topology)
 
@@ -169,7 +169,7 @@ Goal: fully automated install of OpenVox Server on a single node.
 - [ ] `ovadm::subplans::configure` plan
 - [ ] `ovadm::install` plan (top-level, standard topology only)
 
-**Deliverable:** `bolt plan run ovadm::install primary_host=<target>` installs and configures a working OpenVox Server.
+**Deliverable:** `bolt plan run ovadm::install server_host=<target>` installs and configures a working OpenVox Server.
 
 ### Phase 3 — Status & Convert
 
@@ -189,14 +189,14 @@ Goal: in-place version upgrade with service continuity.
 
 - [ ] `ovadm::get_version` task (finalize)
 - [ ] `ovadm::service_stop` / `ovadm::service_start` / `ovadm::service_restart`
-- [ ] `ovadm::subplans::upgrade_primary` plan
+- [ ] `ovadm::subplans::upgrade_server` plan
 - [ ] `ovadm::upgrade` plan (standard topology)
 
-**Deliverable:** `bolt plan run ovadm::upgrade primary_host=<target> ovox_version=8.x.x` upgrades cleanly.
+**Deliverable:** `bolt plan run ovadm::upgrade server_host=<target> ovox_version=8.x.x` upgrades cleanly.
 
 ### Phase 5 — Large Topology (Compiler Pool)
 
-Goal: install and upgrade across primary + compiler deployments.
+Goal: install and upgrade across `server_host` + `compiler_hosts` deployments.
 
 - [ ] `ovadm::install_agent` task
 - [ ] `ovadm::agent_runonce` task
@@ -206,7 +206,7 @@ Goal: install and upgrade across primary + compiler deployments.
 - [ ] `ovadm::subplans::upgrade_compilers`
 - [ ] Extend `ovadm::upgrade` for Large topology
 
-**Deliverable:** `ovadm::install` and `ovadm::upgrade` work across a primary + compiler pool.
+**Deliverable:** `bolt plan run ovadm::install server_host=<target> compiler_hosts=<c1>,<c2>` installs a working Large topology.
 
 ---
 
@@ -273,7 +273,7 @@ These need research or community input before implementation:
 
 1. **Exact config file paths** — What are the canonical paths for `puppet.conf`, `puppetserver.conf`, and `auth.conf` on a fresh OpenVox 8 install? Needs verification on a real system.
 
-2. **Service name** — Is the service `puppetserver`, `openvox-server`, or something else? The docs reference `puppetserver` but the package is `openvox-server`.
+2. ~~**Service name**~~ — Confirmed `puppetserver` via [install_from_packages](https://docs.openvoxproject.org/openvox-server/latest/install_from_packages.html)
 
 3. **PostgreSQL packaging** — Does OpenVox ship a bundled PostgreSQL, or does the operator provide their own? What is the recommended version?
 

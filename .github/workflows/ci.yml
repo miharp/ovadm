@@ -1,0 +1,35 @@
+---
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  acceptance:
+    name: Acceptance (${{ matrix.platform }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - default    # Ubuntu 22.04 (geerlingguy/docker-ubuntu2204-ansible)
+          # rocky9 removed until a working EL9 systemd image for GHA is confirmed
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+
+      - name: Provision ${{ matrix.platform }}
+        run: bundle exec rake 'litmus:provision_list[${{ matrix.platform }}]'
+
+      - name: Run acceptance tests
+        run: bundle exec rake 'litmus:acceptance:parallel'
+
+      - name: Tear down
+        if: always()
+        run: bundle exec rake litmus:tear_down

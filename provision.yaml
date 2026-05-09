@@ -1,0 +1,20 @@
+---
+# Node sets for litmus:provision_list.
+# Uses geerlingguy's ansible images which ship with systemd pre-configured,
+# required for testing service management tasks.
+#
+# Usage:
+#   bundle exec rake 'litmus:provision_list[default]'   # Ubuntu 22.04
+#   bundle exec rake 'litmus:provision_list[rocky9]'    # Rocky Linux 9
+
+default:
+  provisioner: docker
+  images:
+    - geerlingguy/docker-ubuntu2204-ansible
+
+# rocky9 is defined for local use but excluded from CI — the geerlingguy EL9
+# image's systemd does not come up cleanly inside GitHub Actions' Docker env.
+rocky9:
+  provisioner: docker
+  images:
+    - geerlingguy/docker-rockylinux9-ansible

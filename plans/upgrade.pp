@@ -1,13 +1,13 @@
 # @summary Upgrade an existing OpenVox Server deployment
 #
-# @param primary_host
-#   The target node running the OpenVox Server primary
+# @param server_host
+#   The target node running OpenVox Server
 #
 # @param ovox_version
 #   The target version to upgrade to
 #
 plan ovadm::upgrade(
-  TargetSpec           $primary_host,
+  TargetSpec           $server_host,
   Optional[String[1]]  $ovox_version = undef,
 ) {
 

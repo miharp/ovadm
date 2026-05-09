@@ -13,14 +13,58 @@ The plans in this module are currently stubs. The highest-value contributions ri
 
 ## Getting started
 
-1. Fork this repository
-2. Install dependencies:
-   ```
-   gem install bundler
-   bundle install
-   ```
-3. Install Bolt: https://www.puppet.com/docs/bolt/latest/bolt_installing.html
-4. Read the [OpenVox documentation](https://docs.openvoxproject.org)
+### Ruby
+
+This project requires Ruby >= 3.2. Do not use your system Ruby — use a version manager instead.
+
+**rbenv** (recommended):
+
+```bash
+rbenv install 3.2.11   # or any 3.2.x / 3.3.x
+rbenv local 3.2.11     # writes .ruby-version; rbenv picks it up automatically
+```
+
+**rvm**:
+
+```bash
+rvm install 3.2.11
+rvm use 3.2.11
+```
+
+### Dependencies
+
+```bash
+gem install bundler
+bundle install
+```
+
+### Bolt
+
+Install Bolt separately — it is not a bundled gem:
+[Bolt installation docs](https://www.puppet.com/docs/bolt/latest/bolt_installing.html)
+
+### Running tests locally
+
+Tests use [puppet_litmus](https://github.com/puppetlabs/puppet_litmus) with Docker. You need Docker running.
+
+```bash
+# Provision a test container (Ubuntu 22.04)
+bundle exec rake 'litmus:provision_list[default]'
+
+# Run acceptance tests against it
+bundle exec rake 'litmus:acceptance:parallel'
+
+# Tear down when done
+bundle exec rake litmus:tear_down
+```
+
+To test against Rocky Linux 9 instead:
+
+```bash
+bundle exec rake 'litmus:provision_list[rocky9]'
+```
+
+Read the [OpenVox documentation](https://docs.openvoxproject.org) for background on the server you're automating.
 
 ## Code style
 

@@ -1,0 +1,5 @@
+fixtures:
+  repositories:
+    provision:
+      repo: 'https://github.com/puppetlabs/provision'
+      ref: 'main'
