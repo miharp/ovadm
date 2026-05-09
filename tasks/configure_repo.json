@@ -1,0 +1,11 @@
+{
+  "description": "Configure the OpenVox package repository for this OS",
+  "input_method": "environment",
+  "parameters": {
+    "ovox_major": {
+      "description": "OpenVox major version (e.g. 8)",
+      "type": "Optional[Integer]"
+    }
+  },
+  "supports_noop": false
+}

@@ -1,0 +1,11 @@
+{
+  "description": "Install the openvox-server package from the configured repository",
+  "input_method": "environment",
+  "parameters": {
+    "version": {
+      "description": "Version to install (e.g. '8.3.1'); omit for latest",
+      "type": "Optional[String[1]]"
+    }
+  },
+  "supports_noop": false
+}

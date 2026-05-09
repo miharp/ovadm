@@ -1,0 +1,19 @@
+{
+  "description": "Write /etc/openvox/puppet.conf with server identity and optional DNS alt names",
+  "input_method": "environment",
+  "parameters": {
+    "certname": {
+      "description": "Certificate name for this node; defaults to the system FQDN",
+      "type": "Optional[String[1]]"
+    },
+    "server": {
+      "description": "Hostname of the OpenVox Server; defaults to the system FQDN",
+      "type": "Optional[String[1]]"
+    },
+    "dns_alt_names": {
+      "description": "Comma-separated list of DNS alternative names for the server certificate",
+      "type": "Optional[String[1]]"
+    }
+  },
+  "supports_noop": false
+}
