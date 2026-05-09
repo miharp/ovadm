@@ -1,0 +1,6 @@
+{
+  "description": "Return a concise status summary: installed version, service state, and port 8140",
+  "input_method": "environment",
+  "parameters": {},
+  "supports_noop": false
+}

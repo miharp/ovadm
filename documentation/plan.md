@@ -174,17 +174,19 @@ Scope notes:
 
 **Deliverable:** `bolt plan run ovadm::install server_host=<target>` installs and configures a working OpenVox Server.
 
-### Phase 3 — Status & Convert
+### Phase 3 — Status & Introspection
 
-Goal: make existing unmanaged servers manageable.
+Goal: enrich status reporting and provide a single-task status dump for monitoring.
 
-- [ ] `ovadm::get_config` task + config file schema
-- [ ] `ovadm::get_version` task
-- [ ] `ovadm::infrastatus` task (JSON output)
-- [ ] `ovadm::status` plan — full implementation, not just stub
-- [ ] `ovadm::convert` plan — detect existing install, write config, validate
+- [x] `ovadm::get_version` task — returns installed `openvox-server` version or `not_installed`
+- [x] `ovadm::infrastatus` task — concise JSON status: version, service state, port 8140
+- [x] `ovadm::status` plan — extended to include version in the report
 
-**Deliverable:** `ovadm::convert` + `ovadm::status` work against an existing server.
+Scope notes:
+
+- `get_config` / `write_config` / `ovadm::convert` dropped — OpenVox has no console, RBAC, or orchestrator to wire up, so "adopting" an existing server into ovadm is just `ovadm::status` against it. No config file adoption needed.
+
+**Deliverable:** `bolt plan run ovadm::status server_host=<target>` reports version alongside precheck and service status. `bolt task run ovadm::infrastatus --targets <target>` gives a quick machine-readable snapshot.
 
 ### Phase 4 — Upgrade
 
