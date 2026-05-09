@@ -1,0 +1,6 @@
+{
+  "description": "Detect OS family, name, version, and architecture",
+  "input_method": "environment",
+  "parameters": {},
+  "supports_noop": false
+}
