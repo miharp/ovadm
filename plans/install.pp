@@ -1,7 +1,10 @@
 # @summary Install a new OpenVox Server deployment
 #
-# @param primary_host
-#   The target node for the OpenVox Server primary
+# @param server_host
+#   The target node to install OpenVox Server on
+#
+# @param compiler_hosts
+#   One or more compiler nodes to add (Large topology only)
 #
 # @param ovox_version
 #   The version of OpenVox Server to install
@@ -10,9 +13,10 @@
 #   A list of DNS alternative names to add to the OpenVox Server certificate
 #
 plan ovadm::install(
-  TargetSpec                   $primary_host,
-  Optional[String[1]]          $ovox_version  = undef,
-  Optional[Array[String[1]]]   $dns_alt_names = undef,
+  TargetSpec                   $server_host,
+  Optional[TargetSpec]         $compiler_hosts = undef,
+  Optional[String[1]]          $ovox_version   = undef,
+  Optional[Array[String[1]]]   $dns_alt_names  = undef,
 ) {
 
   out::message('ovadm::install is not yet implemented. Contributions welcome!')

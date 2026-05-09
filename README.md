@@ -8,7 +8,7 @@ ovadm is a [Bolt](https://www.puppet.com/docs/bolt/latest/bolt.html) module that
 
 | Plan | Description |
 |------|-------------|
-| `ovadm::install` | Install a new OpenVox Server primary |
+| `ovadm::install` | Install a new OpenVox Server |
 | `ovadm::upgrade` | Upgrade an existing OpenVox Server deployment |
 | `ovadm::status` | Check the health of a running OpenVox Server |
 
@@ -21,7 +21,7 @@ ovadm is a [Bolt](https://www.puppet.com/docs/bolt/latest/bolt.html) module that
 
 ```
 # Check status of your OpenVox Server
-bolt plan run ovadm::status primary_host=ovox-primary.example.com
+bolt plan run ovadm::status server_host=ovox.example.com
 ```
 
 Full parameter documentation for each plan is in the [`documentation/`](documentation/) directory.

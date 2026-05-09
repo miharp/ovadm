@@ -3,14 +3,15 @@
 
 set -euo pipefail
 
-SERVICES=(
-  openvox-server
-)
-
-for svc in "${SERVICES[@]}"; do
+check_service() {
+  local svc="$1"
   if systemctl is-active --quiet "$svc" 2>/dev/null; then
-    echo "{\"service\": \"${svc}\", \"status\": \"running\"}"
+    printf '{"service":"%s","status":"running"}' "$svc"
   else
-    echo "{\"service\": \"${svc}\", \"status\": \"stopped\"}"
+    printf '{"service":"%s","status":"stopped"}' "$svc"
   fi
-done
+}
+
+puppetserver_json=$(check_service puppetserver)
+
+printf '{"services":[%s]}\n' "$puppetserver_json"
