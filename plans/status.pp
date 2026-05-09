@@ -6,13 +6,37 @@
 plan ovadm::status(
   TargetSpec $server_host,
 ) {
+  # Precheck — validates OS, Java, port, NTP
+  $precheck = run_task('ovadm::precheck', $server_host)
 
-  out::message('ovadm::status is not yet implemented. Contributions welcome!')
+  # Service status
+  $services = run_task('ovadm::service_status', $server_host)
 
-  # Future implementation outline:
-  #   1. Check service status (puppetserver, etc.)
-  #   2. Query OpenVox Server status API
-  #   3. Report certificate authority status
-  #   4. Return structured status data
+  # Build and print a report for each target
+  $precheck.each |$result| {
+    $target = $result.target.name
+    $checks  = $result.value['checks']
+    $svc_val = $services.find |$r| { $r.target.name == $target }.value
 
+    out::message("=== ${target} ===")
+
+    $checks.each |$c| {
+      $icon = $c['status'] ? {
+        'pass' => '✓',
+        'warn' => '!',
+        default => '✗',
+      }
+      out::message("  ${icon} ${c['check']}: ${c['detail']}")
+    }
+
+    $svc_val['services'].each |$svc| {
+      $icon = $svc['status'] ? {
+        'running' => '✓',
+        default   => '✗',
+      }
+      out::message("  ${icon} service/${svc['service']}: ${svc['status']}")
+    }
+  }
+
+  return({'precheck' => $precheck, 'services' => $services})
 }

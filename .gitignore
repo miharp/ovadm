@@ -13,3 +13,4 @@ Gemfile.lock
 .DS_Store
 *.swp
 spec/fixtures
+inventory.yaml

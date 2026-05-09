@@ -90,7 +90,7 @@ Tasks are the atomic operations that plans compose. The following are needed, gr
 
 | Task | Description | Notes |
 |------|-------------|-------|
-| `ovadm::service_status` | Report status of `puppetserver` service | Exists as stub — needs JSON output |
+| `ovadm::service_status` | Report status of `puppetserver` service | Returns structured JSON |
 | `ovadm::service_start` | Start `puppetserver` | |
 | `ovadm::service_stop` | Stop `puppetserver` | |
 | `ovadm::service_restart` | Restart `puppetserver` | Used post-config-change |
@@ -145,13 +145,13 @@ Tasks are the atomic operations that plans compose. The following are needed, gr
 
 Goal: enough scaffolding to run against a real target and get meaningful output.
 
-- [ ] `ovadm::precheck` task — validates OS family, Java, port 8140, NTP
-- [ ] `ovadm::os_identification` task
-- [ ] `ovadm::service_status` task — improve stub to return structured JSON
-- [ ] `ovadm::status` plan — calls precheck + service_status and returns a report
-- [ ] `ovadm::subplans::precheck` plan — wraps the task with clear failure messages
-- [ ] Bolt inventory example (`inventory.yaml.example`)
-- [ ] Basic spec tests for tasks
+- [x] `ovadm::precheck` task — validates OS family, Java, port 8140, NTP
+- [x] `ovadm::os_identification` task
+- [x] `ovadm::service_status` task — returns structured JSON
+- [x] `ovadm::status` plan — calls precheck + service_status and returns a report
+- [x] `ovadm::subplans::precheck` plan — wraps the task with clear failure messages
+- [x] Bolt inventory example (`inventory.yaml.example`)
+- [x] Basic spec tests for tasks (10 acceptance tests, all passing)
 
 **Deliverable:** `bolt plan run ovadm::status server_host=<target>` returns a real health report.
 

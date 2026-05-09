@@ -1,0 +1,16 @@
+---
+# Copy this file to inventory.yaml and fill in your target details.
+# inventory.yaml is gitignored — do not commit real hostnames or credentials.
+#
+# Bolt documentation: https://www.puppet.com/docs/bolt/latest/inventory_files.html
+
+config:
+  ssh:
+    host-key-check: false
+    user: root
+
+groups:
+  - name: openvox
+    targets:
+      - name: ovox-server
+        uri: ovox.example.com
