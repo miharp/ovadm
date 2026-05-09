@@ -13,8 +13,8 @@ plan ovadm::status(
   $precheck.each |$result| {
     $target  = $result.target.name
     $checks  = $result.value['checks']
-    $svc_val = $services.find |$r| { $r.target.name == $target }.value
-    $ver_val = $versions.find |$r| { $r.target.name == $target }.value
+    $svc_val = $services.find($target).value
+    $ver_val = $versions.find($target).value
 
     out::message("=== ${target} ===")
 
