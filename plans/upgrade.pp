@@ -4,21 +4,26 @@
 #   The target node running OpenVox Server
 #
 # @param ovox_version
-#   The target version to upgrade to
+#   The version to upgrade to (e.g. '8.4.0')
+#
+# @param compiler_hosts
+#   Compiler pool nodes to upgrade (Large topology — Phase 5, not yet implemented)
 #
 plan ovadm::upgrade(
   TargetSpec           $server_host,
-  Optional[String[1]]  $ovox_version = undef,
+  String[1]            $ovox_version,
+  Optional[TargetSpec] $compiler_hosts = undef,
 ) {
+  if $compiler_hosts {
+    fail_plan('Large topology upgrade (compiler_hosts) is not yet implemented. See Phase 5.')
+  }
 
-  out::message('ovadm::upgrade is not yet implemented. Contributions welcome!')
+  run_plan('ovadm::subplans::precheck', { 'server_host' => $server_host })
 
-  # Future implementation outline:
-  #   1. Verify current version and target version compatibility
-  #   2. Create pre-upgrade snapshot / backup
-  #   3. Stop OpenVox Server services
-  #   4. Install new packages
-  #   5. Run any migration steps
-  #   6. Start services and validate
+  run_plan('ovadm::subplans::upgrade_server', {
+    'server_host'  => $server_host,
+    'ovox_version' => $ovox_version,
+  })
 
+  out::message('OpenVox Server upgrade complete.')
 }

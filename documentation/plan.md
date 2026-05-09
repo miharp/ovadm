@@ -192,10 +192,10 @@ Scope notes:
 
 Goal: in-place version upgrade with service continuity.
 
-- [ ] `ovadm::get_version` task (finalize)
-- [ ] `ovadm::service_stop` / `ovadm::service_start` / `ovadm::service_restart`
-- [ ] `ovadm::subplans::upgrade_server` plan
-- [ ] `ovadm::upgrade` plan (standard topology)
+- [x] `ovadm::get_version` task (finalized in Phase 3)
+- [x] `ovadm::service_stop` / `ovadm::service_start` / `ovadm::service_restart`
+- [x] `ovadm::subplans::upgrade_server` plan
+- [x] `ovadm::upgrade` plan (standard topology)
 
 **Deliverable:** `bolt plan run ovadm::upgrade server_host=<target> ovox_version=8.x.x` upgrades cleanly.
 
