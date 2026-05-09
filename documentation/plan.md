@@ -159,15 +159,18 @@ Goal: enough scaffolding to run against a real target and get meaningful output.
 
 Goal: fully automated install of OpenVox Server on a single node.
 
-- [ ] `ovadm::configure_repo` task (apt + yum/dnf)
-- [ ] `ovadm::java_check` task
-- [ ] `ovadm::install_server` task
-- [ ] `ovadm::wait_until_service_ready` task
-- [ ] `ovadm::configure_puppet_conf` task
-- [ ] `ovadm::sign_csr` / `ovadm::submit_csr` tasks
-- [ ] `ovadm::subplans::install` plan
-- [ ] `ovadm::subplans::configure` plan
-- [ ] `ovadm::install` plan (top-level, standard topology only)
+- [x] `ovadm::configure_repo` task (apt + yum/dnf)
+- [x] `ovadm::install_server` task
+- [x] `ovadm::wait_until_service_ready` task
+- [x] `ovadm::configure_puppet_conf` task
+- [x] `ovadm::subplans::install` plan
+- [x] `ovadm::subplans::configure` plan
+- [x] `ovadm::install` plan (top-level, standard topology only)
+
+Scope notes:
+
+- `java_check` task dropped — `ovadm::precheck` already validates Java, and apt/yum pulls it in as a dependency of `openvox-server`.
+- `sign_csr` / `submit_csr` deferred to Phase 5 — not needed for a standard single-node install where the server is its own CA.
 
 **Deliverable:** `bolt plan run ovadm::install server_host=<target>` installs and configures a working OpenVox Server.
 
