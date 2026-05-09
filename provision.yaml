@@ -1,17 +1,18 @@
 ---
-# Docker images with systemd enabled — required for service management tasks.
-# Uses geerlingguy's ansible images which ship with systemd pre-configured.
+# Node sets for litmus:provision_list.
+# Uses geerlingguy's ansible images which ship with systemd pre-configured,
+# required for testing service management tasks.
 #
 # Usage:
-#   bundle exec rake 'litmus:provision[docker, ubuntu-2204]'
-#   bundle exec rake 'litmus:provision[docker, rocky-9]'
+#   bundle exec rake 'litmus:provision_list[default]'   # Ubuntu 22.04
+#   bundle exec rake 'litmus:provision_list[rocky9]'    # Rocky Linux 9
 
 default:
-  - name: ubuntu-2204
-    image: 'geerlingguy/docker-ubuntu2204-ansible'
-    provider: docker
+  provisioner: docker
+  images:
+    - geerlingguy/docker-ubuntu2204-ansible
 
 rocky9:
-  - name: rocky-9
-    image: 'geerlingguy/docker-rockylinux9-ansible'
-    provider: docker
+  provisioner: docker
+  images:
+    - geerlingguy/docker-rockylinux9-ansible
