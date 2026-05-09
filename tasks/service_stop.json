@@ -1,0 +1,6 @@
+{
+  "description": "Stop the puppetserver service",
+  "input_method": "environment",
+  "parameters": {},
+  "supports_noop": false
+}
