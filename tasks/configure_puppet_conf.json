@@ -10,6 +10,10 @@
       "description": "Hostname of the OpenVox Server; defaults to the system FQDN",
       "type": "Optional[String[1]]"
     },
+    "ca_server": {
+      "description": "CA server hostname; set on compile masters to point to the primary",
+      "type": "Optional[String[1]]"
+    },
     "dns_alt_names": {
       "description": "Comma-separated list of DNS alternative names for the server certificate",
       "type": "Optional[String[1]]"

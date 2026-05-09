@@ -23,4 +23,13 @@ RSpec.describe 'ovadm::configure_puppet_conf task' do
     })
     expect(result.result['certname']).to eq('mynode.example.com')
   end
+
+  it 'accepts a ca_server parameter without error' do
+    result = run_bolt_task('ovadm::configure_puppet_conf', {
+      'server'    => 'puppet.example.com',
+      'ca_server' => 'ca.example.com',
+    })
+    expect(result.exit_code).to eq(0)
+    expect(result.result['status']).to eq('success')
+  end
 end

@@ -1,0 +1,11 @@
+{
+  "description": "Sign a pending CSR on the OpenVox CA (primary server)",
+  "input_method": "environment",
+  "parameters": {
+    "certname": {
+      "description": "The certificate name to sign",
+      "type": "String[1]"
+    }
+  },
+  "supports_noop": false
+}
