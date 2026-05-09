@@ -1,0 +1,6 @@
+{
+  "description": "Return the installed openvox-server package version, or 'not_installed'",
+  "input_method": "environment",
+  "parameters": {},
+  "supports_noop": false
+}
