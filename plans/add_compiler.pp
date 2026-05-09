@@ -1,0 +1,33 @@
+# @summary Add one or more compiler nodes to an existing OpenVox Server deployment
+#
+# @param server_host
+#   The primary OpenVox Server (acts as CA)
+#
+# @param compiler_hosts
+#   The compiler node(s) to install and enroll
+#
+# @param ovox_version
+#   Specific version to install on the compilers; omit for latest
+#
+plan ovadm::add_compiler(
+  TargetSpec          $server_host,
+  TargetSpec          $compiler_hosts,
+  Optional[String[1]] $ovox_version = undef,
+) {
+  run_plan('ovadm::subplans::precheck', { 'server_host' => $compiler_hosts })
+
+  $server_fqdn = run_command('hostname -f', $server_host).first.value['stdout'].strip
+
+  run_plan('ovadm::subplans::agent_install', {
+    'compiler_hosts' => $compiler_hosts,
+    'server_fqdn'    => $server_fqdn,
+    'ovox_version'   => $ovox_version,
+  })
+
+  run_plan('ovadm::subplans::cert_setup', {
+    'compiler_hosts' => $compiler_hosts,
+    'server_host'    => $server_host,
+  })
+
+  out::message('Compiler(s) added to the pool.')
+}

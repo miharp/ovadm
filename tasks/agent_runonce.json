@@ -1,0 +1,11 @@
+{
+  "description": "Run the Puppet agent once and return the exit status",
+  "input_method": "environment",
+  "parameters": {
+    "waitforcert": {
+      "description": "Seconds to wait for a certificate to be signed (0 = submit CSR and exit immediately)",
+      "type": "Optional[Integer]"
+    }
+  },
+  "supports_noop": false
+}

@@ -203,13 +203,20 @@ Goal: in-place version upgrade with service continuity.
 
 Goal: install and upgrade across `server_host` + `compiler_hosts` deployments.
 
-- [ ] `ovadm::install_agent` task
-- [ ] `ovadm::agent_runonce` task
-- [ ] `ovadm::modify_certificate` task (compiler role OIDs)
-- [ ] `ovadm::add_compiler` plan
-- [ ] Extend `ovadm::install` for Large topology
-- [ ] `ovadm::subplans::upgrade_compilers`
-- [ ] Extend `ovadm::upgrade` for Large topology
+- [x] `ovadm::install_agent` task
+- [x] `ovadm::agent_runonce` task
+- [x] `ovadm::sign_csr` task
+- [x] `configure_puppet_conf` extended with `ca_server` parameter
+- [x] `ovadm::subplans::agent_install` plan
+- [x] `ovadm::subplans::cert_setup` plan
+- [x] `ovadm::add_compiler` plan
+- [x] Extend `ovadm::install` for Large topology
+- [x] `ovadm::subplans::upgrade_compilers`
+- [x] Extend `ovadm::upgrade` for Large topology
+
+Scope notes:
+
+- `modify_certificate` (OID-based role tagging) deferred — open question #5 unresolved; a working Large topology does not require it.
 
 **Deliverable:** `bolt plan run ovadm::install server_host=<target> compiler_hosts=<c1>,<c2>` installs a working Large topology.
 
