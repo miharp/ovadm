@@ -32,7 +32,7 @@ if [ "$os_family" = 'Debian' ]; then
   pkg_name="openvox${OVOX_MAJOR}-release-${os_id}${os_version}.deb"
   url="https://apt.voxpupuli.org/${pkg_name}"
   tmpfile=$(mktemp "/tmp/${pkg_name}.XXXXX")
-  wget -q -O "$tmpfile" "$url"
+  curl -fsSL -o "$tmpfile" "$url"
   dpkg -i "$tmpfile" >&2
   rm -f "$tmpfile"
   apt-get update -qq >&2

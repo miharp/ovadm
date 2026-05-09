@@ -27,9 +27,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform:
-          - default    # Ubuntu 22.04 (geerlingguy/docker-ubuntu2204-ansible)
-          # rocky9 removed until a working EL9 systemd image for GHA is confirmed
+        include:
+          - platform: ubuntu2204
+            image: ubuntu:22.04
+          # rocky9: add when a working EL9 image is confirmed
 
     steps:
       - uses: actions/checkout@v4
@@ -38,12 +39,19 @@ jobs:
         with:
           bundler-cache: true
 
-      - name: Provision ${{ matrix.platform }}
-        run: bundle exec rake 'litmus:provision_list[${{ matrix.platform }}]'
+      - name: Start test container (${{ matrix.platform }})
+        run: |
+          docker pull ${{ matrix.image }}
+          docker run -d --name ovadm-acceptance ${{ matrix.image }} sleep infinity
+
+      - name: Bootstrap container
+        run: |
+          docker exec ovadm-acceptance bash -c \
+            "apt-get update -qq && apt-get install -y -qq curl ca-certificates"
 
       - name: Run acceptance tests
-        run: bundle exec rake 'litmus:acceptance:parallel'
+        run: bundle exec rspec spec/acceptance/
 
-      - name: Tear down
+      - name: Remove container
         if: always()
-        run: bundle exec rake litmus:tear_down
+        run: docker rm -f ovadm-acceptance || true
