@@ -15,7 +15,7 @@ jobs:
       matrix:
         platform:
           - default    # Ubuntu 22.04 (geerlingguy/docker-ubuntu2204-ansible)
-          - rocky9     # Rocky Linux 9 (geerlingguy/docker-rockylinux9-ansible)
+          # rocky9 removed until a working EL9 systemd image for GHA is confirmed
 
     steps:
       - uses: actions/checkout@v4

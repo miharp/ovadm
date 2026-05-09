@@ -12,6 +12,8 @@ default:
   images:
     - geerlingguy/docker-ubuntu2204-ansible
 
+# rocky9 is defined for local use but excluded from CI — the geerlingguy EL9
+# image's systemd does not come up cleanly inside GitHub Actions' Docker env.
 rocky9:
   provisioner: docker
   images:
