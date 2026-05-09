@@ -2,13 +2,15 @@
 
 require 'bolt_spec/plans'
 
-FIXTURES_MODULES = File.expand_path('../fixtures/modules', __dir__)
+# Parent directory of the repo — Bolt finds the `ovadm` module here because
+# the repo directory itself is named `ovadm`. No fixture symlink required.
+MODULE_PARENT = File.expand_path('../../..', __dir__)
 
 # Override BoltSpec::BoltContext#modulepath so plan specs find the ovadm
-# module under spec/fixtures/modules without needing rspec-puppet.
+# module without needing rspec-puppet or a spec/fixtures symlink.
 module OvadmBoltContext
   def modulepath
-    [FIXTURES_MODULES]
+    [MODULE_PARENT]
   end
 end
 
