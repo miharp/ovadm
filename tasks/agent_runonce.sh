@@ -1,6 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
+export PATH="/opt/puppetlabs/bin:$PATH"
+
 waitforcert="${PT_waitforcert:-30}"
 
 if ! command -v puppet >/dev/null 2>&1; then

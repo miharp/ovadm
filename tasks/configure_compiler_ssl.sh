@@ -1,6 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
+export PATH="/opt/puppetlabs/bin:$PATH"
+
 # Configure the puppetserver webserver to use SSL certs obtained from the
 # Puppet CA (via puppet agent) rather than a self-generated CA.
 # Must be run after puppet agent has fetched its cert and before puppetserver
