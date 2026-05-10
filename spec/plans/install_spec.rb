@@ -6,13 +6,9 @@ describe 'ovadm::install' do
   let(:server)   { 'ovox-primary.example.com' }
   let(:compiler) { 'ovox-compiler01.example.com' }
 
-  before(:each) { execute_no_plan }
-
-  def standard_stubs
-    allow_plan('ovadm::subplans::precheck').always_return(nil)
-    allow_plan('ovadm::subplans::install').always_return(nil)
-    allow_plan('ovadm::subplans::configure').always_return(nil)
-    allow_task('ovadm::wait_until_service_ready').always_return({})
+  before(:each) do
+    execute_no_plan
+    allow_command('systemctl enable --now puppetserver').always_return('stdout' => '', 'stderr' => '')
   end
 
   context 'Standard topology (no compiler_hosts)' do

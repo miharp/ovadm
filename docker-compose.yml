@@ -1,0 +1,24 @@
+name: ovadm
+
+services:
+  puppet:
+    build: docker
+    container_name: ovadm-server
+    hostname: puppet
+    privileged: true
+    ports:
+      - "8140:8140"
+    networks:
+      - ovadm
+
+  compiler01:
+    build: docker
+    container_name: ovadm-compiler01
+    hostname: compiler01
+    privileged: true
+    networks:
+      - ovadm
+
+networks:
+  ovadm:
+    driver: bridge

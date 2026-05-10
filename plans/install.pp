@@ -38,6 +38,8 @@ plan ovadm::install(
     'dns_alt_names' => $dns_alt_names,
   })
 
+  run_command('systemctl enable --now puppetserver', $server_host)
+
   run_task('ovadm::wait_until_service_ready', $server_host)
 
   if $compiler_hosts {

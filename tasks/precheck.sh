@@ -30,8 +30,8 @@ fi
 
 # --- Java ---
 java_version=''
-java_status='fail'
-java_detail='java not found on PATH'
+java_status='warn'
+java_detail='java not found; will be installed as a dependency of openvox-server'
 
 if command -v java >/dev/null 2>&1; then
   java_version=$(java -version 2>&1 | awk -F'"' '/version/{print $2}' | head -1)
@@ -40,11 +40,10 @@ if command -v java >/dev/null 2>&1; then
     java_status='pass'
     java_detail="java $java_version"
   else
+    java_status='fail'
     java_detail="java $java_version found but OpenVox requires 17 or 21"
     pass=false
   fi
-else
-  pass=false
 fi
 
 java_check=$(printf '{"check":"java","status":"%s","detail":"%s"}' "$java_status" "$java_detail")
@@ -76,16 +75,16 @@ if command -v timedatectl >/dev/null 2>&1; then
     ntp_status='pass'
     ntp_detail='NTP synchronised'
   else
-    ntp_detail='NTP not synchronised (timedatectl NTPSynchronized=no)'
-    pass=false
+    ntp_status='warn'
+    ntp_detail='NTP not synchronised — verify time sync before production use'
   fi
 elif command -v chronyc >/dev/null 2>&1; then
   if chronyc tracking 2>/dev/null | grep -q 'Reference ID'; then
     ntp_status='pass'
     ntp_detail='chrony tracking active'
   else
-    ntp_detail='chrony not synchronised'
-    pass=false
+    ntp_status='warn'
+    ntp_detail='chrony not synchronised — verify time sync before production use'
   fi
 else
   ntp_status='warn'
