@@ -158,8 +158,8 @@ bolt plan run ovadm::install server_host=puppet \
   --inventoryfile docker/inventory.yaml
 
 # 2. Enable autosign so the agent cert is signed automatically
-bolt command run 'echo "*" > /etc/puppetlabs/puppet/autosign.conf' \
-  --targets puppet --inventoryfile docker/inventory.yaml
+#    (bolt's docker transport doesn't shell-expand redirects; use docker exec directly)
+docker exec ovadm-server bash -c 'echo "*" > /etc/puppetlabs/puppet/autosign.conf'
 
 # 3. Add the compiler (Large topology)
 bolt plan run ovadm::add_compiler \
