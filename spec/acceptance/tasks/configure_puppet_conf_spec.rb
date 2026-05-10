@@ -8,7 +8,7 @@ RSpec.describe 'ovadm::configure_puppet_conf task' do
     expect(result.exit_code).to eq(0)
     data = result.result
     expect(data['status']).to eq('success')
-    expect(data['path']).to eq('/etc/openvox/puppet.conf')
+    expect(data['path']).to eq('/etc/puppetlabs/puppet/puppet.conf')
   end
 
   it 'reflects the server value in the response' do

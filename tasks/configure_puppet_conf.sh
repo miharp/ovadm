@@ -1,8 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-# Path is provisional — verify on a real OpenVox install
-PUPPET_CONF='/etc/openvox/puppet.conf'
+PUPPET_CONF='/etc/puppetlabs/puppet/puppet.conf'
 
 certname="${PT_certname:-$(hostname -f)}"
 server="${PT_server:-$(hostname -f)}"

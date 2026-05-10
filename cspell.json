@@ -1,0 +1,35 @@
+{
+  "version": "0.2",
+  "language": "en",
+  "words": [
+    "autosign",
+    "bcrypt",
+    "bento",
+    "certname",
+    "confdir",
+    "dpkg",
+    "facter",
+    "hiera",
+    "modulepath",
+    "noarch",
+    "openbolt",
+    "openvox",
+    "openvoxdb",
+    "pbkdf",
+    "puppetdb",
+    "Puppetfile",
+    "puppetlabs",
+    "puppetserver",
+    "rockylinux",
+    "rspec",
+    "storeconfigs",
+    "voxpupuli",
+    "waitforlock",
+    "yumrepo"
+  ],
+  "ignorePaths": [
+    "spec/fixtures/**",
+    "vendor/**",
+    ".git/**"
+  ]
+}

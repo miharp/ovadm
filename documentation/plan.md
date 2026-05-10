@@ -267,11 +267,13 @@ peadm generates RBAC tokens for API access. OpenVox uses standard SSL client cer
 
 | File | peadm (PE) | ovadm (OpenVox) |
 |------|-----------|-----------------|
-| Main config | `/etc/puppetlabs/puppet/puppet.conf` | `/etc/openvox/puppet.conf` |
-| Server config dir | `/etc/puppetlabs/puppetserver/conf.d/` | `/etc/puppetserver/conf.d/` |
-| Auth rules | `/etc/puppetlabs/puppetserver/conf.d/auth.conf` | `/etc/puppetserver/conf.d/auth.conf` |
+| Main config | `/etc/puppetlabs/puppet/puppet.conf` | `/etc/puppetlabs/puppet/puppet.conf` |
+| Server config dir | `/etc/puppetlabs/puppetserver/conf.d/` | `/etc/puppetlabs/puppetserver/conf.d/` |
+| Auth rules | `/etc/puppetlabs/puppetserver/conf.d/auth.conf` | `/etc/puppetlabs/puppetserver/conf.d/auth.conf` |
+| SSL dir | `/etc/puppetlabs/puppet/ssl/` | `/etc/puppetlabs/puppet/ssl/` |
+| CA cert | `/etc/puppetlabs/puppetserver/ca/ca_crt.pem` | `/etc/puppetlabs/puppetserver/ca/ca_crt.pem` |
 
-**Note:** Confirm these paths against the running system — OpenVox docs are still being written and paths should be treated as provisional until verified on a real install.
+**Confirmed on OpenVox 8.13.0 / CentOS Stream 10.** OpenVox inherits the `/etc/puppetlabs/` layout from upstream Puppet — it does not install under `/etc/openvox/` (that directory contains only `openvox.yml`, the OpenVox-specific service config).
 
 ### Code management
 
@@ -283,13 +285,13 @@ peadm has deep Code Manager / r10k integration. OpenVox uses standard Puppet cod
 
 These need research or community input before implementation:
 
-1. **Exact config file paths** — What are the canonical paths for `puppet.conf`, `puppetserver.conf`, and `auth.conf` on a fresh OpenVox 8 install? Needs verification on a real system.
+1. ~~**Exact config file paths**~~ — Confirmed on OpenVox 8.13.0 / CentOS Stream 10. OpenVox inherits the `/etc/puppetlabs/` layout from upstream Puppet: `puppet.conf` at `/etc/puppetlabs/puppet/puppet.conf`, conf.d at `/etc/puppetlabs/puppetserver/conf.d/`, SSL at `/etc/puppetlabs/puppet/ssl/`. The `/etc/openvox/` directory exists but contains only `openvox.yml` (OpenVox-specific service config).
 
 2. ~~**Service name**~~ — Confirmed `puppetserver` via [install_from_packages](https://docs.openvoxproject.org/openvox-server/latest/install_from_packages.html)
 
-3. **PostgreSQL packaging** — Does OpenVox ship a bundled PostgreSQL, or does the operator provide their own? What is the recommended version?
+3. ~~**PostgreSQL packaging**~~ — Confirmed: OpenVox does not bundle PostgreSQL. The operator provides it from OS packages (EL10 AppStream ships PostgreSQL 16). OpenVoxDB (`openvoxdb`, `openvoxdb-termini` packages) integrates with whatever PostgreSQL is present.
 
-4. **OpenVoxDB** — Is it required for any ovadm functionality, or always optional? What are its package names?
+4. ~~**OpenVoxDB**~~ — Confirmed: package names are `openvoxdb` and `openvoxdb-termini`; service name is `puppetdb`. Not required for a basic install — OpenVox Server serves catalogs and acts as its own CA without it. Required if `storeconfigs`/reports are enabled.
 
 5. **Certificate extensions / compiler roles** — Does OpenVox support OID-based role tagging on certificates (as peadm uses for compiler classification), or does this need a different approach?
 
