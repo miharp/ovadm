@@ -1,5 +1,5 @@
 {
-  "description": "Write /etc/openvox/puppet.conf with server identity and optional DNS alt names",
+  "description": "Write /etc/puppetlabs/puppet/puppet.conf with server identity and optional DNS alt names",
   "input_method": "environment",
   "parameters": {
     "certname": {
