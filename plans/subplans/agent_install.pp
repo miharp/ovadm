@@ -1,11 +1,11 @@
 # @summary Install OpenVox Server on compiler hosts and configure them to use
-#          the primary as their CA
+#          the server as their CA
 #
 # @param compiler_hosts
 #   The compiler node(s) to set up
 #
 # @param server_fqdn
-#   FQDN of the primary server (used for puppet.conf server and ca_server)
+#   FQDN of the server (used for puppet.conf server and ca_server)
 #
 # @param ovox_version
 #   Specific version to install; omit for latest

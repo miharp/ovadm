@@ -5,7 +5,7 @@
 # When compiler_hosts is provided, installs a Large topology.
 #
 # @param server_host
-#   The primary OpenVox Server node
+#   The OpenVox Server node
 #
 # @param compiler_hosts
 #   One or more compiler nodes (Large topology)

@@ -16,12 +16,12 @@ A single OpenVox Server node managing agents.
 
 ### Large
 
-A primary server plus one or more compilers that distribute catalog compilation across large agent populations.
+An OpenVox Server plus one or more compilers that distribute catalog compilation across large agent populations.
 
 ```text
 [Agents] → [Load Balancer] → [Compiler Pool]
                                     ↓
-                          [OpenVox Server (primary)]
+                            [OpenVox Server]
 ```
 
 ## Plans
@@ -45,42 +45,42 @@ A primary server plus one or more compilers that distribute catalog compilation 
 ### Install a Standard deployment
 
 ```bash
-bolt plan run ovadm::install server_host=ovox.example.com
+bolt plan run ovadm::install server_host=ovox-server.example.com
 ```
 
 ### Install a Large deployment
 
 ```bash
 bolt plan run ovadm::install \
-  server_host=ovox-primary.example.com \
+  server_host=ovox-server.example.com \
   compiler_hosts=ovox-compiler01.example.com,ovox-compiler02.example.com
 ```
 
 ### Check deployment health
 
 ```bash
-bolt plan run ovadm::status server_host=ovox.example.com
+bolt plan run ovadm::status server_host=ovox-server.example.com
 ```
 
 ### Upgrade
 
 ```bash
-bolt plan run ovadm::upgrade server_host=ovox.example.com ovox_version=8.4.0
+bolt plan run ovadm::upgrade server_host=ovox-server.example.com ovox_version=8.4.0
 ```
 
 ### Add a compiler to an existing deployment
 
 ```bash
 bolt plan run ovadm::add_compiler \
-  server_host=ovox-primary.example.com \
+  server_host=ovox-server.example.com \
   compiler_hosts=ovox-compiler03.example.com
 ```
 
 ### Quick status snapshot (no plan needed)
 
 ```bash
-bolt task run ovadm::infrastatus --targets ovox.example.com
-bolt task run ovadm::precheck    --targets ovox.example.com
+bolt task run ovadm::infrastatus --targets ovox-server.example.com
+bolt task run ovadm::precheck    --targets ovox-server.example.com
 ```
 
 ## Inventory
@@ -142,11 +142,11 @@ docker rm -f ovadm-acceptance
 
 | Container | Role | Image |
 | --------- | ---- | ----- |
-| `ovadm-server` | Primary OpenVox Server (CA) | Built from `docker/Dockerfile` |
+| `ovadm-server` | OpenVox Server (CA) | Built from `docker/Dockerfile` |
 | `ovadm-compiler01` | Compiler | Built from `docker/Dockerfile` |
 | `ovadm-agent` | Agent (catalog verification) | `ghcr.io/openvoxproject/openvoxagent:latest` |
 
-The agent is pre-configured (via `docker/agent-puppet.conf`) to request catalogs from `compiler01` and certificates from the primary server.
+The agent is pre-configured (via `docker/agent-puppet.conf`) to request catalogs from `compiler01` and certificates from the server.
 
 ```bash
 # Build and start all three containers
@@ -167,7 +167,7 @@ bolt plan run ovadm::add_compiler \
   --inventoryfile docker/inventory.yaml
 
 # 4. Run the agent — connects to compiler01 for catalog compilation,
-#    cert is autosigned by the primary server
+#    cert is autosigned by the server
 docker exec ovadm-agent /opt/puppetlabs/bin/puppet agent -t
 
 # Check status

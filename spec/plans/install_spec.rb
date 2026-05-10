@@ -3,7 +3,7 @@
 require_relative 'spec_helper'
 
 describe 'ovadm::install' do
-  let(:server)   { 'ovox-primary.example.com' }
+  let(:server)   { 'ovox-server.example.com' }
   let(:compiler) { 'ovox-compiler01.example.com' }
 
   before(:each) do
