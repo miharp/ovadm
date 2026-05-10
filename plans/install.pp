@@ -57,6 +57,10 @@ plan ovadm::install(
       'compiler_hosts' => $compiler_hosts,
       'server_host'    => $server_host,
     })
+
+    run_task('ovadm::configure_compiler_ssl', $compiler_hosts)
+
+    run_command('systemctl enable --now puppetserver', $compiler_hosts)
   }
 
   out::message('OpenVox Server installation complete.')

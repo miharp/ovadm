@@ -1,0 +1,6 @@
+{
+  "description": "Configure puppetserver SSL on a compiler to use the puppet-CA-signed node certificate",
+  "input_method": "environment",
+  "parameters": {},
+  "supports_noop": false
+}

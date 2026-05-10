@@ -19,6 +19,17 @@ services:
     networks:
       - ovadm
 
+  agent:
+    image: ghcr.io/openvoxproject/openvoxagent:latest
+    container_name: ovadm-agent
+    hostname: agent
+    entrypoint: ["/bin/sleep"]
+    command: ["infinity"]
+    volumes:
+      - ./docker/agent-puppet.conf:/etc/puppetlabs/puppet/puppet.conf:ro
+    networks:
+      - ovadm
+
 networks:
   ovadm:
     driver: bridge

@@ -138,21 +138,37 @@ docker rm -f ovadm-acceptance
 
 ### Local Docker dev environment
 
-`docker-compose.yml` defines a two-node environment (primary server + one compiler) using Rocky Linux 9 with systemd. This lets you run real Bolt plans against local containers.
+`docker-compose.yml` defines a three-node environment using Rocky Linux 9 with systemd:
+
+| Container | Role | Image |
+| --------- | ---- | ----- |
+| `ovadm-server` | Primary OpenVox Server (CA) | Built from `docker/Dockerfile` |
+| `ovadm-compiler01` | Compiler | Built from `docker/Dockerfile` |
+| `ovadm-agent` | Agent (catalog verification) | `ghcr.io/openvoxproject/openvoxagent:latest` |
+
+The agent is pre-configured (via `docker/agent-puppet.conf`) to request catalogs from `compiler01` and certificates from the primary server.
 
 ```bash
-# Build and start containers (systemd is active inside each container)
+# Build and start all three containers
 docker compose build
 docker compose up -d
 
-# Run a Standard install
+# 1. Install the primary OpenVox Server
 bolt plan run ovadm::install server_host=puppet \
   --inventoryfile docker/inventory.yaml
 
-# Add a compiler (Large topology)
+# 2. Enable autosign so the agent cert is signed automatically
+bolt command run 'echo "*" > /etc/puppetlabs/puppet/autosign.conf' \
+  --targets puppet --inventoryfile docker/inventory.yaml
+
+# 3. Add the compiler (Large topology)
 bolt plan run ovadm::add_compiler \
   server_host=puppet compiler_hosts=compiler01 \
   --inventoryfile docker/inventory.yaml
+
+# 4. Run the agent — connects to compiler01 for catalog compilation,
+#    cert is autosigned by the primary server
+docker exec ovadm-agent /opt/puppetlabs/bin/puppet agent -t
 
 # Check status
 bolt plan run ovadm::status server_host=puppet \
