@@ -31,6 +31,9 @@ jobs:
           - platform: ubuntu2204
             image: ubuntu:22.04
             bootstrap: "apt-get update -qq && apt-get install -y -qq curl ca-certificates"
+          - platform: ubuntu2404
+            image: ubuntu:24.04
+            bootstrap: "apt-get update -qq && apt-get install -y -qq curl ca-certificates"
           - platform: rocky9
             image: rockylinux:9
             bootstrap: "dnf install -y -q ca-certificates"

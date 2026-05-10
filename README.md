@@ -37,7 +37,7 @@ An OpenVox Server plus one or more compilers that distribute catalog compilation
 
 - [OpenBolt](https://github.com/OpenVoxProject/openbolt) (gem: `openbolt`)
 - Ruby >= 3.2 (for the test suite — use rbenv or equivalent, not the system Ruby)
-- A supported Linux target: Rocky Linux 9, Ubuntu 22.04 (tested in CI); other RHEL-family and Debian-family platforms should work
+- A supported Linux target: Rocky Linux 9, Ubuntu 22.04, Ubuntu 24.04 (tested in CI); other RHEL-family and Debian-family platforms should work
 - Java 17 or 21 on the target — installed automatically as a dependency of `openvox-server`; `ovadm::precheck` warns if absent but does not block the install
 
 ## Usage
