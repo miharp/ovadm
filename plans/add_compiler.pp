@@ -29,5 +29,9 @@ plan ovadm::add_compiler(
     'server_host'    => $server_host,
   })
 
+  run_task('ovadm::configure_compiler_ssl', $compiler_hosts)
+
+  run_command('systemctl enable --now puppetserver', $compiler_hosts)
+
   out::message('Compiler(s) added to the pool.')
 }

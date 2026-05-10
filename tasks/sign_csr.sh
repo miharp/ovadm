@@ -1,6 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
+export PATH="/opt/puppetlabs/bin:$PATH"
+
 certname="${PT_certname}"
 
 if ! command -v puppetserver >/dev/null 2>&1; then

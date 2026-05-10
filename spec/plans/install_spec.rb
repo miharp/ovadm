@@ -9,6 +9,7 @@ describe 'ovadm::install' do
   before(:each) do
     execute_no_plan
     allow_command('systemctl enable --now puppetserver').always_return('stdout' => '', 'stderr' => '')
+    allow_task('ovadm::configure_compiler_ssl').always_return('status' => 'success')
   end
 
   context 'Standard topology (no compiler_hosts)' do
@@ -31,6 +32,7 @@ describe 'ovadm::install' do
       expect_task('ovadm::wait_until_service_ready').be_called_times(1)
       expect_plan('ovadm::subplans::agent_install').be_called_times(1)
       expect_plan('ovadm::subplans::cert_setup').be_called_times(1)
+      expect_task('ovadm::configure_compiler_ssl').be_called_times(1)
 
       allow_command('hostname -f').always_return('stdout' => "#{server}\n", 'stderr' => '')
 
