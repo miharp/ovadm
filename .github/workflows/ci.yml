@@ -30,7 +30,10 @@ jobs:
         include:
           - platform: ubuntu2204
             image: ubuntu:22.04
-          # rocky9: add when a working EL9 image is confirmed
+            bootstrap: "apt-get update -qq && apt-get install -y -qq curl ca-certificates"
+          - platform: rocky9
+            image: rockylinux:9
+            bootstrap: "dnf install -y -q ca-certificates"
 
     steps:
       - uses: actions/checkout@v4
@@ -46,8 +49,7 @@ jobs:
 
       - name: Bootstrap container
         run: |
-          docker exec ovadm-acceptance bash -c \
-            "apt-get update -qq && apt-get install -y -qq curl ca-certificates"
+          docker exec ovadm-acceptance bash -c "${{ matrix.bootstrap }}"
 
       - name: Run acceptance tests
         run: bundle exec rspec spec/acceptance/

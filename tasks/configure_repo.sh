@@ -40,7 +40,7 @@ elif [ "$os_family" = 'RedHat' ]; then
   el_major="${os_version%%.*}"
   pkg_name="openvox${OVOX_MAJOR}-release-el-${el_major}.noarch.rpm"
   url="https://yum.voxpupuli.org/${pkg_name}"
-  rpm -Uvh "$url" >&2
+  rpm -Uvh --replacepkgs "$url" >&2
   yum makecache -q >&2 || true
 else
   printf '{"status":"fail","error":"Unsupported OS family: %s"}\n' "$os_family"
