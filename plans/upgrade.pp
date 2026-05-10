@@ -1,7 +1,7 @@
 # @summary Upgrade an existing OpenVox Server deployment
 #
 # @param server_host
-#   The primary OpenVox Server node
+#   The OpenVox Server node
 #
 # @param ovox_version
 #   The version to upgrade to (e.g. '8.4.0')

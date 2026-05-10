@@ -1,13 +1,13 @@
 # @summary Submit and sign certificates for compiler hosts
 #
-# For each compiler: runs the agent to submit a CSR, signs it on the primary,
+# For each compiler: runs the agent to submit a CSR, signs it on the server,
 # then runs the agent again to apply the initial catalog.
 #
 # @param compiler_hosts
 #   The compiler node(s) whose certificates need to be set up
 #
 # @param server_host
-#   The primary server that acts as the CA
+#   The server that acts as the CA
 #
 plan ovadm::subplans::cert_setup(
   TargetSpec $compiler_hosts,

@@ -11,7 +11,7 @@
       "type": "Optional[String[1]]"
     },
     "ca_server": {
-      "description": "CA server hostname; set on compilers to point to the primary",
+      "description": "CA server hostname; set on compilers to point to the server",
       "type": "Optional[String[1]]"
     },
     "dns_alt_names": {

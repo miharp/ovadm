@@ -1,5 +1,5 @@
 {
-  "description": "Sign a pending CSR on the OpenVox CA (primary server)",
+  "description": "Sign a pending CSR on the OpenVox CA server",
   "input_method": "environment",
   "parameters": {
     "certname": {

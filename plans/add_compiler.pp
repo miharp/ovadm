@@ -1,7 +1,7 @@
 # @summary Add one or more compiler nodes to an existing OpenVox Server deployment
 #
 # @param server_host
-#   The primary OpenVox Server (acts as CA)
+#   The OpenVox Server (acts as CA)
 #
 # @param compiler_hosts
 #   The compiler node(s) to install and enroll

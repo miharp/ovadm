@@ -3,7 +3,7 @@
 require_relative 'spec_helper'
 
 describe 'ovadm::upgrade' do
-  let(:server)   { 'ovox-primary.example.com' }
+  let(:server)   { 'ovox-server.example.com' }
   let(:compiler) { 'ovox-compiler01.example.com' }
   let(:version)  { '8.4.0' }
 
