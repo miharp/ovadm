@@ -35,10 +35,10 @@ A primary server plus one or more compile masters that distribute catalog compil
 
 ## Requirements
 
-- [OpenBolt](https://github.com/OpenVoxProject/openbolt) >= 3.17.0 (gem: `openbolt`)
+- [OpenBolt](https://github.com/OpenVoxProject/openbolt) (gem: `openbolt`)
 - Ruby >= 3.2 (for the test suite — use rbenv or equivalent, not the system Ruby)
-- A supported Linux target: RHEL/Rocky/AlmaLinux 8–9, Debian 11–12, Ubuntu 22.04/24.04
-- Java 17 or 21 on the target (validated by `ovadm::precheck`; installed as a dependency of `openvox-server`)
+- A supported Linux target: Rocky Linux 9, Ubuntu 22.04 (tested in CI); other RHEL-family and Debian-family platforms should work
+- Java 17 or 21 on the target — installed automatically as a dependency of `openvox-server`; `ovadm::precheck` warns if absent but does not block the install
 
 ## Usage
 
@@ -100,6 +100,7 @@ ovadm::install
   └─ ovadm::subplans::precheck       (OS, Java, port, NTP validation)
   └─ ovadm::subplans::install        (configure_repo → install_server)
   └─ ovadm::subplans::configure      (puppet.conf)
+  └─ systemctl enable --now puppetserver
   └─ ovadm::wait_until_service_ready
   └─ ovadm::subplans::agent_install  (compilers — Large topology only)
   └─ ovadm::subplans::cert_setup     (CSR submit → sign → agent run)
@@ -112,7 +113,7 @@ See [`documentation/plan.md`](documentation/plan.md) for the full task catalog a
 | Concern | peadm (PE) | ovadm (OpenVox) |
 | ------- | ---------- | --------------- |
 | Installation | Tarball installer | OS packages via apt/yum |
-| Java | Bundled | Required separately; validated by precheck |
+| Java | Bundled | Installed as a package dependency; precheck warns if absent |
 | HA replica | Supported | Not supported (PE-only feature) |
 | Console / RBAC | Required | Not present |
 | Service name | `pe-puppetserver` | `puppetserver` |

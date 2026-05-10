@@ -2,6 +2,7 @@
 .resource/
 .modules/
 .task_cache/
+bolt-debug.log
 
 # Ruby
 vendor/
