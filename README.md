@@ -2,7 +2,7 @@
 
 ovadm is an [OpenBolt](https://github.com/OpenVoxProject/openbolt) module that automates the deployment, upgrade, and management of [OpenVox Server](https://docs.openvoxproject.org) infrastructure. It is modeled after [puppetlabs-peadm](https://github.com/puppetlabs/puppetlabs-peadm) and adapted for OpenVox's package-based install and simpler architecture (no console, orchestrator, or RBAC database).
 
-> **Experimental.** This module works against real targets but has not been validated at scale. Some config file paths are provisional until confirmed on a broader set of OpenVox releases. See [Open Questions](documentation/plan.md#open-questions) in the implementation plan.
+> **Experimental.** This module works against real targets but has not been validated at scale. See [Open Questions](documentation/plan.md#open-questions) in the implementation plan.
 
 ## Supported topologies
 
@@ -119,14 +119,52 @@ See [`documentation/plan.md`](documentation/plan.md) for the full task catalog a
 
 ## Development
 
+### Running tests
+
 ```bash
 # Install Ruby dependencies
 bundle install
 
-# Provision a Docker test container and run the acceptance suite
-bundle exec rake 'litmus:provision_list[default]'
-bundle exec rake 'litmus:acceptance:parallel'
-bundle exec rake litmus:tear_down
+# Plan unit tests (BoltSpec mocks — no infrastructure required)
+bundle exec rake unit
+
+# Acceptance tests (requires a running Docker container named ovadm-acceptance)
+docker run -d --name ovadm-acceptance rockylinux:9 sleep infinity
+docker exec ovadm-acceptance bash -c "dnf install -y -q ca-certificates"
+bundle exec rake acceptance
+docker rm -f ovadm-acceptance
+```
+
+### Local Docker dev environment
+
+`docker-compose.yml` defines a two-node environment (primary server + one compiler) using Rocky Linux 9 with systemd. This lets you run real Bolt plans against local containers.
+
+```bash
+# Build and start containers (systemd is active inside each container)
+docker compose build
+docker compose up -d
+
+# Run a Standard install
+bolt plan run ovadm::install server_host=puppet \
+  --inventoryfile docker/inventory.yaml
+
+# Add a compiler (Large topology)
+bolt plan run ovadm::add_compiler \
+  server_host=puppet compiler_hosts=compiler01 \
+  --inventoryfile docker/inventory.yaml
+
+# Check status
+bolt plan run ovadm::status server_host=puppet \
+  --inventoryfile docker/inventory.yaml
+
+# Tear down
+docker compose down
+```
+
+Port 8140 is forwarded to `localhost:8140` on the server container so you can query the API directly:
+
+```bash
+curl -k https://localhost:8140/status/v1/simple
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for code style and PR guidance.
