@@ -16,7 +16,7 @@ A single OpenVox Server node managing agents.
 
 ### Large
 
-A primary server plus one or more compile masters that distribute catalog compilation across large agent populations.
+A primary server plus one or more compilers that distribute catalog compilation across large agent populations.
 
 ```text
 [Agents] → [Load Balancer] → [Compiler Pool]
