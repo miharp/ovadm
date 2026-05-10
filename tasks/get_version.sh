@@ -4,7 +4,7 @@ set -euo pipefail
 version=$(dpkg -l openvox-server 2>/dev/null | awk '/^ii/{print $3}' | head -1 || true)
 
 if [ -z "$version" ]; then
-  version=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}' openvox-server 2>/dev/null || true)
+  version=$(rpm -q --queryformat '%{VERSION}-%{RELEASE}' openvox-server 2>/dev/null) || version=''
 fi
 
 if [ -z "$version" ]; then
