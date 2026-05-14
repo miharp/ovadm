@@ -7,6 +7,13 @@ on:
   pull_request:
 
 jobs:
+  markdown:
+    name: Markdown lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npx --yes markdownlint-cli '**/*.md' --ignore node_modules
+
   unit:
     name: Plan unit tests
     runs-on: ubuntu-latest
