@@ -13,7 +13,7 @@
   "requirements": [
     {
       "name": "openbolt",
-      "version_requirement": ">= 3.17.0"
+      "version_requirement": ">= 5.0.0"
     }
   ]
 }

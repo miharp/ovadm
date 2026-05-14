@@ -297,7 +297,7 @@ These need research or community input before implementation:
 
 6. **Supported OS matrix** — Should ovadm target the full OpenVox compatibility list (EL 7-10, Debian 10-13, Ubuntu 18.04-26.04) or a narrower set initially?
 
-7. **Minimum Bolt version** — 3.17.0 is inherited from peadm. Confirm this is compatible with the plan features we intend to use.
+7. ~~**Minimum Bolt version**~~ — Confirmed: targeting OpenBolt >= 5.0.0 (current series is 5.x). `metadata.json` updated. The 3.17.0 floor inherited from peadm was discarded.
 
 ---
 
