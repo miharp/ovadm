@@ -2,6 +2,8 @@
 set -euo pipefail
 
 OVOX_MAJOR="${PT_ovox_major:-8}"
+APT_BASE_URL="${PT_apt_base_url:-https://apt.voxpupuli.org}"
+YUM_BASE_URL="${PT_yum_base_url:-https://yum.voxpupuli.org}"
 
 os_id=''
 os_version=''
@@ -30,7 +32,7 @@ url=''
 
 if [ "$os_family" = 'Debian' ]; then
   pkg_name="openvox${OVOX_MAJOR}-release-${os_id}${os_version}.deb"
-  url="https://apt.voxpupuli.org/${pkg_name}"
+  url="${APT_BASE_URL}/${pkg_name}"
   tmpfile=$(mktemp "/tmp/${pkg_name}.XXXXX")
   curl -fsSL -o "$tmpfile" "$url"
   dpkg -i "$tmpfile" >&2
@@ -39,7 +41,7 @@ if [ "$os_family" = 'Debian' ]; then
 elif [ "$os_family" = 'RedHat' ]; then
   el_major="${os_version%%.*}"
   pkg_name="openvox${OVOX_MAJOR}-release-el-${el_major}.noarch.rpm"
-  url="https://yum.voxpupuli.org/${pkg_name}"
+  url="${YUM_BASE_URL}/${pkg_name}"
   rpm -Uvh --replacepkgs "$url" >&2
   yum makecache -q >&2 || true
 else

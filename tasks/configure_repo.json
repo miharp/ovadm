@@ -5,6 +5,14 @@
     "ovox_major": {
       "description": "OpenVox major version (e.g. 8)",
       "type": "Optional[Integer]"
+    },
+    "apt_base_url": {
+      "description": "Base URL for the apt release package; defaults to https://apt.voxpupuli.org",
+      "type": "Optional[String[1]]"
+    },
+    "yum_base_url": {
+      "description": "Base URL for the yum/dnf release package; defaults to https://yum.voxpupuli.org",
+      "type": "Optional[String[1]]"
     }
   },
   "supports_noop": false

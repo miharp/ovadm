@@ -13,6 +13,8 @@ plan ovadm::add_compiler(
   TargetSpec          $server_host,
   TargetSpec          $compiler_hosts,
   Optional[String[1]] $ovox_version = undef,
+  Optional[String[1]] $apt_base_url = undef,
+  Optional[String[1]] $yum_base_url = undef,
 ) {
   run_plan('ovadm::subplans::precheck', { 'server_host' => $compiler_hosts })
 
@@ -22,6 +24,8 @@ plan ovadm::add_compiler(
     'compiler_hosts' => $compiler_hosts,
     'server_fqdn'    => $server_fqdn,
     'ovox_version'   => $ovox_version,
+    'apt_base_url'   => $apt_base_url,
+    'yum_base_url'   => $yum_base_url,
   })
 
   run_plan('ovadm::subplans::cert_setup', {

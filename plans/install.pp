@@ -25,12 +25,16 @@ plan ovadm::install(
   Optional[TargetSpec]         $compiler_hosts = undef,
   Optional[String[1]]          $ovox_version   = undef,
   Optional[Array[String[1]]]   $dns_alt_names  = undef,
+  Optional[String[1]]          $apt_base_url   = undef,
+  Optional[String[1]]          $yum_base_url   = undef,
 ) {
   run_plan('ovadm::subplans::precheck', { 'server_host' => $server_host })
 
   run_plan('ovadm::subplans::install', {
     'server_host'  => $server_host,
     'ovox_version' => $ovox_version,
+    'apt_base_url' => $apt_base_url,
+    'yum_base_url' => $yum_base_url,
   })
 
   run_plan('ovadm::subplans::configure', {
@@ -55,6 +59,8 @@ plan ovadm::install(
       'compiler_hosts' => $compiler_hosts,
       'server_fqdn'    => $server_fqdn,
       'ovox_version'   => $ovox_version,
+      'apt_base_url'   => $apt_base_url,
+      'yum_base_url'   => $yum_base_url,
     })
 
     run_plan('ovadm::subplans::cert_setup', {
