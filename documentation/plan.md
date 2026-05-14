@@ -295,7 +295,7 @@ These need research or community input before implementation:
 
 5. ~~**Certificate extensions / compiler roles**~~ — Confirmed: OpenVox supports `csr_attributes.yaml` and the standard Puppet `pp_role` registered OID identically to upstream Puppet. ovadm uses `ovadm::set_csr_attributes` to write `extension_requests: pp_role: openvox_compiler` on compiler nodes before their first agent run (and `openvox_server` on the primary before first puppetserver start); the signed cert then carries `$trusted['extensions']['pp_role']` for classification in Puppet code. (peadm uses a custom OID arc; ovadm prefers the standard registered extension.)
 
-6. **Supported OS matrix** — Should ovadm target the full OpenVox compatibility list (EL 7-10, Debian 10-13, Ubuntu 18.04-26.04) or a narrower set initially?
+6. ~~**Supported OS matrix**~~ — Targeting modern LTS platforms only: Rocky Linux 9, Ubuntu 22.04, Ubuntu 24.04, Debian 12. OpenVox publishes packages for a much wider set (EL 8-10, Debian 11-13, Ubuntu 20.04-26.04, Amazon Linux, SLES, Fedora) and other platforms will likely work, but CI coverage is intentionally kept narrow to reduce build burden.
 
 7. ~~**Minimum Bolt version**~~ — Confirmed: targeting OpenBolt >= 5.0.0 (current series is 5.x). `metadata.json` updated. The 3.17.0 floor inherited from peadm was discarded.
 
