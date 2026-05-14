@@ -69,6 +69,32 @@ bolt plan run ovadm::install \
 
 Both parameters are optional and default to the public repos. Pass them to `ovadm::add_compiler` as well if compilers are on an air-gapped network.
 
+## Using a parameter file
+
+For repeatable runs or complex topologies, use a JSON parameter file instead of CLI arguments. The `examples/` directory contains starter files for each topology.
+
+Copy and edit the relevant file:
+
+```bash
+cp examples/install-large.json my-install.json
+# edit my-install.json with your hostnames, mirror URLs, etc.
+bolt plan run ovadm::install --params @my-install.json
+```
+
+Example contents of `examples/install-large.json`:
+
+```json
+{
+  "server_host": "ovox-server.example.com",
+  "compiler_hosts": "ovox-compiler01.example.com,ovox-compiler02.example.com",
+  "dns_alt_names": ["puppet", "puppet.example.com", "ovox-lb.example.com"],
+  "apt_base_url": "https://packages.example.com/vox-apt",
+  "yum_base_url": "https://packages.example.com/vox-yum"
+}
+```
+
+Remove any keys you don't need — all mirror and DNS alt name parameters are optional.
+
 ## Verifying the install
 
 ```bash

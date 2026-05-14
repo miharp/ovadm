@@ -1,0 +1,6 @@
+{
+  "server_host": "ovox-server.example.com",
+  "compiler_hosts": "ovox-compiler03.example.com",
+  "apt_base_url": "https://packages.example.com/vox-apt",
+  "yum_base_url": "https://packages.example.com/vox-yum"
+}
