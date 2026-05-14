@@ -4,12 +4,14 @@ ovadm is an experimental, community-driven project. Contributions of all kinds a
 
 ## What we need most
 
-The plans in this module are currently stubs. The highest-value contributions right now are:
+The core plans (install, upgrade, status, add_compiler) are implemented and tested. The highest-value contributions right now are:
 
-1. Implementing `ovadm::install` — automate a fresh OpenVox Server deployment
-2. Implementing `ovadm::upgrade` — automate in-place version upgrades
-3. Implementing `ovadm::status` — surface service and API health
-4. Testing across supported platforms (RHEL, Debian, Ubuntu, Rocky)
+1. **Bug reports and fixes** — if something breaks on a supported platform, open an issue with OS, OpenVox version, and the full Bolt output
+2. **Broader platform testing** — CI covers Rocky 9, Ubuntu 22.04/24.04, Debian 12; feedback on other platforms is welcome
+3. **Internal mirror / air-gap scenarios** — the `apt_base_url`/`yum_base_url` params exist but haven't been validated against real Artifactory or Nexus setups
+4. **OpenVoxDB integration** — wiring up `openvoxdb` and `openvoxdb-termini` as an optional post-install step is unimplemented
+
+See [`documentation/plan.md`](documentation/plan.md) for the full task catalog and roadmap.
 
 ## Getting started
 
@@ -38,45 +40,41 @@ gem install bundler
 bundle install
 ```
 
-### Bolt
+### OpenBolt
 
-Install Bolt separately — it is not a bundled gem:
-[Bolt installation docs](https://www.puppet.com/docs/bolt/latest/bolt_installing.html)
+Install OpenBolt as a gem:
+
+```bash
+gem install openbolt
+```
 
 ### Running tests locally
 
-Tests use [puppet_litmus](https://github.com/puppetlabs/puppet_litmus) with Docker. You need Docker running.
-
 ```bash
-# Provision a test container (Ubuntu 22.04)
-bundle exec rake 'litmus:provision_list[default]'
+# Plan unit tests — no infrastructure required
+bundle exec rake unit
 
-# Run acceptance tests against it
-bundle exec rake 'litmus:acceptance:parallel'
-
-# Tear down when done
-bundle exec rake litmus:tear_down
+# Acceptance tests — requires a running Docker container
+docker run -d --name ovadm-acceptance rockylinux:9 sleep infinity
+docker exec ovadm-acceptance bash -c "dnf install -y -q ca-certificates"
+bundle exec rake acceptance
+docker rm -f ovadm-acceptance
 ```
 
-To test against Rocky Linux 9 instead:
-
-```bash
-bundle exec rake 'litmus:provision_list[rocky9]'
-```
-
-Read the [OpenVox documentation](https://docs.openvoxproject.org) for background on the server you're automating.
+For a full end-to-end test using the three-node Docker environment, see the [Local Docker dev environment](README.md#local-docker-dev-environment) section in the README.
 
 ## Code style
 
-- Puppet code follows the [Puppet Language Style Guide](https://www.puppet.com/docs/puppet/latest/style_guide.html)
-- Bolt plans use `.pp` (Puppet) format unless a YAML plan is cleaner
-- Shell tasks use `set -euo pipefail`
+- Puppet plans follow the [Puppet Language Style Guide](https://www.puppet.com/docs/puppet/latest/style_guide.html)
+- Shell tasks use `set -euo pipefail` and output valid JSON on stdout
+- Task metadata (`.json`) must define `input_method`, `parameters`, and `supports_noop`
 
 ## Pull requests
 
+- The `main` branch is protected — always work on a branch and open a PR
 - Open an issue first for significant changes
 - Keep PRs focused — one logical change per PR
-- Include tests where feasible
+- Include tests: BoltSpec unit tests for plan logic, acceptance specs for new tasks
 
 ## Community
 
