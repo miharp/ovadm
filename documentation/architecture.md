@@ -6,35 +6,41 @@
 
 A single OpenVox Server node acting as CA, catalog compiler, and file server.
 
-```text
-[Agents] → [OpenVox Server]
+```mermaid
+flowchart LR
+    agents([Agents]) --> server[OpenVox Server]
 ```
 
 ### Large
 
 An OpenVox Server (CA only) backed by a pool of compilers that handle catalog compilation. A load balancer distributes agent traffic across the compiler pool.
 
-```text
-[Agents] → [Load Balancer] → [Compiler Pool]
-                                    ↓
-                            [OpenVox Server (CA)]
+```mermaid
+flowchart LR
+    agents([Agents]) --> lb[Load Balancer]
+    lb --> c1[Compiler]
+    lb --> c2[Compiler ...]
+    c1 --> server[OpenVox Server\nCA only]
+    c2 --> server
 ```
 
 ## Plan and task structure
 
 Plans are thin orchestrators — they call subplans and tasks in sequence, handle errors, and produce user-facing output. Subplans cover one phase of an operation. Tasks are atomic shell operations that output structured JSON.
 
-```text
-ovadm::install
-  └─ ovadm::subplans::precheck       (OS, Java, port, NTP validation)
-  └─ ovadm::subplans::install        (configure_repo → install_server)
-  └─ ovadm::subplans::configure      (puppet.conf)
-  └─ ovadm::set_csr_attributes       (pp_role: openvox_server → server cert)
-  └─ systemctl enable --now puppetserver
-  └─ ovadm::wait_until_service_ready
-  └─ [Large topology only]
-      └─ ovadm::subplans::agent_install  (configure_repo → install_server → puppet.conf)
-      └─ ovadm::subplans::cert_setup     (set_csr_attributes → CSR submit → sign → agent run)
+```mermaid
+flowchart TD
+    install([ovadm::install]) --> precheck[subplans::precheck\nOS · Java · ports · NTP]
+    precheck --> installsp[subplans::install\nconfigure_repo → install_server]
+    installsp --> configure[subplans::configure\npuppet.conf]
+    configure --> csr[set_csr_attributes\npp_role: openvox_server]
+    csr --> start[puppetserver start]
+    start --> wait[wait_until_service_ready]
+    wait --> large{compiler_hosts?}
+    large -- no --> done([done])
+    large -- yes --> agent_install[subplans::agent_install\nper compiler]
+    agent_install --> cert_setup[subplans::cert_setup\nper compiler]
+    cert_setup --> done
 ```
 
 ## Certificate role extensions
