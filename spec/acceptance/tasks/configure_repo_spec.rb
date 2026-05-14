@@ -15,4 +15,7 @@ RSpec.describe 'ovadm::configure_repo task' do
     result = run_bolt_task('ovadm::configure_repo', {})
     expect(result.result['repo_url']).to include('voxpupuli.org')
   end
+
+  # TODO: add a test that apt_base_url/yum_base_url are reflected in repo_url
+  # when an internal mirror is accessible — requires a reachable mirror server.
 end

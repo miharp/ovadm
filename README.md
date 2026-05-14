@@ -68,6 +68,19 @@ bolt plan run ovadm::status server_host=ovox-server.example.com
 bolt plan run ovadm::upgrade server_host=ovox-server.example.com ovox_version=8.4.0
 ```
 
+### Install using an internal package mirror
+
+If your nodes can't reach the public VoxPupuli repos, point `apt_base_url` and/or `yum_base_url` at an internal mirror:
+
+```bash
+bolt plan run ovadm::install \
+  server_host=ovox-server.example.com \
+  apt_base_url=https://packages.example.com/vox-apt \
+  yum_base_url=https://packages.example.com/vox-yum
+```
+
+Both parameters are optional and default to the public VoxPupuli repos. Pass them to `ovadm::add_compiler` as well if compilers are on an air-gapped network.
+
 ### Add a compiler to an existing deployment
 
 ```bash
