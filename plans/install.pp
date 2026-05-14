@@ -38,6 +38,10 @@ plan ovadm::install(
     'dns_alt_names' => $dns_alt_names,
   })
 
+  # csr_attributes.yaml must be written before first start — puppetserver reads
+  # it when generating its own certificate on initial startup
+  run_task('ovadm::set_csr_attributes', $server_host, { 'pp_role' => 'openvox_server' })
+
   run_command('systemctl enable --now puppetserver', $server_host)
 
   run_task('ovadm::wait_until_service_ready', $server_host)
