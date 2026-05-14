@@ -17,6 +17,7 @@ describe 'ovadm::install' do
       expect_plan('ovadm::subplans::precheck').be_called_times(1)
       expect_plan('ovadm::subplans::install').be_called_times(1)
       expect_plan('ovadm::subplans::configure').be_called_times(1)
+      expect_task('ovadm::set_csr_attributes').be_called_times(1).always_return('status' => 'success')
       expect_task('ovadm::wait_until_service_ready').be_called_times(1)
 
       result = run_plan('ovadm::install', { 'server_host' => server })
@@ -29,6 +30,7 @@ describe 'ovadm::install' do
       expect_plan('ovadm::subplans::precheck').be_called_times(2)
       expect_plan('ovadm::subplans::install').be_called_times(1)
       expect_plan('ovadm::subplans::configure').be_called_times(1)
+      expect_task('ovadm::set_csr_attributes').be_called_times(1).always_return('status' => 'success')
       expect_task('ovadm::wait_until_service_ready').be_called_times(1)
       expect_plan('ovadm::subplans::agent_install').be_called_times(1)
       expect_plan('ovadm::subplans::cert_setup').be_called_times(1)

@@ -100,10 +100,12 @@ ovadm::install
   └─ ovadm::subplans::precheck       (OS, Java, port, NTP validation)
   └─ ovadm::subplans::install        (configure_repo → install_server)
   └─ ovadm::subplans::configure      (puppet.conf)
+  └─ ovadm::set_csr_attributes       (pp_role: openvox_server → server cert)
   └─ systemctl enable --now puppetserver
   └─ ovadm::wait_until_service_ready
-  └─ ovadm::subplans::agent_install  (compilers — Large topology only)
-  └─ ovadm::subplans::cert_setup     (CSR submit → sign → agent run)
+  └─ [Large topology only]
+      └─ ovadm::subplans::agent_install  (configure_repo → install_server → puppet.conf)
+      └─ ovadm::subplans::cert_setup     (set_csr_attributes → CSR submit → sign → agent run)
 ```
 
 See [`documentation/plan.md`](documentation/plan.md) for the full task catalog and implementation roadmap.
@@ -116,6 +118,7 @@ See [`documentation/plan.md`](documentation/plan.md) for the full task catalog a
 | Java | Bundled | Installed as a package dependency; precheck warns if absent |
 | HA replica | Supported | Not supported (PE-only feature) |
 | Console / RBAC | Required | Not present |
+| Node classification | Node groups (Console) | `$trusted['extensions']['pp_role']` cert extension (`openvox_server` / `openvox_compiler`) |
 | Service name | `pe-puppetserver` | `puppetserver` |
 
 ## Development

@@ -18,6 +18,9 @@ plan ovadm::subplans::cert_setup(
   $targets.each |$compiler| {
     $certname = run_command('hostname -f', $compiler).first.value['stdout'].strip
 
+    # Embed pp_role in the CSR so the signed cert carries the compiler role
+    run_task('ovadm::set_csr_attributes', $compiler, { 'pp_role' => 'openvox_compiler' })
+
     # Submit CSR (waitforcert=0 means submit and exit immediately)
     run_task('ovadm::agent_runonce', $compiler, { 'waitforcert' => 0 })
 
