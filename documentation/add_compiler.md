@@ -44,3 +44,22 @@ bolt plan run ovadm::add_compiler \
   apt_base_url=https://packages.example.com/vox-apt \
   yum_base_url=https://packages.example.com/vox-yum
 ```
+
+## Using a parameter file
+
+```bash
+cp examples/add-compiler.json my-add-compiler.json
+# edit with your hostnames and mirror URLs
+bolt plan run ovadm::add_compiler --params @my-add-compiler.json
+```
+
+Example contents of `examples/add-compiler.json`:
+
+```json
+{
+  "server_host": "ovox-server.example.com",
+  "compiler_hosts": "ovox-compiler03.example.com",
+  "apt_base_url": "https://packages.example.com/vox-apt",
+  "yum_base_url": "https://packages.example.com/vox-yum"
+}
+```
