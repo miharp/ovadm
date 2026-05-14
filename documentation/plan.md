@@ -11,16 +11,18 @@ Modeled after [puppetlabs-peadm](https://github.com/puppetlabs/puppetlabs-peadm)
 OpenVox Server does not support HA replicas (that is a Puppet Enterprise feature). ovadm supports two topologies:
 
 ### Standard
+
 A single OpenVox Server node managing agents.
 
-```
+```text
 [Agents] → [OpenVox Server]
 ```
 
 ### Large
+
 A server plus one or more compilers to distribute compilation load across large agent populations.
 
-```
+```text
 [Agents] → [Load Balancer] → [Compiler Pool]
                                     ↓
                           [OpenVox Server]

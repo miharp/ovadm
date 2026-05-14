@@ -7,6 +7,16 @@ on:
   pull_request:
 
 jobs:
+  markdown:
+    name: Markdown lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DavidAnson/markdownlint-cli2-action@v23
+        with:
+          globs: '**/*.md'
+          config: .markdownlint.json
+
   unit:
     name: Plan unit tests
     runs-on: ubuntu-latest

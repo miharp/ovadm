@@ -2,27 +2,14 @@
 
 ovadm is an [OpenBolt](https://github.com/OpenVoxProject/openbolt) module that automates the deployment, upgrade, and management of [OpenVox Server](https://docs.openvoxproject.org) infrastructure. It is modeled after [puppetlabs-peadm](https://github.com/puppetlabs/puppetlabs-peadm) and adapted for OpenVox's package-based install and simpler architecture (no console, orchestrator, or RBAC database).
 
-> **Experimental.** This module works against real targets but has not been validated at scale. See [Open Questions](documentation/plan.md#open-questions) in the implementation plan.
+> **Experimental.** This module works against real targets but has not been validated at scale.
 
-## Supported topologies
+## Requirements
 
-### Standard
-
-A single OpenVox Server node managing agents.
-
-```text
-[Agents] → [OpenVox Server]
-```
-
-### Large
-
-An OpenVox Server plus one or more compilers that distribute catalog compilation across large agent populations.
-
-```text
-[Agents] → [Load Balancer] → [Compiler Pool]
-                                    ↓
-                            [OpenVox Server]
-```
+- [OpenBolt](https://github.com/OpenVoxProject/openbolt) >= 5.0.0 (gem: `gem install openbolt`)
+- Ruby >= 3.2 (for the test suite — use rbenv or equivalent, not the system Ruby)
+- A supported Linux target: Rocky Linux 9, Ubuntu 22.04, Ubuntu 24.04, Debian 12 (tested in CI)
+- Java 17 or 21 on the target — installed automatically as a dependency of `openvox-server`
 
 ## Plans
 
@@ -33,173 +20,26 @@ An OpenVox Server plus one or more compilers that distribute catalog compilation
 | `ovadm::status` | Report health: prechecks, service state, and installed version |
 | `ovadm::add_compiler` | Add a compiler node to an existing deployment |
 
-## Requirements
-
-- [OpenBolt](https://github.com/OpenVoxProject/openbolt) (gem: `openbolt`)
-- Ruby >= 3.2 (for the test suite — use rbenv or equivalent, not the system Ruby)
-- A supported Linux target: Rocky Linux 9, Ubuntu 22.04, Ubuntu 24.04, Debian 12 (tested in CI); other RHEL-family and Debian-family platforms should work
-- Java 17 or 21 on the target — installed automatically as a dependency of `openvox-server`; `ovadm::precheck` warns if absent but does not block the install
-
-## Usage
-
-### Install a Standard deployment
+## Quick start
 
 ```bash
 bolt plan run ovadm::install server_host=ovox-server.example.com
 ```
 
-### Install a Large deployment
+Copy `inventory.yaml.example` to `inventory.yaml` and fill in your target details before running any plan.
 
-```bash
-bolt plan run ovadm::install \
-  server_host=ovox-server.example.com \
-  compiler_hosts=ovox-compiler01.example.com,ovox-compiler02.example.com
-```
+## Documentation
 
-### Check deployment health
+- [Installing](documentation/install.md) — Standard, Large, DNS alt names, internal mirrors
+- [Upgrading](documentation/upgrade.md) — Minor/patch and major version upgrades
+- [Managing compilers](documentation/add_compiler.md) — Adding and removing compiler nodes
+- [Architecture](documentation/architecture.md) — Topologies, plan structure, cert extensions, peadm comparison
+- [Docker testing](documentation/docker_testing.md) — Local three-node dev environment
+- [Implementation roadmap](documentation/plan.md) — Task catalog and design decisions
 
-```bash
-bolt plan run ovadm::status server_host=ovox-server.example.com
-```
+## Contributing
 
-### Upgrade
-
-```bash
-bolt plan run ovadm::upgrade server_host=ovox-server.example.com ovox_version=8.4.0
-```
-
-### Install using an internal package mirror
-
-If your nodes can't reach the public VoxPupuli repos, point `apt_base_url` and/or `yum_base_url` at an internal mirror:
-
-```bash
-bolt plan run ovadm::install \
-  server_host=ovox-server.example.com \
-  apt_base_url=https://packages.example.com/vox-apt \
-  yum_base_url=https://packages.example.com/vox-yum
-```
-
-Both parameters are optional and default to the public VoxPupuli repos. Pass them to `ovadm::add_compiler` as well if compilers are on an air-gapped network.
-
-### Add a compiler to an existing deployment
-
-```bash
-bolt plan run ovadm::add_compiler \
-  server_host=ovox-server.example.com \
-  compiler_hosts=ovox-compiler03.example.com
-```
-
-### Quick status snapshot (no plan needed)
-
-```bash
-bolt task run ovadm::infrastatus --targets ovox-server.example.com
-bolt task run ovadm::precheck    --targets ovox-server.example.com
-```
-
-## Inventory
-
-Copy `inventory.yaml.example` to `inventory.yaml` and fill in your target details. This file is gitignored — do not commit real hostnames or credentials.
-
-```bash
-cp inventory.yaml.example inventory.yaml
-```
-
-## Architecture
-
-Plans are thin orchestrators that delegate to focused subplans, which call atomic tasks. Every task outputs structured JSON so plans can branch on the results.
-
-```text
-ovadm::install
-  └─ ovadm::subplans::precheck       (OS, Java, port, NTP validation)
-  └─ ovadm::subplans::install        (configure_repo → install_server)
-  └─ ovadm::subplans::configure      (puppet.conf)
-  └─ ovadm::set_csr_attributes       (pp_role: openvox_server → server cert)
-  └─ systemctl enable --now puppetserver
-  └─ ovadm::wait_until_service_ready
-  └─ [Large topology only]
-      └─ ovadm::subplans::agent_install  (configure_repo → install_server → puppet.conf)
-      └─ ovadm::subplans::cert_setup     (set_csr_attributes → CSR submit → sign → agent run)
-```
-
-See [`documentation/plan.md`](documentation/plan.md) for the full task catalog and implementation roadmap.
-
-## Key differences from peadm
-
-| Concern | peadm (PE) | ovadm (OpenVox) |
-| ------- | ---------- | --------------- |
-| Installation | Tarball installer | OS packages via apt/yum |
-| Java | Bundled | Installed as a package dependency; precheck warns if absent |
-| HA replica | Supported | Not supported (PE-only feature) |
-| Console / RBAC | Required | Not present |
-| Node classification | Node groups (Console) | `$trusted['extensions']['pp_role']` cert extension (`openvox_server` / `openvox_compiler`) |
-| Service name | `pe-puppetserver` | `puppetserver` |
-
-## Development
-
-### Running tests
-
-```bash
-# Install Ruby dependencies
-bundle install
-
-# Plan unit tests (BoltSpec mocks — no infrastructure required)
-bundle exec rake unit
-
-# Acceptance tests (requires a running Docker container named ovadm-acceptance)
-docker run -d --name ovadm-acceptance rockylinux:9 sleep infinity
-docker exec ovadm-acceptance bash -c "dnf install -y -q ca-certificates"
-bundle exec rake acceptance
-docker rm -f ovadm-acceptance
-```
-
-### Local Docker dev environment
-
-`docker-compose.yml` defines a three-node environment using Rocky Linux 9 with systemd:
-
-| Container | Role | Image |
-| --------- | ---- | ----- |
-| `ovadm-server` | OpenVox Server (CA) | Built from `docker/Dockerfile` |
-| `ovadm-compiler01` | Compiler | Built from `docker/Dockerfile` |
-| `ovadm-agent` | Agent (catalog verification) | `ghcr.io/openvoxproject/openvoxagent:latest` |
-
-The agent is pre-configured (via `docker/agent-puppet.conf`) to request catalogs from `compiler01` and certificates from the server.
-
-```bash
-# Build and start all three containers
-docker compose build
-docker compose up -d
-
-# 1. Install the primary OpenVox Server
-bolt plan run ovadm::install server_host=puppet \
-  --inventoryfile docker/inventory.yaml
-
-# 2. Add the compiler (Large topology) — sign_csr handles the compiler cert
-bolt plan run ovadm::add_compiler \
-  server_host=puppet compiler_hosts=compiler01 \
-  --inventoryfile docker/inventory.yaml
-
-# 3. Enable autosign so the agent cert is signed on first run
-#    (bolt's docker transport doesn't shell-expand redirects; use docker exec directly)
-docker exec ovadm-server bash -c 'echo "*" > /etc/puppetlabs/puppet/autosign.conf'
-
-# 4. Run the agent — connects to compiler01 for catalog compilation
-docker exec ovadm-agent /opt/puppetlabs/bin/puppet agent -t
-
-# Check status
-bolt plan run ovadm::status server_host=puppet \
-  --inventoryfile docker/inventory.yaml
-
-# Tear down
-docker compose down
-```
-
-Port 8140 is forwarded to `localhost:8140` on the server container so you can query the API directly:
-
-```bash
-curl -k https://localhost:8140/status/v1/simple
-```
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for code style and PR guidance.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for code style, testing, and PR guidance.
 
 ## Status
 
