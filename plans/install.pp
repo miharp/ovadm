@@ -11,7 +11,10 @@
 #   One or more compiler nodes (Large topology)
 #
 # @param ovox_version
-#   The version of OpenVox Server to install (e.g. '8.3.1'); omit for latest
+#   OpenVox Agent version (e.g. '8.26.2'); determines which major repo to enable
+#
+# @param ovox_server_version
+#   Specific openvox-server version to install (e.g. '8.13.0'); omit for latest
 #
 # @param dns_alt_names
 #   DNS alternative names to embed in the server certificate.
@@ -22,19 +25,21 @@
 #
 plan ovadm::install(
   TargetSpec                   $server_host,
-  Optional[TargetSpec]         $compiler_hosts = undef,
-  Optional[String[1]]          $ovox_version   = undef,
-  Optional[Array[String[1]]]   $dns_alt_names  = undef,
-  Optional[String[1]]          $apt_base_url   = undef,
-  Optional[String[1]]          $yum_base_url   = undef,
+  Optional[TargetSpec]         $compiler_hosts      = undef,
+  Optional[String[1]]          $ovox_version        = undef,
+  Optional[String[1]]          $ovox_server_version = undef,
+  Optional[Array[String[1]]]   $dns_alt_names       = undef,
+  Optional[String[1]]          $apt_base_url        = undef,
+  Optional[String[1]]          $yum_base_url        = undef,
 ) {
   run_plan('ovadm::subplans::precheck', { 'server_host' => $server_host })
 
   run_plan('ovadm::subplans::install', {
-    'server_host'  => $server_host,
-    'ovox_version' => $ovox_version,
-    'apt_base_url' => $apt_base_url,
-    'yum_base_url' => $yum_base_url,
+    'server_host'         => $server_host,
+    'ovox_version'        => $ovox_version,
+    'ovox_server_version' => $ovox_server_version,
+    'apt_base_url'        => $apt_base_url,
+    'yum_base_url'        => $yum_base_url,
   })
 
   run_plan('ovadm::subplans::configure', {
@@ -56,11 +61,12 @@ plan ovadm::install(
     run_plan('ovadm::subplans::precheck', { 'server_host' => $compiler_hosts })
 
     run_plan('ovadm::subplans::agent_install', {
-      'compiler_hosts' => $compiler_hosts,
-      'server_fqdn'    => $server_fqdn,
-      'ovox_version'   => $ovox_version,
-      'apt_base_url'   => $apt_base_url,
-      'yum_base_url'   => $yum_base_url,
+      'compiler_hosts'      => $compiler_hosts,
+      'server_fqdn'         => $server_fqdn,
+      'ovox_version'        => $ovox_version,
+      'ovox_server_version' => $ovox_server_version,
+      'apt_base_url'        => $apt_base_url,
+      'yum_base_url'        => $yum_base_url,
     })
 
     run_plan('ovadm::subplans::cert_setup', {

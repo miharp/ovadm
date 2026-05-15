@@ -7,6 +7,7 @@ describe 'ovadm::subplans::install' do
 
   before(:each) do
     allow_task('ovadm::install_server').always_return('status' => 'success')
+    allow_task('ovadm::configure_repo').always_return('status' => 'success')
   end
 
   it 'calls configure_repo and install_server' do

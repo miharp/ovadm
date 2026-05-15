@@ -3,9 +3,9 @@
 require_relative 'spec_helper'
 
 describe 'ovadm::upgrade' do
-  let(:server)   { 'ovox-server.example.com' }
-  let(:compiler) { 'ovox-compiler01.example.com' }
-  let(:version)  { '8.4.0' }
+  let(:server)         { 'ovox-server.example.com' }
+  let(:compiler)       { 'ovox-compiler01.example.com' }
+  let(:server_version) { '8.13.0' }
 
   before(:each) { execute_no_plan }
 
@@ -16,8 +16,8 @@ describe 'ovadm::upgrade' do
       allow_plan('ovadm::subplans::upgrade_compilers').not_be_called
 
       result = run_plan('ovadm::upgrade', {
-        'server_host'  => server,
-        'ovox_version' => version
+        'server_host'         => server,
+        'ovox_server_version' => server_version
       })
       expect(result).to be_ok
     end
@@ -30,11 +30,12 @@ describe 'ovadm::upgrade' do
       expect_plan('ovadm::subplans::upgrade_compilers').be_called_times(1)
 
       result = run_plan('ovadm::upgrade', {
-        'server_host'    => server,
-        'ovox_version'   => version,
-        'compiler_hosts' => compiler
+        'server_host'         => server,
+        'ovox_server_version' => server_version,
+        'compiler_hosts'      => compiler
       })
       expect(result).to be_ok
     end
   end
+
 end

@@ -12,6 +12,7 @@ describe 'ovadm::subplans::agent_install' do
   before(:each) do
     allow_task('ovadm::install_server').always_return('status' => 'success')
     allow_task('ovadm::configure_puppet_conf').always_return('status' => 'success')
+    allow_task('ovadm::configure_repo').always_return('status' => 'success')
   end
 
   it 'calls configure_repo, install_server, and configure_puppet_conf' do

@@ -43,6 +43,29 @@ bolt plan run ovadm::status server_host=puppet \
 docker compose down
 ```
 
+## Upgrade test
+
+To test a real upgrade, install the previous minor version first, then upgrade:
+
+```bash
+# Fresh containers at n-1
+docker compose down && docker compose up -d
+
+# Install at 8.12.1
+bolt plan run ovadm::install server_host=puppet \
+  ovox_server_version=8.12.1 \
+  --inventoryfile docker/inventory.yaml
+
+# Upgrade to current
+bolt plan run ovadm::upgrade server_host=puppet \
+  ovox_server_version=8.13.0 \
+  --inventoryfile docker/inventory.yaml
+```
+
+The upgrade task actually downloads and installs the new package (vs the idempotent no-op when running the same version twice), so this exercises the full stop → install → restart → readiness path.
+
+Note: `openvox-server 8.12.1` depends on `openvox-agent >= 8.21.1`, so yum resolves that to the latest available agent at install time. The agent is managed by the server package's dependency — ovadm does not separately pin it.
+
 ## API access
 
 Port 8140 is forwarded to `localhost:8140` on the server container:
