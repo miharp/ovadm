@@ -77,7 +77,7 @@ Copy and edit the relevant file:
 
 ```bash
 cp examples/install-large.json my-install.json
-# edit my-install.json with your hostnames, mirror URLs, etc.
+# edit my-install.json with your hostnames
 bolt plan run ovadm::install --params @my-install.json
 ```
 
@@ -87,13 +87,11 @@ Example contents of `examples/install-large.json`:
 {
   "server_host": "ovox-server.example.com",
   "compiler_hosts": "ovox-compiler01.example.com,ovox-compiler02.example.com",
-  "dns_alt_names": ["puppet", "puppet.example.com", "ovox-lb.example.com"],
-  "apt_base_url": "https://packages.example.com/vox-apt",
-  "yum_base_url": "https://packages.example.com/vox-yum"
+  "dns_alt_names": ["puppet", "puppet.example.com", "ovox-lb.example.com"]
 }
 ```
 
-Remove any keys you don't need — all mirror and DNS alt name parameters are optional.
+`dns_alt_names` is optional. Add `apt_base_url` or `yum_base_url` only if you need an internal package mirror.
 
 ## Verifying the install
 

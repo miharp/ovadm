@@ -1,5 +1,3 @@
 {
-  "server_host": "ovox-server.example.com",
-  "apt_base_url": "https://packages.example.com/vox-apt",
-  "yum_base_url": "https://packages.example.com/vox-yum"
+  "server_host": "ovox-server.example.com"
 }
