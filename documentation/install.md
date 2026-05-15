@@ -56,6 +56,25 @@ bolt plan run ovadm::install \
 
 > **Note:** DNS alt names must be set before the CA certificate is generated on first start. They cannot be changed after the service has run without wiping the SSL directory.
 
+## Version parameters
+
+`openvox-server` and `openvox-agent` are versioned independently. The server package has a minimum agent version dependency, so the package manager installs a compatible agent automatically.
+
+| Parameter | Controls | Example |
+| --------- | -------- | ------- |
+| `ovox_server_version` | `openvox-server` package pinned to an exact version; omit for latest | `8.13.0` |
+| `ovox_version` | Selects the major package repo (`openvox8` vs `openvox9`); only needed when targeting a different major release line | `8.26.2` |
+
+To pin a specific server version:
+
+```bash
+bolt plan run ovadm::install \
+  server_host=ovox-server.example.com \
+  ovox_server_version=8.13.0
+```
+
+Both parameters are optional. When `ovox_version` is omitted, the major repo is derived from `ovox_server_version` (or defaults to openvox8). If both are set, they should target the same major line.
+
 ## Internal package mirror
 
 If your nodes cannot reach the public VoxPupuli repositories, point `apt_base_url` and/or `yum_base_url` at an internal mirror:

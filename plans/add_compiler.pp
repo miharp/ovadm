@@ -7,25 +7,30 @@
 #   The compiler node(s) to install and enroll
 #
 # @param ovox_version
-#   Specific version to install on the compilers; omit for latest
+#   OpenVox Agent version (e.g. '8.26.2'); determines which major repo to enable
+#
+# @param ovox_server_version
+#   Specific openvox-server version to install on compilers; omit for latest
 #
 plan ovadm::add_compiler(
   TargetSpec          $server_host,
   TargetSpec          $compiler_hosts,
-  Optional[String[1]] $ovox_version = undef,
-  Optional[String[1]] $apt_base_url = undef,
-  Optional[String[1]] $yum_base_url = undef,
+  Optional[String[1]] $ovox_version        = undef,
+  Optional[String[1]] $ovox_server_version = undef,
+  Optional[String[1]] $apt_base_url        = undef,
+  Optional[String[1]] $yum_base_url        = undef,
 ) {
   run_plan('ovadm::subplans::precheck', { 'server_host' => $compiler_hosts })
 
   $server_fqdn = run_command('hostname -f', $server_host).first.value['stdout'].strip
 
   run_plan('ovadm::subplans::agent_install', {
-    'compiler_hosts' => $compiler_hosts,
-    'server_fqdn'    => $server_fqdn,
-    'ovox_version'   => $ovox_version,
-    'apt_base_url'   => $apt_base_url,
-    'yum_base_url'   => $yum_base_url,
+    'compiler_hosts'      => $compiler_hosts,
+    'server_fqdn'         => $server_fqdn,
+    'ovox_version'        => $ovox_version,
+    'ovox_server_version' => $ovox_server_version,
+    'apt_base_url'        => $apt_base_url,
+    'yum_base_url'        => $yum_base_url,
   })
 
   run_plan('ovadm::subplans::cert_setup', {
