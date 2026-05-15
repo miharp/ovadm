@@ -6,7 +6,7 @@ interval=5
 elapsed=0
 
 while [ "$elapsed" -lt "$max_wait" ]; do
-  if curl -sk --max-time 3 https://localhost:8081/status/v1/simple 2>/dev/null | grep -q 'running'; then
+  if curl -s --max-time 3 http://localhost:8080/status/v1/simple 2>/dev/null | grep -q 'running'; then
     printf '{"status":"ready","elapsed_seconds":%d}\n' "$elapsed"
     exit 0
   fi

@@ -66,6 +66,47 @@ The upgrade task actually downloads and installs the new package (vs the idempot
 
 Note: `openvox-server 8.12.1` depends on `openvox-agent >= 8.21.1`, so yum resolves that to the latest available agent at install time. The agent is managed by the server package's dependency — ovadm does not separately pin it.
 
+## OpenVoxDB test (co-located)
+
+OpenVoxDB requires PostgreSQL 14 or later. Rocky Linux 9's default repo ships
+PostgreSQL 13, so install PostgreSQL 15 from the pgdg repo before running the plan.
+
+```bash
+# Install PostgreSQL 15 on the server container
+docker exec ovadm-server bash -c '
+  dnf install -y -q https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-$(uname -m)/pgdg-redhat-repo-latest.noarch.rpm
+  dnf -qy module disable postgresql
+  dnf install -y -q postgresql15-server postgresql15-contrib
+  /usr/pgsql-15/bin/postgresql-15-setup initdb
+  systemctl enable --now postgresql-15
+'
+
+# Create the puppetdb database and user
+docker exec ovadm-server bash -c "
+  su - postgres -c \"psql -c \\\"CREATE USER puppetdb WITH PASSWORD 'puppetdb';\\\"\"
+  su - postgres -c \"psql -c \\\"CREATE DATABASE puppetdb OWNER puppetdb;\\\"\"
+  su - postgres -c \"psql -d puppetdb -c \\\"CREATE EXTENSION pg_trgm;\\\"\"
+  sed -i 's/ident\$/md5/g; s/peer\$/md5/g' /var/lib/pgsql/15/data/pg_hba.conf
+  systemctl reload postgresql-15
+"
+
+# Add OpenVoxDB (co-located on the server node)
+bolt plan run ovadm::add_openvoxdb \
+  server_host=puppet \
+  db_password=puppetdb \
+  --inventoryfile docker/inventory.yaml
+
+# Verify: run puppet agent on the server and check PuppetDB received the report
+docker exec ovadm-server /opt/puppetlabs/bin/puppet agent -t --server puppet
+docker exec ovadm-server curl -s http://localhost:8080/pdb/query/v4/nodes
+```
+
+The `nodes` query should return a JSON array with the `puppet` node's certname and timestamps.
+
+Note: OpenVoxDB listens on HTTPS port 8081 (mutual TLS, requires a client cert) and HTTP
+port 8080 (localhost only, unauthenticated). The `wait_until_openvoxdb_ready` task polls
+port 8080 since no client cert is needed for health checks.
+
 ## API access
 
 Port 8140 is forwarded to `localhost:8140` on the server container:
