@@ -39,7 +39,6 @@ A server plus one or more compilers to distribute compilation load across large 
 | `ovadm::install` | Install a new OpenVox Server deployment | P0 |
 | `ovadm::upgrade` | Upgrade an existing deployment in-place | P0 |
 | `ovadm::status` | Report health of a running deployment | P0 |
-| `ovadm::convert` | Take over management of an existing unmanaged OpenVox Server | P1 |
 | `ovadm::add_compiler` | Add a node to the `compiler_hosts` pool | P1 |
 
 ### Subplans (internal)
@@ -52,40 +51,38 @@ The top-level plans should be thin orchestrators that call focused subplans. Thi
 |------|-------------|
 | `ovadm::subplans::precheck` | Validate targets, OS, Java, ports, time sync |
 | `ovadm::subplans::install` | Install packages and start services on the server |
-| `ovadm::subplans::configure` | Apply initial configuration (puppet.conf, auth.conf) |
-| `ovadm::subplans::agent_install` | Install OpenVox agent on `compiler_hosts` targets |
-| `ovadm::subplans::cert_setup` | Submit and sign CSRs; configure DNS alt names |
+| `ovadm::subplans::configure` | Apply initial configuration (puppet.conf) |
+| `ovadm::subplans::agent_install` | Install OpenVox server on `compiler_hosts` targets and configure puppet.conf |
+| `ovadm::subplans::cert_setup` | Submit and sign CSRs; embed pp_role extension |
 
 **Upgrade subplans:**
 
-| Plan                                 | Description                 |
-|--------------------------------------|-----------------------------|
-| `ovadm::subplans::upgrade_server`    | Upgrade the server          |
+| Plan | Description |
+|------|-------------|
+| `ovadm::subplans::upgrade_server` | Upgrade the server |
 | `ovadm::subplans::upgrade_compilers` | Upgrade compiler pool nodes |
 
 ---
 
 ## Task Catalog
 
-Tasks are the atomic operations that plans compose. The following are needed, grouped by function:
+Tasks are the atomic operations that plans compose. The following are implemented, grouped by function:
 
 ### Platform & Preflight
 
 | Task | Description | Notes |
 |------|-------------|-------|
-| `ovadm::precheck` | Validate OS, Java version, open ports, NTP sync | Return structured JSON |
+| `ovadm::precheck` | Validate OS, Java version, open ports, NTP sync | Returns structured JSON |
 | `ovadm::os_identification` | Detect OS family, version, arch | Used to select package repo |
-| `ovadm::java_check` | Verify Java 17 or 21 is available | OpenVox-specific requirement |
-| `ovadm::wait_until_service_ready` | Poll until `puppetserver` responds on :8140 | Avoid race conditions after start |
+| `ovadm::wait_until_service_ready` | Poll until `puppetserver` responds on :8140 | Avoids race conditions after start |
 
 ### Package & Repository Management
 
 | Task | Description | Notes |
 |------|-------------|-------|
-| `ovadm::configure_repo` | Enable the appropriate OpenVox apt/yum repo | Distinct from peadm (no tarball) |
+| `ovadm::configure_repo` | Enable the appropriate OpenVox apt/yum repo | Supports `apt_base_url`/`yum_base_url` for internal mirrors |
 | `ovadm::install_server` | Install `openvox-server` package | Triggers systemd service setup |
 | `ovadm::install_agent` | Install `openvox-agent` package | For compilers |
-| `ovadm::uninstall_server` | Remove OpenVox Server packages | Used for reinstall/cleanup |
 | `ovadm::get_version` | Return installed OpenVox Server version | Used in upgrade validation |
 
 ### Service Management
@@ -101,43 +98,27 @@ Tasks are the atomic operations that plans compose. The following are needed, gr
 
 | Task | Description | Notes |
 |------|-------------|-------|
-| `ovadm::submit_csr` | Submit a CSR from a target agent | |
-| `ovadm::sign_csr` | Sign pending CSRs on the CA (server) | |
-| `ovadm::cert_data` | Return certificate metadata for a node | |
-| `ovadm::cert_valid_status` | Check if a cert is valid, expired, or missing | |
-| `ovadm::ssl_clean` | Clean SSL state for a node (regenerate cert) | Needed for convert and rebuild |
-| `ovadm::modify_certificate` | Add/modify extensions on a certificate | For availability group OIDs |
+| `ovadm::set_csr_attributes` | Write `csr_attributes.yaml` with `pp_role` extension | Must run before first agent run or puppetserver start |
+| `ovadm::sign_csr` | Sign a pending CSR on the CA; handles already-signed gracefully | |
 
 ### Configuration Management
 
 | Task | Description | Notes |
 |------|-------------|-------|
-| `ovadm::mkdir_p_file` | Create directories and write files | Multipurpose; used throughout |
-| `ovadm::read_file` | Return contents of a file | Useful for config inspection |
-| `ovadm::configure_puppet_conf` | Write `puppet.conf` on a target | Templated |
-| `ovadm::configure_auth_conf` | Write `auth.conf` on the server | For API access control |
+| `ovadm::configure_puppet_conf` | Write `puppet.conf` on a target | Supports `ca_server` for compiler configuration |
+| `ovadm::configure_compiler_ssl` | Configure SSL directories for compiler-mode operation | Run after cert signing |
 
 ### Agent Operations
 
 | Task | Description | Notes |
 |------|-------------|-------|
-| `ovadm::agent_runonce` | Run the agent once on a target | Used throughout orchestration |
-| `ovadm::agent_enable` | Enable the agent service | Set final agent state |
-| `ovadm::agent_disable` | Disable the agent service | |
+| `ovadm::agent_runonce` | Run the agent once on a target | Used for CSR submission and initial catalog application |
 
 ### Status & Introspection
 
 | Task | Description | Notes |
 |------|-------------|-------|
 | `ovadm::infrastatus` | Return full deployment status as JSON | Summary view for operators |
-| `ovadm::get_config` | Return current ovadm-managed configuration | Stored in a known location on the server |
-
-### Utility
-
-| Task | Description | Notes |
-|------|-------------|-------|
-| `ovadm::filesize` | Return file size | Useful for download verification |
-| `ovadm::download` | Download a file via curl/wget | May be needed for Java or supplemental packages |
 
 ---
 
@@ -207,20 +188,25 @@ Goal: install and upgrade across `server_host` + `compiler_hosts` deployments.
 
 - [x] `ovadm::install_agent` task
 - [x] `ovadm::agent_runonce` task
-- [x] `ovadm::sign_csr` task
+- [x] `ovadm::sign_csr` task — handles already-signed certs gracefully (autosign-safe)
+- [x] `ovadm::set_csr_attributes` task — embeds `pp_role` in the CSR via `csr_attributes.yaml`
+- [x] `ovadm::configure_compiler_ssl` task — configures SSL for compiler-mode operation
 - [x] `configure_puppet_conf` extended with `ca_server` parameter
 - [x] `ovadm::subplans::agent_install` plan
-- [x] `ovadm::subplans::cert_setup` plan
+- [x] `ovadm::subplans::cert_setup` plan — sets `pp_role: openvox_compiler`, submits CSR, signs, runs agent
 - [x] `ovadm::add_compiler` plan
 - [x] Extend `ovadm::install` for Large topology
 - [x] `ovadm::subplans::upgrade_compilers`
 - [x] Extend `ovadm::upgrade` for Large topology
 
-Scope notes:
+### Phase 6 — Internal Mirror Support
 
-- `modify_certificate` (OID-based role tagging) deferred — open question #5 unresolved; a working Large topology does not require it.
+Goal: support air-gapped or proxied package repositories.
 
-**Deliverable:** `bolt plan run ovadm::install server_host=<target> compiler_hosts=<c1>,<c2>` installs a working Large topology.
+- [x] `configure_repo` extended with optional `apt_base_url` / `yum_base_url` parameters
+- [x] `apt_base_url` / `yum_base_url` threaded through `install`, `upgrade`, and `add_compiler` top-level plans
+
+**Deliverable:** All plans accept optional mirror URL parameters; omitting them defaults to public VoxPupuli repos.
 
 ---
 
@@ -277,6 +263,15 @@ peadm generates RBAC tokens for API access. OpenVox uses standard SSL client cer
 
 **Confirmed on OpenVox 8.13.0 / CentOS Stream 10.** OpenVox inherits the `/etc/puppetlabs/` layout from upstream Puppet — it does not install under `/etc/openvox/` (that directory contains only `openvox.yml`, the OpenVox-specific service config).
 
+### Certificate role extensions
+
+peadm uses a custom OID arc for node role classification. ovadm uses the standard Puppet registered `pp_role` OID via `csr_attributes.yaml`, written before the node's first agent run (or before puppetserver's first start on the primary). The signed cert carries `$trusted['extensions']['pp_role']` for classification in Puppet code without a node classifier.
+
+| Node type | `pp_role` value |
+|-----------|-----------------|
+| OpenVox Server | `openvox_server` |
+| Compiler | `openvox_compiler` |
+
 ### Code management
 
 peadm has deep Code Manager / r10k integration. OpenVox uses standard Puppet code deployment (r10k or direct). ovadm should support r10k configuration optionally but not require it for a basic install.
@@ -284,8 +279,6 @@ peadm has deep Code Manager / r10k integration. OpenVox uses standard Puppet cod
 ---
 
 ## Open Questions
-
-These need research or community input before implementation:
 
 1. ~~**Exact config file paths**~~ — Confirmed on OpenVox 8.13.0 / CentOS Stream 10. OpenVox inherits the `/etc/puppetlabs/` layout from upstream Puppet: `puppet.conf` at `/etc/puppetlabs/puppet/puppet.conf`, conf.d at `/etc/puppetlabs/puppetserver/conf.d/`, SSL at `/etc/puppetlabs/puppet/ssl/`. The `/etc/openvox/` directory exists but contains only `openvox.yml` (OpenVox-specific service config).
 
@@ -305,4 +298,4 @@ These need research or community input before implementation:
 
 ## Contributing
 
-If you are picking up a task from Phase 1 or 2, please open an issue first so work is not duplicated. See [CONTRIBUTING.md](../CONTRIBUTING.md) for code style and PR guidance.
+If you are picking up a task, please open an issue first so work is not duplicated. See [CONTRIBUTING.md](../CONTRIBUTING.md) for code style and PR guidance.
