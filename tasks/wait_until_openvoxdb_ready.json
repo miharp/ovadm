@@ -1,0 +1,11 @@
+{
+  "description": "Poll until OpenVoxDB responds on port 8081 or a timeout expires",
+  "input_method": "environment",
+  "parameters": {
+    "max_wait": {
+      "description": "Maximum seconds to wait before failing (default: 300)",
+      "type": "Optional[Integer]"
+    }
+  },
+  "supports_noop": false
+}

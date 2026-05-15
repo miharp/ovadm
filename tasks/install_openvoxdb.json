@@ -1,0 +1,15 @@
+{
+  "description": "Install the openvoxdb and openvoxdb-termini packages from the configured repository",
+  "input_method": "environment",
+  "parameters": {
+    "version": {
+      "description": "Version to install (e.g. '8.3.1'); omit for latest",
+      "type": "Optional[String[1]]"
+    },
+    "termini_only": {
+      "description": "Install only openvoxdb-termini (the Puppet Server plugin); set when installing on a server node separate from the PuppetDB node",
+      "type": "Optional[Boolean]"
+    }
+  },
+  "supports_noop": false
+}

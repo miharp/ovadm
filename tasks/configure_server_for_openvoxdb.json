@@ -1,0 +1,19 @@
+{
+  "description": "Configure an OpenVox Server to connect to OpenVoxDB: writes puppetdb.conf, routes.yaml, and enables storeconfigs in puppet.conf",
+  "input_method": "environment",
+  "parameters": {
+    "puppetdb_host": {
+      "description": "FQDN of the OpenVoxDB node",
+      "type": "String[1]"
+    },
+    "puppetdb_port": {
+      "description": "OpenVoxDB HTTPS port (default: 8081)",
+      "type": "Optional[Integer]"
+    },
+    "store_reports": {
+      "description": "Add puppetdb to the reports setting so run reports are stored (default: true)",
+      "type": "Optional[Boolean]"
+    }
+  },
+  "supports_noop": false
+}

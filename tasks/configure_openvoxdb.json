@@ -1,0 +1,28 @@
+{
+  "description": "Write /etc/puppetlabs/puppetdb/conf.d/database.ini with PostgreSQL connection settings",
+  "input_method": "environment",
+  "parameters": {
+    "db_password": {
+      "description": "PostgreSQL password for the OpenVoxDB database user",
+      "type": "String[1]",
+      "sensitive": true
+    },
+    "db_host": {
+      "description": "PostgreSQL server hostname (default: localhost)",
+      "type": "Optional[String[1]]"
+    },
+    "db_port": {
+      "description": "PostgreSQL server port (default: 5432)",
+      "type": "Optional[Integer]"
+    },
+    "db_name": {
+      "description": "PostgreSQL database name (default: puppetdb)",
+      "type": "Optional[String[1]]"
+    },
+    "db_user": {
+      "description": "PostgreSQL username (default: puppetdb)",
+      "type": "Optional[String[1]]"
+    }
+  },
+  "supports_noop": false
+}
