@@ -46,12 +46,11 @@ Example contents of `examples/upgrade.json`:
 ```json
 {
   "server_host": "ovox-server.example.com",
-  "compiler_hosts": "ovox-compiler01.example.com,ovox-compiler02.example.com",
-  "ovox_version": "8.4.0",
-  "apt_base_url": "https://packages.example.com/vox-apt",
-  "yum_base_url": "https://packages.example.com/vox-yum"
+  "ovox_version": "8.4.0"
 }
 ```
+
+Add `compiler_hosts`, `apt_base_url`, or `yum_base_url` as needed.
 
 ## Major version upgrades
 

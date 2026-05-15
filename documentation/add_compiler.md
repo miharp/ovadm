@@ -49,7 +49,7 @@ bolt plan run ovadm::add_compiler \
 
 ```bash
 cp examples/add-compiler.json my-add-compiler.json
-# edit with your hostnames and mirror URLs
+# edit with your hostnames
 bolt plan run ovadm::add_compiler --params @my-add-compiler.json
 ```
 
@@ -58,8 +58,8 @@ Example contents of `examples/add-compiler.json`:
 ```json
 {
   "server_host": "ovox-server.example.com",
-  "compiler_hosts": "ovox-compiler03.example.com",
-  "apt_base_url": "https://packages.example.com/vox-apt",
-  "yum_base_url": "https://packages.example.com/vox-yum"
+  "compiler_hosts": "ovox-compiler03.example.com"
 }
 ```
+
+Add `apt_base_url` or `yum_base_url` if you need an internal package mirror.
