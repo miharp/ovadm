@@ -32,33 +32,44 @@
 # @param store_reports
 #   Enable report storage in OpenVoxDB (default: true)
 #
+# @param ovox_version
+#   OpenVox Agent version (e.g. '8.26.2'); determines which major repo to enable
+#   and pins openvox-agent on separate PuppetDB nodes
+#
+# @param ovox_server_version
+#   Specific openvoxdb version to install (e.g. '8.13.0'); omit for latest
+#
 plan ovadm::subplans::openvoxdb(
   TargetSpec          $server_host,
   TargetSpec          $puppetdb_host,
   String[1]           $db_password,
-  Boolean             $co_located    = true,
-  String[1]           $db_name       = 'puppetdb',
-  String[1]           $db_user       = 'puppetdb',
-  String[1]           $db_host       = 'localhost',
-  Integer             $db_port       = 5432,
-  Boolean             $store_reports = true,
-  Optional[String[1]] $ovox_version  = undef,
-  Optional[String[1]] $apt_base_url  = undef,
-  Optional[String[1]] $yum_base_url  = undef,
+  Boolean             $co_located          = true,
+  String[1]           $db_name             = 'puppetdb',
+  String[1]           $db_user             = 'puppetdb',
+  String[1]           $db_host             = 'localhost',
+  Integer             $db_port             = 5432,
+  Boolean             $store_reports       = true,
+  Optional[String[1]] $ovox_version        = undef,
+  Optional[String[1]] $ovox_server_version = undef,
+  Optional[String[1]] $apt_base_url        = undef,
+  Optional[String[1]] $yum_base_url        = undef,
 ) {
-  $install_params = $ovox_version ? {
+  $db_install_params = $ovox_server_version ? {
     undef   => {},
-    default => { 'version' => $ovox_version },
+    default => { 'version' => $ovox_server_version },
   }
 
   if $co_located {
     # Server cert already exists; install both packages on the single node
-    run_task('ovadm::install_openvoxdb', $puppetdb_host, $install_params)
+    run_task('ovadm::install_openvoxdb', $puppetdb_host, $db_install_params)
   } else {
     $server_fqdn = run_command('hostname -f', $server_host).first.value['stdout'].strip
 
     $ovox_major = $ovox_version ? {
-      undef   => 8,
+      undef   => $ovox_server_version ? {
+        undef   => 8,
+        default => Integer($ovox_server_version.split('\.')[0]),
+      },
       default => Integer($ovox_version.split('\.')[0]),
     }
 
@@ -74,7 +85,11 @@ plan ovadm::subplans::openvoxdb(
 
     # Bootstrap the PuppetDB node with a puppet agent so it can get a cert
     run_task('ovadm::configure_repo', $puppetdb_host, $repo_params)
-    run_task('ovadm::install_agent', $puppetdb_host, $install_params)
+    $agent_install_params = $ovox_version ? {
+      undef   => {},
+      default => { 'version' => $ovox_version },
+    }
+    run_task('ovadm::install_agent', $puppetdb_host, $agent_install_params)
     run_task('ovadm::configure_puppet_conf', $puppetdb_host, {
       'server'    => $server_fqdn,
       'ca_server' => $server_fqdn,
@@ -88,9 +103,9 @@ plan ovadm::subplans::openvoxdb(
     run_task('ovadm::agent_runonce', $puppetdb_host)
 
     # Install openvoxdb on the PuppetDB node, termini on the server
-    run_task('ovadm::install_openvoxdb', $puppetdb_host, $install_params)
+    run_task('ovadm::install_openvoxdb', $puppetdb_host, $db_install_params)
     run_task('ovadm::install_openvoxdb', $server_host,
-      $install_params + { 'termini_only' => true })
+      $db_install_params + { 'termini_only' => true })
   }
 
   run_task('ovadm::configure_openvoxdb', $puppetdb_host, {
