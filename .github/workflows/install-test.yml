@@ -16,9 +16,9 @@ jobs:
       matrix:
         include:
           - topology: standard
-            install_args: ''
+            agent_server: puppet
           - topology: large
-            install_args: ''
+            agent_server: compiler01
 
     steps:
       - uses: actions/checkout@v4
@@ -50,7 +50,7 @@ jobs:
 
       - name: Run puppet agent
         run: |
-          docker exec ovadm-agent /opt/puppetlabs/bin/puppet agent -t
+          docker exec ovadm-agent /opt/puppetlabs/bin/puppet agent -t --server ${{ matrix.agent_server }}
 
       - name: Check status
         run: |
