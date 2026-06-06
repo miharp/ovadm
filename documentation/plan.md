@@ -23,9 +23,9 @@ A single OpenVox Server node managing agents.
 A server plus one or more compilers to distribute compilation load across large agent populations.
 
 ```text
-[Agents] → [Load Balancer] → [Compiler Pool]
-                                    ↓
-                          [OpenVox Server]
+[Agents] --catalogs-→ [Load Balancer] → [Compiler Pool]
+    |                                          ↓
+    +--------certs----------→ [OpenVox Server (CA)]
 ```
 
 ---

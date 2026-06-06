@@ -13,14 +13,15 @@ flowchart LR
 
 ### Large
 
-An OpenVox Server (CA only) backed by a pool of compilers that handle catalog compilation. A load balancer distributes agent traffic across the compiler pool.
+An OpenVox Server (CA only) backed by a pool of compilers that handle catalog compilation. A load balancer distributes catalog requests across the compiler pool; agents contact the server directly for certificate operations.
 
 ```mermaid
 flowchart LR
-    agents([Agents]) --> lb[Load Balancer]
+    agents([Agents]) -->|catalogs| lb[Load Balancer]
+    agents -->|certs| server[OpenVox Server\nCA only]
     lb --> c1[Compiler]
     lb --> c2[Compiler ...]
-    c1 --> server[OpenVox Server\nCA only]
+    c1 --> server
     c2 --> server
 ```
 
