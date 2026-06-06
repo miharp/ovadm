@@ -1,0 +1,62 @@
+---
+name: Install test
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  install:
+    name: Install (${{ matrix.topology }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - topology: standard
+            agent_server: puppet
+          - topology: large
+            agent_server: compiler01
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+
+      - name: Start containers
+        run: docker compose up -d --build
+
+      - name: Install OpenVox Server
+        run: |
+          bundle exec bolt plan run ovadm::install \
+            server_host=puppet \
+            --inventoryfile docker/inventory.yaml
+
+      - name: Add compiler (large topology only)
+        if: matrix.topology == 'large'
+        run: |
+          bundle exec bolt plan run ovadm::add_compiler \
+            server_host=puppet \
+            compiler_hosts=compiler01 \
+            --inventoryfile docker/inventory.yaml
+
+      - name: Enable autosign
+        run: |
+          docker exec ovadm-server bash -c 'echo "*" > /etc/puppetlabs/puppet/autosign.conf'
+
+      - name: Run puppet agent
+        run: |
+          docker exec ovadm-agent /opt/puppetlabs/bin/puppet agent -t --server ${{ matrix.agent_server }}
+
+      - name: Check status
+        run: |
+          bundle exec bolt plan run ovadm::status \
+            server_host=puppet \
+            --inventoryfile docker/inventory.yaml
+
+      - name: Tear down
+        if: always()
+        run: docker compose down
