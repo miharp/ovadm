@@ -7,10 +7,15 @@
 #   The openvox-server version to upgrade to (e.g. '8.13.0')
 #
 plan ovadm::subplans::upgrade_compilers(
-  TargetSpec $compiler_hosts,
-  String[1]  $ovox_server_version,
+  TargetSpec          $compiler_hosts,
+  Optional[String[1]] $ovox_server_version = undef,
+  Optional[String[1]] $package_url         = undef,
 ) {
-  run_task('ovadm::install_server', $compiler_hosts, { 'version' => $ovox_server_version })
+  $install_params = $package_url ? {
+    undef   => { 'version' => $ovox_server_version },
+    default => { 'package_url' => $package_url },
+  }
+  run_task('ovadm::install_server', $compiler_hosts, $install_params)
 
   run_task('ovadm::service_restart', $compiler_hosts)
   run_task('ovadm::wait_until_service_ready', $compiler_hosts)

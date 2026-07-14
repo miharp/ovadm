@@ -11,20 +11,27 @@
 #
 plan ovadm::upgrade(
   TargetSpec           $server_host,
-  String[1]            $ovox_server_version,
-  Optional[TargetSpec] $compiler_hosts = undef,
+  Optional[String[1]]  $ovox_server_version = undef,
+  Optional[TargetSpec] $compiler_hosts      = undef,
+  Optional[String[1]]  $package_url         = undef,
 ) {
+  unless $ovox_server_version or $package_url {
+    fail('Either ovox_server_version or package_url must be provided')
+  }
+
   run_plan('ovadm::subplans::precheck', { 'server_host' => $server_host })
 
   run_plan('ovadm::subplans::upgrade_server', {
     'server_host'         => $server_host,
     'ovox_server_version' => $ovox_server_version,
+    'package_url'         => $package_url,
   })
 
   if $compiler_hosts {
     run_plan('ovadm::subplans::upgrade_compilers', {
       'compiler_hosts'      => $compiler_hosts,
       'ovox_server_version' => $ovox_server_version,
+      'package_url'         => $package_url,
     })
   }
 

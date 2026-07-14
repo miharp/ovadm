@@ -20,31 +20,36 @@ plan ovadm::subplans::agent_install(
   Optional[String[1]] $ovox_server_version = undef,
   Optional[String[1]] $apt_base_url        = undef,
   Optional[String[1]] $yum_base_url        = undef,
+  Optional[String[1]] $package_url         = undef,
 ) {
-  $ovox_major = $ovox_version ? {
-    undef   => $ovox_server_version ? {
-      undef   => 8,
-      default => Integer($ovox_server_version.split('\.')[0]),
-    },
-    default => Integer($ovox_version.split('\.')[0]),
-  }
+  if $package_url {
+    run_task('ovadm::install_server', $compiler_hosts, { 'package_url' => $package_url })
+  } else {
+    $ovox_major = $ovox_version ? {
+      undef   => $ovox_server_version ? {
+        undef   => 8,
+        default => Integer($ovox_server_version.split('\.')[0]),
+      },
+      default => Integer($ovox_version.split('\.')[0]),
+    }
 
-  $repo_params_1 = { 'ovox_major' => $ovox_major }
-  $repo_params_2 = $apt_base_url ? {
-    undef   => $repo_params_1,
-    default => $repo_params_1 + { 'apt_base_url' => $apt_base_url },
-  }
-  $repo_params = $yum_base_url ? {
-    undef   => $repo_params_2,
-    default => $repo_params_2 + { 'yum_base_url' => $yum_base_url },
-  }
-  run_task('ovadm::configure_repo', $compiler_hosts, $repo_params)
+    $repo_params_1 = { 'ovox_major' => $ovox_major }
+    $repo_params_2 = $apt_base_url ? {
+      undef   => $repo_params_1,
+      default => $repo_params_1 + { 'apt_base_url' => $apt_base_url },
+    }
+    $repo_params = $yum_base_url ? {
+      undef   => $repo_params_2,
+      default => $repo_params_2 + { 'yum_base_url' => $yum_base_url },
+    }
+    run_task('ovadm::configure_repo', $compiler_hosts, $repo_params)
 
-  $install_params = $ovox_server_version ? {
-    undef   => {},
-    default => { 'version' => $ovox_server_version },
+    $install_params = $ovox_server_version ? {
+      undef   => {},
+      default => { 'version' => $ovox_server_version },
+    }
+    run_task('ovadm::install_server', $compiler_hosts, $install_params)
   }
-  run_task('ovadm::install_server', $compiler_hosts, $install_params)
 
   run_task('ovadm::configure_puppet_conf', $compiler_hosts, {
     'server'    => $server_fqdn,

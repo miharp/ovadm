@@ -24,4 +24,19 @@ describe 'ovadm::subplans::upgrade_server' do
     result = run_plan('ovadm::subplans::upgrade_server', params)
     expect(result).to be_ok
   end
+
+  it 'passes package_url to install_server when provided' do
+    pkg_url = 'https://s3.example.com/openvox-server-9.0.0.rpm'
+
+    expect_task('ovadm::install_server')
+      .with_params('package_url' => pkg_url)
+      .be_called_times(1)
+      .always_return('status' => 'success', 'version' => '9.0.0')
+
+    result = run_plan('ovadm::subplans::upgrade_server', {
+      'server_host' => server,
+      'package_url' => pkg_url,
+    })
+    expect(result).to be_ok
+  end
 end
