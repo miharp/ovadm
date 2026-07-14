@@ -3,7 +3,11 @@
   "input_method": "environment",
   "parameters": {
     "version": {
-      "description": "Version to install (e.g. '8.3.1'); omit for latest",
+      "description": "Version to install (e.g. '8.3.1'); omit for latest. Ignored when package_url is set.",
+      "type": "Optional[String[1]]"
+    },
+    "package_url": {
+      "description": "Direct URL to an openvox-server package (rpm or deb). Skips repo lookup; useful for pre-release or air-gapped installs.",
       "type": "Optional[String[1]]"
     }
   },

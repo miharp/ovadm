@@ -10,10 +10,15 @@
 #   The openvox-server version to upgrade to (e.g. '8.13.0')
 #
 plan ovadm::subplans::upgrade_server(
-  TargetSpec $server_host,
-  String[1]  $ovox_server_version,
+  TargetSpec          $server_host,
+  Optional[String[1]] $ovox_server_version = undef,
+  Optional[String[1]] $package_url         = undef,
 ) {
-  run_task('ovadm::install_server', $server_host, { 'version' => $ovox_server_version })
+  $install_params = $package_url ? {
+    undef   => { 'version' => $ovox_server_version },
+    default => { 'package_url' => $package_url },
+  }
+  run_task('ovadm::install_server', $server_host, $install_params)
 
   run_task('ovadm::service_restart', $server_host)
 

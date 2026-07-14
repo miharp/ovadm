@@ -88,6 +88,18 @@ bolt plan run ovadm::install \
 
 Both parameters are optional and default to the public repos. Pass them to `ovadm::add_compiler` as well if compilers are on an air-gapped network.
 
+## Installing from a direct package URL
+
+To install a specific package artifact without configuring a repository — useful for pre-release builds or testing — pass `package_url` with a direct link to an RPM or deb:
+
+```bash
+bolt plan run ovadm::install \
+  server_host=ovox-server.example.com \
+  package_url=https://s3.example.com/openvox-server-9.0.0-....el9.noarch.rpm
+```
+
+When `package_url` is set, the package repo is still configured for dependency resolution (the server package's dependencies, like `openvox-agent`, are pulled from the repo). The server package itself is installed from the provided URL. `ovox_server_version` and the mirror URL parameters are ignored.
+
 ## Using a parameter file
 
 For repeatable runs or complex topologies, use a JSON parameter file instead of CLI arguments. The `examples/` directory contains starter files for each topology.

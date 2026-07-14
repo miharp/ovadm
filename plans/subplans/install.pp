@@ -19,6 +19,7 @@ plan ovadm::subplans::install(
   Optional[String[1]] $ovox_server_version = undef,
   Optional[String[1]] $apt_base_url        = undef,
   Optional[String[1]] $yum_base_url        = undef,
+  Optional[String[1]] $package_url         = undef,
 ) {
   $ovox_major = $ovox_version ? {
     undef   => $ovox_server_version ? {
@@ -39,9 +40,12 @@ plan ovadm::subplans::install(
   }
   run_task('ovadm::configure_repo', $server_host, $repo_params)
 
-  $install_params = $ovox_server_version ? {
-    undef   => {},
-    default => { 'version' => $ovox_server_version },
+  $install_params = $package_url ? {
+    undef   => $ovox_server_version ? {
+      undef   => {},
+      default => { 'version' => $ovox_server_version },
+    },
+    default => { 'package_url' => $package_url },
   }
   run_task('ovadm::install_server', $server_host, $install_params)
 }

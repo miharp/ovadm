@@ -55,4 +55,19 @@ describe 'ovadm::subplans::install' do
       'yum_base_url' => 'https://packages.example.com/vox-yum',
     })
   end
+
+  it 'still calls configure_repo and passes package_url to install_server when package_url is set' do
+    expect_task('ovadm::configure_repo').be_called_times(1).always_return('status' => 'success')
+
+    expect_task('ovadm::install_server')
+      .with_params('package_url' => 'https://s3.example.com/openvox-server-9.0.0.rpm')
+      .be_called_times(1)
+      .always_return('status' => 'success')
+
+    result = run_plan('ovadm::subplans::install', {
+      'server_host' => server,
+      'package_url' => 'https://s3.example.com/openvox-server-9.0.0.rpm',
+    })
+    expect(result).to be_ok
+  end
 end

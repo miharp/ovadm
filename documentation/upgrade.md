@@ -25,6 +25,18 @@ The server is upgraded first, then all compilers. Compilers are currently upgrad
 
 No special flag is needed. The upgrade plan installs the new version against the package repo that was configured at install time. If your nodes were pointed at an internal mirror during install, they are already configured to use it — just specify the target version.
 
+## Upgrading from a direct package URL
+
+To upgrade using a specific package artifact without a repo — useful for pre-release builds — pass `package_url` instead of `ovox_server_version`:
+
+```bash
+bolt plan run ovadm::upgrade \
+  server_host=ovox-server.example.com \
+  package_url=https://s3.example.com/openvox-server-9.0.0-....el9.noarch.rpm
+```
+
+`ovox_server_version` is optional when `package_url` is provided. The plan will fail if neither is given.
+
 ## Using a parameter file
 
 ```bash
