@@ -56,8 +56,8 @@ describe 'ovadm::subplans::install' do
     })
   end
 
-  it 'skips configure_repo and passes package_url to install_server when package_url is set' do
-    allow_plan('ovadm::configure_repo').not_be_called
+  it 'still calls configure_repo and passes package_url to install_server when package_url is set' do
+    expect_task('ovadm::configure_repo').be_called_times(1).always_return('status' => 'success')
 
     expect_task('ovadm::install_server')
       .with_params('package_url' => 'https://s3.example.com/openvox-server-9.0.0.rpm')

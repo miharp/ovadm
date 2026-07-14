@@ -98,7 +98,7 @@ bolt plan run ovadm::install \
   package_url=https://s3.example.com/openvox-server-9.0.0-....el9.noarch.rpm
 ```
 
-When `package_url` is set, `configure_repo` is skipped entirely and the package is installed directly from the URL. `ovox_server_version` and the mirror URL parameters are ignored.
+When `package_url` is set, the package repo is still configured for dependency resolution (the server package's dependencies, like `openvox-agent`, are pulled from the repo). The server package itself is installed from the provided URL. `ovox_server_version` and the mirror URL parameters are ignored.
 
 ## Using a parameter file
 
