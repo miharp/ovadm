@@ -1,0 +1,6 @@
+{
+  "description": "Point OpenVox Server at codavox: versioned-code.conf commands, environmentpath, and static_catalogs",
+  "input_method": "environment",
+  "parameters": {},
+  "supports_noop": false
+}

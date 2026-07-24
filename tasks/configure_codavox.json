@@ -1,0 +1,27 @@
+{
+  "description": "Write /etc/codavox/config.yaml for a node's codavox role",
+  "input_method": "environment",
+  "parameters": {
+    "role": {
+      "description": "Which daemon this node runs: publisher (server) or agent (compiler)",
+      "type": "Enum[publisher, agent]"
+    },
+    "staging": {
+      "description": "Staging directory the publisher serves (publisher role)",
+      "type": "Optional[String[1]]"
+    },
+    "publisher": {
+      "description": "Publisher base URL, e.g. https://puppet:8150 (agent role)",
+      "type": "Optional[String[1]]"
+    },
+    "ssldir": {
+      "description": "Puppet SSL directory; defaults to /etc/puppetlabs/puppet/ssl",
+      "type": "Optional[String[1]]"
+    },
+    "certname": {
+      "description": "Node certname; defaults to the system FQDN",
+      "type": "Optional[String[1]]"
+    }
+  },
+  "supports_noop": false
+}
