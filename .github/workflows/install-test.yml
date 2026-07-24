@@ -57,7 +57,12 @@ jobs:
 
       - name: Run puppet agent
         run: |
+          set +e
           docker exec ovadm-agent /opt/puppetlabs/bin/puppet agent -t --server ${{ matrix.agent_server }}
+          rc=$?
+          # puppet agent -t implies --detailed-exitcodes: 0 = no changes, 2 = changes
+          # applied. Both mean the run succeeded; 4 and 6 signal resource failures.
+          if [ "$rc" -ne 0 ] && [ "$rc" -ne 2 ]; then exit "$rc"; fi
 
       - name: Verify the agent got a static catalog from codavox (large topology only)
         if: matrix.topology == 'large'
