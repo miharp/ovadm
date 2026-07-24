@@ -72,5 +72,11 @@ plan ovadm::codavox(
   run_task('ovadm::wire_codavox', $compiler_hosts)
   run_command('systemctl restart puppetserver', $compiler_hosts)
 
+  # Wait for puppetserver to answer again before returning: the restart is what
+  # picks up the codavox wiring, and a caller that runs an agent immediately
+  # (as the install-test workflow does) would otherwise race a still-starting
+  # JVM and fail to fetch a catalog.
+  run_task('ovadm::wait_until_service_ready', $compiler_hosts)
+
   out::message('codavox wired: publisher serving on the server, agents converged, compilers on static catalogs.')
 }

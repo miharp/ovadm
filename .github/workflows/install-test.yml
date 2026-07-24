@@ -43,13 +43,40 @@ jobs:
             compiler_hosts=compiler01 \
             --inventoryfile docker/inventory.yaml
 
+      - name: Install and wire codavox (large topology only)
+        if: matrix.topology == 'large'
+        run: |
+          bundle exec bolt plan run ovadm::codavox \
+            server_host=puppet \
+            compiler_hosts=compiler01 \
+            --inventoryfile docker/inventory.yaml
+
       - name: Enable autosign
         run: |
           docker exec ovadm-server bash -c 'echo "*" > /etc/puppetlabs/puppet/autosign.conf'
 
       - name: Run puppet agent
         run: |
+          set +e
           docker exec ovadm-agent /opt/puppetlabs/bin/puppet agent -t --server ${{ matrix.agent_server }}
+          rc=$?
+          # puppet agent -t implies --detailed-exitcodes: 0 = no changes, 2 = changes
+          # applied. Both mean the run succeeded; 4 and 6 signal resource failures.
+          if [ "$rc" -ne 0 ] && [ "$rc" -ne 2 ]; then exit "$rc"; fi
+
+      - name: Verify the agent got a static catalog from codavox (large topology only)
+        if: matrix.topology == 'large'
+        run: |
+          # The compiler answers "which version am I serving?"; the catalog the
+          # agent just compiled through it must carry that same code_id. If codavox
+          # were not wired, the catalog would have no code_id and this fails.
+          served=$(docker exec ovadm-compiler01 codavox code-id production)
+          echo "compiler01 serves code_id: $served"
+          test -n "$served"
+          catalog=/opt/puppetlabs/puppet/cache/client_data/catalog/agent.json
+          in_catalog=$(docker exec ovadm-agent grep -o '"code_id":"[^"]*"' "$catalog" | head -1)
+          echo "agent catalog reports: $in_catalog"
+          echo "$in_catalog" | grep -q "$served"
 
       - name: Check status
         run: |
