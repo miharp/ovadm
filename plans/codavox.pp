@@ -38,11 +38,14 @@ plan ovadm::codavox(
 ) {
   $server_fqdn = run_command('hostname -f', $server_host).first.value['stdout'].strip
 
-  # Install the package everywhere codavox runs.
-  run_task('ovadm::install_codavox', [$server_host, $compiler_hosts], {
-    'version'     => $codavox_version,
-    'package_url' => $package_url,
-  })
+  # Install the package everywhere codavox runs. Pass package_url only when it is
+  # set: Bolt serializes an undef parameter as the string "null", which would be
+  # taken as a literal package path.
+  $install_params = $package_url ? {
+    undef   => { 'version' => $codavox_version },
+    default => { 'package_url' => $package_url },
+  }
+  run_task('ovadm::install_codavox', [$server_host, $compiler_hosts], $install_params)
 
   # Config per role; both reuse the node's Puppet SSL material.
   run_task('ovadm::configure_codavox', $server_host, {
