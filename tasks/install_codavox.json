@@ -1,0 +1,15 @@
+{
+  "description": "Install the codavox package from the official release, or from a given package URL or local path",
+  "input_method": "environment",
+  "parameters": {
+    "version": {
+      "description": "codavox release to install (e.g. '0.2.1'). Ignored when package_url is set.",
+      "type": "Optional[String[1]]"
+    },
+    "package_url": {
+      "description": "Direct URL or local path to a codavox rpm/deb, overriding version. Useful for a local snapshot when testing unreleased code.",
+      "type": "Optional[String[1]]"
+    }
+  },
+  "supports_noop": false
+}

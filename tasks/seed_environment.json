@@ -1,0 +1,15 @@
+{
+  "description": "Seed a minimal resolved environment into the staging directory for codavox to serve",
+  "input_method": "environment",
+  "parameters": {
+    "staging": {
+      "description": "Staging directory; defaults to /etc/puppetlabs/code-staging",
+      "type": "Optional[String[1]]"
+    },
+    "environment": {
+      "description": "Environment name to seed; defaults to production",
+      "type": "Optional[String[1]]"
+    }
+  },
+  "supports_noop": false
+}

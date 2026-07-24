@@ -1,0 +1,15 @@
+{
+  "description": "Wait until codavox reports a code_id for an environment (the agent has converged)",
+  "input_method": "environment",
+  "parameters": {
+    "environment": {
+      "description": "Environment to wait for; defaults to production",
+      "type": "Optional[String[1]]"
+    },
+    "timeout": {
+      "description": "Seconds to wait before giving up; defaults to 60",
+      "type": "Optional[Integer[1]]"
+    }
+  },
+  "supports_noop": false
+}
