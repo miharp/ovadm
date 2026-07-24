@@ -17,6 +17,7 @@ describe 'ovadm::codavox' do
     allow_task('ovadm::seed_environment').always_return('status' => 'success')
     allow_task('ovadm::wait_for_environment').always_return('status' => 'success')
     allow_task('ovadm::wire_codavox').always_return('status' => 'success')
+    allow_task('ovadm::wait_until_service_ready').always_return('status' => 'ready')
   end
 
   it 'installs, configures both roles, serves, converges, then wires the compilers' do
@@ -27,6 +28,8 @@ describe 'ovadm::codavox' do
     # convergence must be waited on before wiring OpenVox Server
     expect_task('ovadm::wait_for_environment').be_called_times(1)
     expect_task('ovadm::wire_codavox').be_called_times(1)
+    # the restart must leave puppetserver ready before the plan returns
+    expect_task('ovadm::wait_until_service_ready').be_called_times(1)
 
     result = run_plan('ovadm::codavox', {
       'server_host'    => server,

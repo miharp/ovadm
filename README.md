@@ -19,6 +19,22 @@ ovadm is an [OpenBolt](https://github.com/OpenVoxProject/openbolt) module that a
 | `ovadm::upgrade` | Upgrade an existing deployment in-place |
 | `ovadm::status` | Report health: prechecks, service state, and installed version |
 | `ovadm::add_compiler` | Add a compiler node to an existing deployment |
+| `ovadm::codavox` | Install and wire [codavox](https://github.com/miharp/codavox) for versioned code distribution |
+
+### Distributing code with codavox
+
+OpenVox Server ships without Puppet Enterprise's Code Manager and file sync, so
+there is no built-in way to get resolved code onto compilers or to serve static
+catalogs. [codavox](https://github.com/miharp/codavox) fills that gap, and
+`ovadm::codavox` sets it up end to end on an existing deployment: it installs the
+package on the server and compilers, serves a seeded environment from the server,
+converges each compiler's agent, then points OpenVox Server at codavox — in that
+order, since a compiler wired before its agent has converged has nothing to serve.
+It reuses the compiler certificates `add_compiler` already provisioned.
+
+```bash
+bolt plan run ovadm::codavox server_host=puppet compiler_hosts=compiler01,compiler02
+```
 
 ## Quick start
 
