@@ -46,7 +46,24 @@ plan ovadm::codavox(
     undef   => { 'version' => $codavox_version },
     default => { 'package_url' => $package_url },
   }
-  run_task('ovadm::install_codavox', [$server_host, $compiler_hosts], $install_params)
+  $installed = run_task('ovadm::install_codavox', [$server_host, $compiler_hosts], $install_params)
+
+  # Say which codavox landed, and fail if it is not the one asked for. A stale
+  # package cache or a wrong URL otherwise shows up much later as a daemon that
+  # will not start, because codavox rejects config keys it does not know rather
+  # than ignoring them — so an older binary meets a newer config and the error
+  # points at the config instead of the version. Skipped when package_url is set,
+  # since a snapshot has no version to compare against.
+  # goreleaser strips the leading v from tags, so a released binary reports
+  # 0.5.0; normalize both sides rather than depending on that staying true.
+  $want = $codavox_version.regsubst('^v', '')
+  $installed.each |$result| {
+    $got = String($result.value['version']).regsubst('^v', '')
+    out::message("codavox ${got} on ${result.target.name}")
+    if $package_url == undef and $got != $want {
+      fail("${result.target.name} has codavox ${got}, but ${want} was requested")
+    }
+  }
 
   # Config per role; both reuse the node's Puppet SSL material.
   run_task('ovadm::configure_codavox', $server_host, {
