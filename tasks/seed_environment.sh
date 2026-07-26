@@ -1,13 +1,13 @@
 #!/bin/bash
 set -euo pipefail
 
-staging="${PT_staging:-/etc/puppetlabs/code/environments}"
+basedir="${PT_basedir:-/etc/puppetlabs/code/environments}"
 environment="${PT_environment:-production}"
 
-envdir="${staging}/${environment}"
+envdir="${basedir}/${environment}"
 sitepp="${envdir}/manifests/site.pp"
 
-# The staging directory is r10k's basedir, which on a stock install is the live
+# The basedir directory is r10k's basedir, which on a stock install is the live
 # codedir. So this must never overwrite code that is already there: a demo
 # manifest replacing a real control repo would be a silent, destructive
 # surprise, and codavox would then faithfully distribute the wrong tree to every

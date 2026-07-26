@@ -22,9 +22,9 @@
 #   Direct URL to a codavox package, overriding codavox_version. Use for a local
 #   snapshot when testing unreleased code.
 #
-# @param staging
+# @param basedir
 #   r10k's basedir, which the publisher serves. On a stock install that is the
-#   codedir r10k already deploys into; codavox needs no staging area of its own.
+#   codedir r10k already deploys into; codavox needs no basedir area of its own.
 #
 # @param deploy_server
 #   Also run the deploy API and webhook daemon on the server.
@@ -32,9 +32,9 @@
 plan ovadm::codavox(
   TargetSpec          $server_host,
   TargetSpec          $compiler_hosts,
-  String[1]           $codavox_version = '0.4.0',
+  String[1]           $codavox_version = '0.5.0',
   Optional[String[1]] $package_url     = undef,
-  String[1]           $staging         = '/etc/puppetlabs/code/environments',
+  String[1]           $basedir         = '/etc/puppetlabs/code/environments',
   Boolean             $deploy_server   = false,
 ) {
   $server_fqdn = run_command('hostname -f', $server_host).first.value['stdout'].strip
@@ -51,7 +51,7 @@ plan ovadm::codavox(
   # Config per role; both reuse the node's Puppet SSL material.
   run_task('ovadm::configure_codavox', $server_host, {
     'role'    => 'publisher',
-    'staging' => $staging,
+    'basedir' => $basedir,
   })
   # One URL for both the agents and the later fleet check, so the verification
   # queries exactly the endpoint the agents proved reachable.
@@ -61,9 +61,9 @@ plan ovadm::codavox(
     'publisher' => $publisher_url,
   })
 
-  # Server: seed an environment, then serve it. The publisher seals staging at
+  # Server: seed an environment, then serve it. The publisher seals basedir at
   # startup, so seeding first means it comes up already serving the environment.
-  run_task('ovadm::seed_environment', $server_host, { 'staging' => $staging })
+  run_task('ovadm::seed_environment', $server_host, { 'basedir' => $basedir })
   run_command('systemctl enable --now codavox-publish', $server_host)
   if $deploy_server {
     run_command('systemctl enable --now codavox-deploy-server', $server_host)
