@@ -2,7 +2,7 @@
 set -euo pipefail
 
 role="${PT_role:?role is required}"
-staging="${PT_staging:-/etc/puppetlabs/code-staging}"
+staging="${PT_staging:-/etc/puppetlabs/code/environments}"
 publisher="${PT_publisher:-}"
 ssldir="${PT_ssldir:-/etc/puppetlabs/puppet/ssl}"
 certname="${PT_certname:-$(hostname -f)}"

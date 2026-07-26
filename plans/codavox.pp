@@ -23,7 +23,8 @@
 #   snapshot when testing unreleased code.
 #
 # @param staging
-#   r10k's basedir, which the publisher serves.
+#   r10k's basedir, which the publisher serves. On a stock install that is the
+#   codedir r10k already deploys into; codavox needs no staging area of its own.
 #
 # @param deploy_server
 #   Also run the deploy API and webhook daemon on the server.
@@ -31,9 +32,9 @@
 plan ovadm::codavox(
   TargetSpec          $server_host,
   TargetSpec          $compiler_hosts,
-  String[1]           $codavox_version = '0.2.1',
+  String[1]           $codavox_version = '0.4.0',
   Optional[String[1]] $package_url     = undef,
-  String[1]           $staging         = '/etc/puppetlabs/code-staging',
+  String[1]           $staging         = '/etc/puppetlabs/code/environments',
   Boolean             $deploy_server   = false,
 ) {
   $server_fqdn = run_command('hostname -f', $server_host).first.value['stdout'].strip
@@ -52,9 +53,12 @@ plan ovadm::codavox(
     'role'    => 'publisher',
     'staging' => $staging,
   })
+  # One URL for both the agents and the later fleet check, so the verification
+  # queries exactly the endpoint the agents proved reachable.
+  $publisher_url = "https://${server_fqdn}:8150"
   run_task('ovadm::configure_codavox', $compiler_hosts, {
     'role'      => 'agent',
-    'publisher' => "https://${server_fqdn}:8150",
+    'publisher' => $publisher_url,
   })
 
   # Server: seed an environment, then serve it. The publisher seals staging at
@@ -78,5 +82,18 @@ plan ovadm::codavox(
   # JVM and fail to fetch a catalog.
   run_task('ovadm::wait_until_service_ready', $compiler_hosts)
 
-  out::message('codavox wired: publisher serving on the server, agents converged, compilers on static catalogs.')
+  # Confirm from the publisher that every compiler is on the same code_id.
+  #
+  # wait_for_environment above already asked each compiler individually, so this
+  # is not a repeat: it checks the publisher and the compilers *agree*, and that
+  # every compiler authenticated and is being served. A node whose certificate
+  # the publisher refuses converges on nothing and is simply absent here, which
+  # per-node checks on a single compiler cannot reveal.
+  $fleet = run_task('ovadm::verify_fleet', $server_host, {
+    'expected'  => length(get_targets($compiler_hosts)),
+    'publisher' => $publisher_url,
+  }).first.value
+
+  out::message(sprintf('codavox wired: %s compiler(s) serving production at %s.',
+      $fleet['compilers'], $fleet['code_id']))
 }

@@ -36,6 +36,18 @@ It reuses the compiler certificates `add_compiler` already provisioned.
 bolt plan run ovadm::codavox server_host=puppet compiler_hosts=compiler01,compiler02
 ```
 
+It finishes by asking the publisher what every compiler reports serving, and
+fails if they have not all converged on one `code_id` — so a compiler the
+publisher refuses, or one whose agent never caught up, stops the plan rather than
+being discovered later.
+
+The publisher serves `staging`, which is **r10k's `basedir`** — on a stock
+install the codedir r10k already deploys into
+(`/etc/puppetlabs/code/environments`). codavox needs no staging area of its own.
+If that environment has no manifests yet, the plan seeds a minimal one so the
+publisher has something to serve; an environment that already has code is left
+untouched.
+
 ## Quick start
 
 ```bash

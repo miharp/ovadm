@@ -18,6 +18,9 @@ describe 'ovadm::codavox' do
     allow_task('ovadm::wait_for_environment').always_return('status' => 'success')
     allow_task('ovadm::wire_codavox').always_return('status' => 'success')
     allow_task('ovadm::wait_until_service_ready').always_return('status' => 'ready')
+    allow_task('ovadm::verify_fleet').always_return(
+      'status' => 'success', 'compilers' => 1, 'code_id' => 'abc123', 'certnames' => compiler
+    )
   end
 
   it 'installs, configures both roles, serves, converges, then wires the compilers' do
@@ -30,6 +33,8 @@ describe 'ovadm::codavox' do
     expect_task('ovadm::wire_codavox').be_called_times(1)
     # the restart must leave puppetserver ready before the plan returns
     expect_task('ovadm::wait_until_service_ready').be_called_times(1)
+    # and the publisher must confirm the fleet converged, not just each node
+    expect_task('ovadm::verify_fleet').be_called_times(1)
 
     result = run_plan('ovadm::codavox', {
       'server_host'    => server,
@@ -44,6 +49,20 @@ describe 'ovadm::codavox' do
     result = run_plan('ovadm::codavox', {
       'server_host'    => server,
       'compiler_hosts' => compiler
+    })
+    expect(result).to be_ok
+  end
+
+  # The count comes from the compiler list, so a two-compiler run must require
+  # both to report. Passing 1 would let a half-converged fleet look converged.
+  it 'requires every compiler to report to the publisher' do
+    expect_task('ovadm::verify_fleet')
+      .with_params('expected' => 2, 'publisher' => "https://#{server}:8150")
+      .be_called_times(1)
+
+    result = run_plan('ovadm::codavox', {
+      'server_host'    => server,
+      'compiler_hosts' => [compiler, 'ovox-compiler02.example.com']
     })
     expect(result).to be_ok
   end

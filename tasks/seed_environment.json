@@ -3,7 +3,7 @@
   "input_method": "environment",
   "parameters": {
     "staging": {
-      "description": "Staging directory; defaults to /etc/puppetlabs/code-staging",
+      "description": "Staging directory (r10k's basedir); defaults to /etc/puppetlabs/code/environments",
       "type": "Optional[String[1]]"
     },
     "environment": {
