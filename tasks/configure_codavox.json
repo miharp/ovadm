@@ -6,8 +6,8 @@
       "description": "Which daemon this node runs: publisher (server) or agent (compiler)",
       "type": "Enum[publisher, agent]"
     },
-    "staging": {
-      "description": "Staging directory the publisher serves (publisher role)",
+    "basedir": {
+      "description": "Basedir directory the publisher serves (publisher role)",
       "type": "Optional[String[1]]"
     },
     "publisher": {

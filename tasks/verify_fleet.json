@@ -1,0 +1,23 @@
+{
+  "description": "Verify from the publisher that every compiler reports serving the same code_id",
+  "input_method": "environment",
+  "parameters": {
+    "environment": {
+      "description": "Environment to check; defaults to production",
+      "type": "Optional[String[1]]"
+    },
+    "expected": {
+      "description": "How many compilers must report; defaults to 1",
+      "type": "Optional[Integer[1]]"
+    },
+    "publisher": {
+      "description": "Publisher URL to query; defaults to what codavox derives from this node's certname",
+      "type": "Optional[String[1]]"
+    },
+    "timeout": {
+      "description": "Seconds to wait for the fleet to converge; defaults to 90",
+      "type": "Optional[Integer[1]]"
+    }
+  },
+  "supports_noop": false
+}

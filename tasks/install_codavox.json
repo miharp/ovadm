@@ -3,7 +3,7 @@
   "input_method": "environment",
   "parameters": {
     "version": {
-      "description": "codavox release to install (e.g. '0.2.1'). Ignored when package_url is set.",
+      "description": "codavox release to install (e.g. '0.5.0'). Ignored when package_url is set.",
       "type": "Optional[String[1]]"
     },
     "package_url": {

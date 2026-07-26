@@ -78,6 +78,30 @@ jobs:
           echo "agent catalog reports: $in_catalog"
           echo "$in_catalog" | grep -q "$served"
 
+      - name: Verify the publisher's fleet view agrees with the compiler (large topology only)
+        if: matrix.topology == 'large'
+        run: |
+          # The publisher reports what each compiler said it is serving, read
+          # from that compiler's own environment symlink. So this must equal what
+          # the compiler answers for itself — a disagreement means one of them is
+          # not describing the node we think it is.
+          # No --publisher here on purpose: the plan passes one explicitly, so
+          # this is the one place that exercises the URL codavox derives from the
+          # node's own certname — the path an operator gets by default.
+          own=$(docker exec ovadm-compiler01 codavox code-id production)
+          docker exec ovadm-server codavox compilers
+          # Select by certname rather than taking the first entry: the fleet view
+          # is ordered by when each node was last seen, not by name.
+          cn=$(docker exec ovadm-compiler01 hostname -f)
+          reported=$(docker exec ovadm-server codavox compilers --json \
+            | ruby -rjson -e \
+              'peer = JSON.parse($stdin.read).find { |p| p["certname"] == ARGV[0] }
+               puts peer ? (peer["serving"] || {})["production"] : ""' "$cn")
+          echo "compiler says: $own"
+          echo "publisher says: $reported"
+          test -n "$reported"
+          test "$own" = "$reported"
+
       - name: Check status
         run: |
           bundle exec bolt plan run ovadm::status \

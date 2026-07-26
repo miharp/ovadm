@@ -2,7 +2,7 @@
 set -euo pipefail
 
 role="${PT_role:?role is required}"
-staging="${PT_staging:-/etc/puppetlabs/code-staging}"
+basedir="${PT_basedir:-/etc/puppetlabs/code/environments}"
 publisher="${PT_publisher:-}"
 ssldir="${PT_ssldir:-/etc/puppetlabs/puppet/ssl}"
 certname="${PT_certname:-$(hostname -f)}"
@@ -13,7 +13,7 @@ mkdir -p "$(dirname "$conf")"
 case "$role" in
   publisher)
     cat > "$conf" <<EOF
-staging: ${staging}
+basedir: ${basedir}
 ssldir: ${ssldir}
 certname: ${certname}
 EOF

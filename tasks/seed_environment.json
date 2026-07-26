@@ -1,9 +1,9 @@
 {
-  "description": "Seed a minimal resolved environment into the staging directory for codavox to serve",
+  "description": "Seed a minimal resolved environment into the basedir directory for codavox to serve",
   "input_method": "environment",
   "parameters": {
-    "staging": {
-      "description": "Staging directory; defaults to /etc/puppetlabs/code-staging",
+    "basedir": {
+      "description": "Basedir directory (r10k's basedir); defaults to /etc/puppetlabs/code/environments",
       "type": "Optional[String[1]]"
     },
     "environment": {
