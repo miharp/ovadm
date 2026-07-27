@@ -32,7 +32,7 @@
 plan ovadm::codavox(
   TargetSpec          $server_host,
   TargetSpec          $compiler_hosts,
-  String[1]           $codavox_version = '0.5.0',
+  String[1]           $codavox_version = '0.6.1',
   Optional[String[1]] $package_url     = undef,
   String[1]           $basedir         = '/etc/puppetlabs/code/environments',
   Boolean             $deploy_server   = false,
