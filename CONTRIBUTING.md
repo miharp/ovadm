@@ -61,7 +61,7 @@ bundle exec rake acceptance
 docker rm -f ovadm-acceptance
 ```
 
-For a full end-to-end test using the three-node Docker environment, see the [Local Docker dev environment](README.md#local-docker-dev-environment) section in the README.
+For a full end-to-end test using the three-node Docker environment, see [Docker testing](documentation/docker_testing.md).
 
 ## Code style
 
