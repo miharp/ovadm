@@ -23,15 +23,31 @@
 #   generated on first start. If the service has already run, the SSL
 #   directory must be wiped and the service restarted.
 #
+# @param enable_cert_auto_renewal
+#   Enable certificate auto-renewal on the CA (allow-auto-renewal in
+#   ca.conf) before first service start, so every certificate the CA signs
+#   is short-lived and renewed automatically during agent runs.
+#   NOTE: renewal only happens when agents run regularly (service, cron,
+#   or scheduled runs) — ovadm does not set that up. Nodes that stop
+#   checking in are left with an expired certificate once the short TTL
+#   elapses. Compilers additionally need a puppetserver restart to serve
+#   a renewed certificate. Defaults to false, matching upstream.
+#
+# @param auto_renewal_cert_ttl
+#   TTL for auto-renewed certificates (e.g. '60d', '90d'). Only used when
+#   enable_cert_auto_renewal is true; omit to keep the packaged default.
+#
 plan ovadm::install(
   TargetSpec                   $server_host,
-  Optional[TargetSpec]         $compiler_hosts      = undef,
-  Optional[String[1]]          $ovox_version        = undef,
-  Optional[String[1]]          $ovox_server_version = undef,
-  Optional[Array[String[1]]]   $dns_alt_names       = undef,
-  Optional[String[1]]          $apt_base_url        = undef,
-  Optional[String[1]]          $yum_base_url        = undef,
-  Optional[String[1]]          $package_url         = undef,
+  Optional[TargetSpec]         $compiler_hosts           = undef,
+  Optional[String[1]]          $ovox_version             = undef,
+  Optional[String[1]]          $ovox_server_version      = undef,
+  Optional[Array[String[1]]]   $dns_alt_names            = undef,
+  Optional[String[1]]          $apt_base_url             = undef,
+  Optional[String[1]]          $yum_base_url             = undef,
+  Optional[String[1]]          $package_url              = undef,
+  Boolean                      $enable_cert_auto_renewal = false,
+  Optional[String[1]]          $auto_renewal_cert_ttl    = undef,
 ) {
   run_plan('ovadm::subplans::precheck', { 'server_host' => $server_host })
 
@@ -52,6 +68,16 @@ plan ovadm::install(
   # csr_attributes.yaml must be written before first start — puppetserver reads
   # it when generating its own certificate on initial startup
   run_task('ovadm::set_csr_attributes', $server_host, { 'pp_role' => 'openvox_server' })
+
+  # ca.conf must be in place before first start so even the compilers'
+  # initial certificates are issued with the auto-renewal TTL
+  if $enable_cert_auto_renewal {
+    $renewal_params = $auto_renewal_cert_ttl ? {
+      undef   => { 'allow_auto_renewal' => true },
+      default => { 'allow_auto_renewal' => true, 'auto_renewal_cert_ttl' => $auto_renewal_cert_ttl },
+    }
+    run_task('ovadm::configure_ca_renewal', $server_host, $renewal_params)
+  }
 
   run_command('systemctl enable --now puppetserver', $server_host)
 

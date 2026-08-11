@@ -19,8 +19,30 @@ describe 'ovadm::install' do
       expect_plan('ovadm::subplans::configure').be_called_times(1)
       expect_task('ovadm::set_csr_attributes').be_called_times(1).always_return('status' => 'success')
       expect_task('ovadm::wait_until_service_ready').be_called_times(1)
+      expect_task('ovadm::configure_ca_renewal').not_be_called
 
       result = run_plan('ovadm::install', { 'server_host' => server })
+      expect(result).to be_ok
+    end
+  end
+
+  context 'with enable_cert_auto_renewal' do
+    it 'configures ca.conf before the service starts' do
+      expect_plan('ovadm::subplans::precheck').be_called_times(1)
+      expect_plan('ovadm::subplans::install').be_called_times(1)
+      expect_plan('ovadm::subplans::configure').be_called_times(1)
+      expect_task('ovadm::set_csr_attributes').be_called_times(1).always_return('status' => 'success')
+      expect_task('ovadm::configure_ca_renewal')
+        .be_called_times(1)
+        .with_params('allow_auto_renewal' => true, 'auto_renewal_cert_ttl' => '90d')
+        .always_return('status' => 'success')
+      expect_task('ovadm::wait_until_service_ready').be_called_times(1)
+
+      result = run_plan('ovadm::install', {
+        'server_host'              => server,
+        'enable_cert_auto_renewal' => true,
+        'auto_renewal_cert_ttl'    => '90d'
+      })
       expect(result).to be_ok
     end
   end
