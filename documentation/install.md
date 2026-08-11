@@ -56,6 +56,24 @@ bolt plan run ovadm::install \
 
 > **Note:** DNS alt names must be set before the CA certificate is generated on first start. They cannot be changed after the service has run without wiping the SSL directory.
 
+## Certificate auto-renewal
+
+By default the CA signs certificates with a 5-year lifetime (`ca_ttl`), and nothing renews them — expiry at the 5-year mark is a common operational surprise. Install time is the one moment auto-renewal can be enabled cheaply, since it only affects certificates signed *after* it is turned on and nothing has been signed yet:
+
+```bash
+bolt plan run ovadm::install \
+  server_host=ovox-server.example.com \
+  enable_cert_auto_renewal=true
+```
+
+This sets `allow-auto-renewal: true` in `ca.conf` before the first service start. Every certificate the CA signs (compilers and agents) then gets the short auto-renewal TTL — the packaged `ca.conf` ships `60d` — and agents renew transparently during regular check-ins. Pass `auto_renewal_cert_ttl` (e.g. `90d`) to override the TTL.
+
+The default is `false`, matching upstream, because auto-renewal is a contract with operational requirements ovadm cannot guarantee:
+
+- **Agents must run regularly.** Renewal happens during agent runs (within `hostcert_renewal_interval`, default 30 days, of expiry). ovadm does not enable the agent service or set up cron — if your nodes only run agents ad hoc, their certificates expire after the short TTL. Only enable this if your fleet has regular agent runs.
+- **Compilers need a restart to serve a renewed certificate.** A compiler's puppetserver loads its certificate at startup; the agent renewing the file on disk is not enough. Arrange a puppetserver restart/reload after renewal (e.g. via Puppet code watching the cert file).
+- **The primary server's own certificate is mostly unaffected.** It is created by `puppetserver ca setup` with a 15-year lifetime, not signed through the normal CA path, so auto-renewal effectively governs compilers and agents only.
+
 ## Version parameters
 
 `openvox-server` and `openvox-agent` are versioned independently. The server package has a minimum agent version dependency, so the package manager installs a compatible agent automatically.

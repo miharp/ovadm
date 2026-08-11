@@ -1,0 +1,15 @@
+{
+  "description": "Set certificate auto-renewal settings in ca.conf on the CA. Takes effect on the next puppetserver (re)start and only affects certificates signed after that.",
+  "input_method": "environment",
+  "parameters": {
+    "allow_auto_renewal": {
+      "description": "Whether the CA honors agent certificate renewal requests (certificate-authority.allow-auto-renewal)",
+      "type": "Boolean"
+    },
+    "auto_renewal_cert_ttl": {
+      "description": "TTL for auto-renewed certificates, e.g. '60d' (certificate-authority.auto-renewal-cert-ttl); omit to keep the packaged value",
+      "type": "Optional[String[1]]"
+    }
+  },
+  "supports_noop": false
+}

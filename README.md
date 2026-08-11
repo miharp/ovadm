@@ -58,7 +58,7 @@ Copy `inventory.yaml.example` to `inventory.yaml` and fill in your target detail
 
 ## Documentation
 
-- [Installing](documentation/install.md) — Standard, Large, DNS alt names, internal mirrors
+- [Installing](documentation/install.md) — Standard, Large, DNS alt names, certificate auto-renewal, internal mirrors
 - [Upgrading](documentation/upgrade.md) — Minor/patch and major version upgrades
 - [Managing compilers](documentation/add_compiler.md) — Adding and removing compiler nodes
 - [Architecture](documentation/architecture.md) — Topologies, plan structure, cert extensions, peadm comparison
