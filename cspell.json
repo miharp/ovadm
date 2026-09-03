@@ -11,6 +11,7 @@
     "confdir",
     "dpkg",
     "facter",
+    "harpworks",
     "hiera",
     "modulepath",
     "noarch",

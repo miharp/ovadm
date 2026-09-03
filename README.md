@@ -36,6 +36,13 @@ It reuses the compiler certificates `add_compiler` already provisioned.
 bolt plan run ovadm::codavox server_host=puppet compiler_hosts=compiler01,compiler02
 ```
 
+The package comes from the [harpworks repository](https://packages.harpworks.org),
+which the plan configures on every node with its signing key pinned in the task,
+so `codavox_version` is a plain version and upgrades are the package manager's.
+A `package_url` installs a file or URL instead, for a snapshot of unreleased
+code. On each compiler the plan also allows codavox's agent to expire the
+server's environment cache, which codavox 0.7 and later require.
+
 It finishes by asking the publisher what every compiler reports serving, and
 fails if they have not all converged on one `code_id` - so a compiler the
 publisher refuses, or one whose agent never caught up, stops the plan rather than
