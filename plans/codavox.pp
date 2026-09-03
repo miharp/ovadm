@@ -16,7 +16,8 @@
 #   The compiler node(s); run the agent and are wired into OpenVox Server.
 #
 # @param codavox_version
-#   codavox release to install from the official packages.
+#   codavox release to install from the harpworks package repository, which the
+#   install task configures on every node.
 #
 # @param package_url
 #   Direct URL to a codavox package, overriding codavox_version. Use for a local
@@ -32,15 +33,16 @@
 plan ovadm::codavox(
   TargetSpec          $server_host,
   TargetSpec          $compiler_hosts,
-  String[1]           $codavox_version = '0.6.2',
+  String[1]           $codavox_version = '0.8.0',
   Optional[String[1]] $package_url     = undef,
   String[1]           $basedir         = '/etc/puppetlabs/code/environments',
   Boolean             $deploy_server   = false,
 ) {
   $server_fqdn = run_command('hostname -f', $server_host).first.value['stdout'].strip
 
-  # Install the package everywhere codavox runs. Pass package_url only when it is
-  # set: Bolt serializes an undef parameter as the string "null", which would be
+  # Install the package everywhere codavox runs, from the harpworks repository
+  # unless a package_url says otherwise. Pass package_url only when it is set:
+  # Bolt serializes an undef parameter as the string "null", which would be
   # taken as a literal package path.
   $install_params = $package_url ? {
     undef   => { 'version' => $codavox_version },
