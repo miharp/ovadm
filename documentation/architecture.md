@@ -35,7 +35,8 @@ flowchart TD
     precheck --> installsp[subplans::install\nconfigure_repo → install_server]
     installsp --> configure[subplans::configure\npuppet.conf]
     configure --> csr[set_csr_attributes\npp_role: openvox_server]
-    csr --> start[puppetserver start]
+    csr --> casetup[ca_setup\nroot + intermediate CA]
+    casetup --> start[puppetserver start]
     start --> wait[wait_until_service_ready]
     wait --> large{compiler_hosts?}
     large -- no --> done([done])
@@ -53,7 +54,11 @@ ovadm embeds a `pp_role` trusted certificate extension in every infrastructure n
 | OpenVox Server | `openvox_server` |
 | Compiler | `openvox_compiler` |
 
-This is implemented via `csr_attributes.yaml` written before the node's first agent run (or before puppetserver's first start on the server). After signing, `$trusted['extensions']['pp_role']` is available in Puppet code for role-based classification without a node classifier.
+This is implemented via `csr_attributes.yaml` written before the node's first agent run (or, on the server, before `ovadm::ca_setup` issues its certificate). After signing, `$trusted['extensions']['pp_role']` is available in Puppet code for role-based classification without a node classifier.
+
+## Certificate authority
+
+The server's CA is created by `puppetserver ca setup` before the service first starts, the way the Puppet Enterprise installer does it: a root certificate, an intermediate signing certificate, and the server's own certificate issued from the intermediate, all valid for 15 years. Left to itself, puppetserver would generate a single self-signed CA on first start whose lifetime is `ca_ttl` — five years by default, expiring together with the first agent certificates it signed. `ca_setup` is skipped when a CA already exists, so reruns and upgrades never disturb one. See [install.md](install.md#the-ca) for how to tell the two layouts apart.
 
 ## Key differences from peadm
 

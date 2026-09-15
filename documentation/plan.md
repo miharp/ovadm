@@ -99,6 +99,7 @@ Tasks are the atomic operations that plans compose. The following are implemente
 | Task | Description | Notes |
 |------|-------------|-------|
 | `ovadm::set_csr_attributes` | Write `csr_attributes.yaml` with `pp_role` extension | Must run before first agent run or puppetserver start |
+| `ovadm::ca_setup` | Create the CA with `puppetserver ca setup` (root + intermediate, 15 years) | Must run before first puppetserver start; skipped when `ca_crt.pem` exists |
 | `ovadm::sign_csr` | Sign a pending CSR on the CA; handles already-signed gracefully | |
 | `ovadm::configure_ca_renewal` | Set `allow-auto-renewal` / `auto-renewal-cert-ttl` in `ca.conf` | Run before first puppetserver start; opt-in via `ovadm::install` `enable_cert_auto_renewal` |
 

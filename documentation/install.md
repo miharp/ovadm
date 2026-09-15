@@ -23,8 +23,9 @@ The plan:
 3. Installs `openvox-server`
 4. Writes `puppet.conf`
 5. Embeds `pp_role: openvox_server` in the server certificate
-6. Starts and enables `puppetserver`
-7. Waits for the service to respond on port 8140
+6. Creates the CA with `puppetserver ca setup`
+7. Starts and enables `puppetserver`
+8. Waits for the service to respond on port 8140
 
 ## Large topology
 
@@ -44,6 +45,24 @@ Additional steps for each compiler:
 4. Runs `puppet agent` to submit and sign the CSR
 5. Starts `puppetserver` on the compiler
 
+## The CA
+
+Before the server starts for the first time, ovadm runs `puppetserver ca setup`, the same command the Puppet Enterprise installer uses. That builds a root certificate and an intermediate signing certificate, both valid for 15 years, and issues the server's own certificate from the intermediate.
+
+Starting the service without that step — the path ovadm took before this was added, and what upstream Puppet Server does on its own — produces a single self-signed CA certificate instead, with no root key and a lifetime of `ca_ttl`: five years by default, so the CA expires at the same moment as the first agent certificates it signed.
+
+To see which layout a server has:
+
+```bash
+# 2 = root + intermediate, 1 = the older single self-signed CA
+grep -c 'BEGIN CERTIFICATE' /etc/puppetlabs/puppetserver/ca/ca_crt.pem
+
+# when the CA expires
+openssl x509 -in /etc/puppetlabs/puppetserver/ca/ca_crt.pem -noout -enddate
+```
+
+ovadm never touches a CA that already exists: `ca setup` is skipped whenever `ca_crt.pem` is present, so reruns and upgrades leave the existing layout alone. Servers installed by an earlier ovadm keep their single self-signed CA — switching to the intermediate layout means regenerating the CA and reissuing every certificate in the fleet, so plan it against the five-year expiry rather than doing it in place on a whim.
+
 ## DNS alt names
 
 If agents connect to the server via a load balancer hostname or alias, embed it in the server certificate at install time:
@@ -54,7 +73,9 @@ bolt plan run ovadm::install \
   dns_alt_names='["puppet","puppet.example.com","ovox-lb.example.com"]'
 ```
 
-> **Note:** DNS alt names must be set before the CA certificate is generated on first start. They cannot be changed after the service has run without wiping the SSL directory.
+ovadm passes these to `puppetserver ca setup` as `--subject-alt-names` when it creates the CA, so they land on the server certificate that setup issues. They are also written to `puppet.conf`, so a later certificate regeneration picks them up.
+
+> **Note:** adding alt names after install means regenerating the server certificate — deleting it and reissuing with `puppetserver ca generate`. The CA itself is unaffected.
 
 ## Certificate auto-renewal
 
@@ -72,7 +93,7 @@ The default is `false`, matching upstream, because auto-renewal is a contract wi
 
 - **Agents must run regularly.** Renewal happens during agent runs (within `hostcert_renewal_interval`, default 30 days, of expiry). ovadm does not enable the agent service or set up cron — if your nodes only run agents ad hoc, their certificates expire after the short TTL. Only enable this if your fleet has regular agent runs.
 - **Compilers need a restart to serve a renewed certificate.** A compiler's puppetserver loads its certificate at startup; the agent renewing the file on disk is not enough. Arrange a puppetserver restart/reload after renewal (e.g. via Puppet code watching the cert file).
-- **The primary server's own certificate is mostly unaffected.** It is created by `puppetserver ca setup` with a 15-year lifetime, not signed through the normal CA path, so auto-renewal effectively governs compilers and agents only.
+- **The primary server's own certificate is mostly unaffected.** It is issued by `puppetserver ca setup` alongside the CA, before the service starts and before `ca.conf` is read, and gets the same 15-year lifetime rather than the auto-renewal TTL. Auto-renewal effectively governs compilers and agents only.
 
 ## Version parameters
 

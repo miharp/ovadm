@@ -1,0 +1,19 @@
+{
+  "description": "Create the CA with `puppetserver ca setup` (root + intermediate, 15-year lifetime) before the first service start. Skipped when a CA already exists.",
+  "input_method": "environment",
+  "parameters": {
+    "subject_alt_names": {
+      "description": "Comma-separated DNS alt names to embed in the server certificate (--subject-alt-names)",
+      "type": "Optional[String[1]]"
+    },
+    "certname": {
+      "description": "Certificate name for the server certificate (--certname); defaults to the certname in puppet.conf",
+      "type": "Optional[String[1]]"
+    },
+    "ca_name": {
+      "description": "Common name for the intermediate CA certificate (--ca-name); defaults to 'Puppet CA: <fqdn>'",
+      "type": "Optional[String[1]]"
+    }
+  },
+  "supports_noop": false
+}

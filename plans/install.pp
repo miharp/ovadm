@@ -19,9 +19,9 @@
 # @param dns_alt_names
 #   DNS alternative names to embed in the server certificate.
 #   Useful when agents connect via a load balancer hostname or alias.
-#   NOTE: dns_alt_names must be configured before the CA certificate is
-#   generated on first start. If the service has already run, the SSL
-#   directory must be wiped and the service restarted.
+#   They are passed to `puppetserver ca setup`, which creates the server
+#   certificate at install time. Adding alt names later means regenerating
+#   that certificate.
 #
 # @param enable_cert_auto_renewal
 #   Enable certificate auto-renewal on the CA (allow-auto-renewal in
@@ -78,6 +78,16 @@ plan ovadm::install(
     }
     run_task('ovadm::configure_ca_renewal', $server_host, $renewal_params)
   }
+
+  # Create the CA before first start, as the PE installer does: `ca setup`
+  # produces a root plus an intermediate signing certificate with a 15-year
+  # lifetime, where the CA puppetserver generates for itself on first start is
+  # a single self-signed certificate that expires with ca_ttl (5 years).
+  $ca_setup_params = $dns_alt_names ? {
+    undef   => {},
+    default => { 'subject_alt_names' => $dns_alt_names.join(',') },
+  }
+  run_task('ovadm::ca_setup', $server_host, $ca_setup_params)
 
   run_command('systemctl enable --now puppetserver', $server_host)
 

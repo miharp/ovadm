@@ -8,9 +8,9 @@
 #
 # @param dns_alt_names
 #   DNS alternative names to embed in the server certificate.
-#   Must be set before the CA certificate is generated (i.e. before first
-#   service start). If the service has already started, the SSL directory
-#   must be wiped and the service restarted for this to take effect.
+#   Written to puppet.conf so later certificate regeneration picks them up;
+#   ovadm::install also passes them to `puppetserver ca setup`, which is what
+#   puts them on the server certificate created at install time.
 #
 plan ovadm::subplans::configure(
   TargetSpec                 $server_host,
