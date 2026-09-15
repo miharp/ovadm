@@ -1,5 +1,10 @@
 # ovadm - OpenVox Administration Module
 
+[![CI](https://github.com/miharp/ovadm/actions/workflows/ci.yml/badge.svg)](https://github.com/miharp/ovadm/actions/workflows/ci.yml)
+[![Install test](https://github.com/miharp/ovadm/actions/workflows/install-test.yml/badge.svg)](https://github.com/miharp/ovadm/actions/workflows/install-test.yml)
+[![Release](https://img.shields.io/github/v/release/miharp/ovadm)](https://github.com/miharp/ovadm/releases/latest)
+[![License](https://img.shields.io/github/license/miharp/ovadm)](LICENSE)
+
 ovadm is an [OpenBolt](https://github.com/OpenVoxProject/openbolt) module for deploying, upgrading, and managing [OpenVox Server](https://docs.openvoxproject.org) infrastructure. It is modeled after [puppetlabs-peadm](https://github.com/puppetlabs/puppetlabs-peadm) and adapted for OpenVox's package-based install and simpler architecture (no console, orchestrator, or RBAC database).
 
 > **Experimental.** This module works against real targets but has not been validated at scale.
