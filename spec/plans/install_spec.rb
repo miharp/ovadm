@@ -10,6 +10,7 @@ describe 'ovadm::install' do
     execute_no_plan
     allow_command('systemctl enable --now puppetserver').always_return('stdout' => '', 'stderr' => '')
     allow_task('ovadm::configure_compiler_ssl').always_return('status' => 'success')
+    allow_task('ovadm::ca_setup').always_return('status' => 'created')
   end
 
   context 'Standard topology (no compiler_hosts)' do
@@ -18,10 +19,31 @@ describe 'ovadm::install' do
       expect_plan('ovadm::subplans::install').be_called_times(1)
       expect_plan('ovadm::subplans::configure').be_called_times(1)
       expect_task('ovadm::set_csr_attributes').be_called_times(1).always_return('status' => 'success')
+      expect_task('ovadm::ca_setup').be_called_times(1).with_params({})
       expect_task('ovadm::wait_until_service_ready').be_called_times(1)
       expect_task('ovadm::configure_ca_renewal').not_be_called
 
       result = run_plan('ovadm::install', { 'server_host' => server })
+      expect(result).to be_ok
+    end
+  end
+
+  context 'with dns_alt_names' do
+    it 'hands the alt names to ca setup' do
+      expect_plan('ovadm::subplans::precheck').be_called_times(1)
+      expect_plan('ovadm::subplans::install').be_called_times(1)
+      expect_plan('ovadm::subplans::configure').be_called_times(1)
+      expect_task('ovadm::set_csr_attributes').be_called_times(1).always_return('status' => 'success')
+      expect_task('ovadm::ca_setup')
+        .be_called_times(1)
+        .with_params('subject_alt_names' => 'puppet,ovox-lb.example.com')
+        .always_return('status' => 'created')
+      expect_task('ovadm::wait_until_service_ready').be_called_times(1)
+
+      result = run_plan('ovadm::install', {
+        'server_host'   => server,
+        'dns_alt_names' => ['puppet', 'ovox-lb.example.com']
+      })
       expect(result).to be_ok
     end
   end
