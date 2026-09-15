@@ -2,7 +2,10 @@
   "config": {
     "default": true,
     "MD013": false, // line-length: impractical for documentation
-    "MD060": false  // table-column-style: too prescriptive
+    "MD060": false, // table-column-style: too prescriptive
+    // Keep a Changelog repeats Added/Changed/Fixed under every version, which
+    // is only a duplicate heading when the two share a parent.
+    "MD024": { "siblings_only": true }
   },
   "ignores": [
     "spec/fixtures/**"

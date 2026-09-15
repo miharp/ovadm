@@ -3,12 +3,28 @@
 # @param server_host
 #   The target node running OpenVox Server
 #
+# @return
+#   A hash of `ovadm_version` (the version of ovadm doing the reporting) plus
+#   the raw `precheck`, `services`, and `versions` results.
+#
 plan ovadm::status(
   TargetSpec $server_host,
 ) {
+  # ovadm's own version, so a deployment can say which ovadm built it. Read
+  # from metadata.json rather than hardcoded: the release workflow already
+  # refuses a tag that disagrees with metadata.json, so the tag is the source.
+  $metadata = file::read("${module_directory('ovadm')}/metadata.json")
+  $version_match = $metadata.match(/"version"\s*:\s*"([^"]+)"/)
+  $ovadm_version = $version_match ? {
+    undef   => 'unknown',
+    default => $version_match[1],
+  }
+
   $precheck = run_task('ovadm::precheck', $server_host)
   $services = run_task('ovadm::service_status', $server_host)
   $versions = run_task('ovadm::get_version', $server_host)
+
+  out::message("ovadm ${ovadm_version}")
 
   $precheck.each |$result| {
     $target  = $result.target.name
@@ -35,8 +51,13 @@ plan ovadm::status(
       out::message("  ${icon} service/${svc['service']}: ${svc['status']}")
     }
 
-    out::message("  Version: ${ver_val['version']}")
+    out::message("  OpenVox Server: ${ver_val['version']}")
   }
 
-  return({'precheck' => $precheck, 'services' => $services, 'versions' => $versions})
+  return({
+    'ovadm_version' => $ovadm_version,
+    'precheck'      => $precheck,
+    'services'      => $services,
+    'versions'      => $versions,
+  })
 }

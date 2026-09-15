@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative 'spec_helper'
+require 'json'
 
 describe 'ovadm::status' do
   let(:server) { 'ovox.example.com' }
@@ -34,6 +35,19 @@ describe 'ovadm::status' do
 
     result = run_plan('ovadm::status', { 'server_host' => server })
     expect(result).to be_ok
-    expect(result.value.keys).to contain_exactly('precheck', 'services', 'versions')
+    expect(result.value.keys).to contain_exactly('ovadm_version', 'precheck', 'services', 'versions')
+  end
+
+  it "reports ovadm's own version from metadata.json" do
+    allow_task('ovadm::precheck').always_return(precheck_result)
+    allow_task('ovadm::service_status').always_return(service_result)
+    allow_task('ovadm::get_version').always_return(version_result)
+
+    expected = JSON.parse(File.read(File.expand_path('../../metadata.json', __dir__)))['version']
+
+    result = run_plan('ovadm::status', { 'server_host' => server })
+    expect(result).to be_ok
+    expect(result.value['ovadm_version']).to eq(expected)
+    expect(result.value['ovadm_version']).to match(/\A\d+\.\d+\.\d+\z/)
   end
 end

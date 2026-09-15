@@ -7,6 +7,21 @@ Notable changes to ovadm are recorded here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `ovadm::status` reports ovadm's own version, read from `metadata.json`, so a
+  deployment can say which ovadm is reporting on it. The per-target line for the
+  installed server version is now labelled `OpenVox Server:`.
+- README badges for CI, the install test, the latest release, and the license.
+
+### Fixed
+
+- `LICENSE` now carries the verbatim Apache-2.0 text. The file had been reworded
+  — 124 of its ~200 lines differed from the canonical text, the appendix was
+  missing, and the definitions of "Work" and "Contribution" had been altered — so
+  GitHub reported the repository's license as NOASSERTION despite `metadata.json`
+  declaring Apache-2.0.
+
 ## [0.2.0] - 2026-09-15
 
 First tagged release. ovadm has been usable from a checkout since May 2026; this
