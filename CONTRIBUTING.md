@@ -79,3 +79,23 @@ For a full end-to-end test using the three-node Docker environment, see [Docker 
 ## Community
 
 This project may move under the OpenVox project organization if it gains community support. If you're interested in helping maintain it long-term, open an issue to discuss.
+
+## Releasing
+
+Releases are git tags. There is no package and nothing is published to the Forge —
+a tag is what a `Puppetfile` pins, so cutting one is the whole release.
+
+1. In a PR: add the version's section to `CHANGELOG.md` and set the same version
+   in `metadata.json`. While ovadm is in 0.x, a minor bump covers breaking
+   changes; reserve patch bumps for fixes.
+2. After it merges, tag the merge commit on `main` and push:
+
+   ```bash
+   git checkout main && git pull
+   git tag -a v0.2.0 -m 'v0.2.0'
+   git push origin v0.2.0
+   ```
+
+The `Release` workflow takes it from there: it refuses the tag if `metadata.json`
+disagrees with it or if `CHANGELOG.md` has no entry for that version, then
+publishes a GitHub release using that entry as the notes.

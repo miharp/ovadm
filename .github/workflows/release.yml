@@ -1,0 +1,55 @@
+---
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Publish GitHub release
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check metadata.json matches the tag
+        run: |
+          # The tag is the artifact, so a deployment can only name the version
+          # that built it if metadata.json agrees with the tag.
+          tag="${GITHUB_REF_NAME#v}"
+          meta=$(ruby -rjson -e 'puts JSON.parse(File.read("metadata.json"))["version"]')
+          echo "tag: $tag / metadata.json: $meta"
+          if [ "$tag" != "$meta" ]; then
+            echo "::error::metadata.json says $meta but the tag says $tag — bump metadata.json before tagging"
+            exit 1
+          fi
+
+      - name: Take the release notes from the changelog
+        run: |
+          # Everything between this version's heading and the next one. Failing
+          # here is the point: an unreleased change with no changelog entry is
+          # the thing that gets skipped, so the tag refuses to ship without one.
+          tag="${GITHUB_REF_NAME#v}"
+          awk -v v="$tag" '
+            $0 ~ "^## \\[" v "\\]"          { found = 1; next }
+            found && /^## \[/               { exit }
+            found && /^\[[^]]+\]: /         { exit }
+            found                           { print }
+          ' CHANGELOG.md > "$RUNNER_TEMP/release-notes.md"
+          if [ ! -s "$RUNNER_TEMP/release-notes.md" ]; then
+            echo "::error::CHANGELOG.md has no entry for $tag"
+            exit 1
+          fi
+          cat "$RUNNER_TEMP/release-notes.md"
+
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "$GITHUB_REF_NAME" \
+            --notes-file "$RUNNER_TEMP/release-notes.md"
