@@ -55,6 +55,18 @@ If that environment has no manifests yet, the plan seeds a minimal one so the
 publisher has something to serve; an environment that already has code is left
 untouched.
 
+## Installing
+
+Pin a release in your `Puppetfile`:
+
+```ruby
+mod 'miharp-ovadm',
+  git: 'https://github.com/miharp/ovadm',
+  tag: 'v0.2.0'
+```
+
+Releases are listed on the [releases page](https://github.com/miharp/ovadm/releases), with notes in [CHANGELOG.md](CHANGELOG.md). ovadm is not published to the Forge. Running from a clone works too — every plan below is run with `--modulepath` pointed at the checkout's parent, or from inside a Bolt project that has it on the modulepath.
+
 ## Quick start
 
 ```bash

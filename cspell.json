@@ -29,6 +29,7 @@
     "Puppetfile",
     "puppetlabs",
     "puppetserver",
+    "rjson",
     "rockylinux",
     "rspec",
     "storeconfigs",
