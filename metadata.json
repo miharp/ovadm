@@ -10,6 +10,12 @@
   "tags": ["openvox", "openbolt", "administration", "infrastructure"],
   "description": "ovadm (OpenVox Administration Module) provides Bolt plans and tasks for deploying, upgrading, and managing OpenVox Server. It is modeled after puppetlabs-peadm and aims to reduce manual effort and human error in OpenVox infrastructure operations.",
   "dependencies": [],
+  "operatingsystem_support": [
+    { "operatingsystem": "Rocky", "operatingsystemrelease": ["9"] },
+    { "operatingsystem": "AlmaLinux", "operatingsystemrelease": ["9", "10"] },
+    { "operatingsystem": "Ubuntu", "operatingsystemrelease": ["22.04", "24.04"] },
+    { "operatingsystem": "Debian", "operatingsystemrelease": ["12"] }
+  ],
   "requirements": [
     {
       "name": "openbolt",

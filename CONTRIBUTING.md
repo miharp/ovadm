@@ -134,20 +134,44 @@ This project may move under the OpenVox project organization if it gains communi
 
 ## Releasing
 
-Releases are git tags. There is no package and nothing is published to the Forge —
-a tag is what a `Puppetfile` pins, so cutting one is the whole release.
+A release is a git tag. Pushing one publishes the module to the
+[Forge](https://forge.puppet.com/modules/miharp/ovadm) and cuts a GitHub release
+from the same commit, so a `Puppetfile` can pin either and get the same code.
 
-1. In a PR: add the version's section to `CHANGELOG.md` and set the same version
-   in `metadata.json`. While ovadm is in 0.x, a minor bump covers breaking
-   changes; reserve patch bumps for fixes.
+1. In a PR: add the version's section to `CHANGELOG.md`, set the same version in
+   `metadata.json`, and update the version in the README's `Puppetfile`
+   examples. While ovadm is in 0.x, a minor bump covers breaking changes;
+   reserve patch bumps for fixes.
 2. After it merges, tag the merge commit on `main` and push:
 
    ```bash
    git checkout main && git pull
-   git tag -a v0.2.0 -m 'v0.2.0'
-   git push origin v0.2.0
+   git tag -a v0.3.0 -m 'v0.3.0'
+   git push origin v0.3.0
    ```
 
-The `Release` workflow takes it from there: it refuses the tag if `metadata.json`
-disagrees with it or if `CHANGELOG.md` has no entry for that version, then
-publishes a GitHub release using that entry as the notes.
+The `Release` workflow takes it from there. It refuses the tag if
+`metadata.json` disagrees with it or if `CHANGELOG.md` has no entry for that
+version, builds the module, uploads it to the Forge, and then publishes a
+GitHub release with the changelog entry as the notes and the tarball attached.
+
+The Forge upload comes first on purpose. If it fails, nothing exists but the
+tag: fix the cause and re-run the workflow. Once the Forge has accepted a
+version, that number is spent. A release can be deleted from the Forge but
+never uploaded again, so a bad release is fixed by shipping the next patch
+version, not by moving the tag.
+
+The upload needs two repository secrets, `PUPPET_FORGE_USERNAME` and
+`PUPPET_FORGE_API_KEY` (a key from the Forge account's profile page).
+
+The package holds only what a Bolt module needs: `plans/`, `tasks/`,
+`examples/`, `README.md`, `LICENSE`, `CHANGELOG.md` and `metadata.json`. The
+builder works from a fixed list, so `documentation/`, the specs and the Docker
+environment stay out. That is why README links are absolute: the Forge renders
+the README on its own. To see exactly what would ship:
+
+```bash
+bundle exec rake module:build && tar -tzf pkg/*.tar.gz
+```
+
+CI runs the same build on every pull request.

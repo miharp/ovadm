@@ -15,3 +15,6 @@ Gemfile.lock
 *.swp
 spec/fixtures
 /inventory.yaml
+
+# Forge build output (rake module:build)
+/pkg/

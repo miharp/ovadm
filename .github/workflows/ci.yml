@@ -30,6 +30,30 @@ jobs:
       - name: Run BoltSpec plan tests
         run: bundle exec rspec spec/plans/
 
+  build:
+    name: Forge build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+
+      - name: Lint metadata.json
+        run: bundle exec metadata-json-lint metadata.json
+
+      - name: Build the module
+        # The same build the Release workflow uploads, so a tag only adds the
+        # upload. The package must hold the plans and tasks and nothing local.
+        run: |
+          bundle exec rake module:build
+          tar -tzf pkg/*.tar.gz | tee "$RUNNER_TEMP/contents.txt"
+          grep -q '/plans/install.pp$' "$RUNNER_TEMP/contents.txt"
+          grep -q '/tasks/precheck.sh$' "$RUNNER_TEMP/contents.txt"
+          ! grep -E '/(spec|docker|\.github)/' "$RUNNER_TEMP/contents.txt"
+
   acceptance:
     name: Acceptance (${{ matrix.platform }})
     runs-on: ubuntu-latest

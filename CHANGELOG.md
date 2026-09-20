@@ -9,6 +9,12 @@ Notable changes to ovadm are recorded here. The format follows
 
 ### Added
 
+- ovadm is published to the [Puppet Forge](https://forge.puppet.com/modules/miharp/ovadm)
+  as `miharp-ovadm`. Pushing a release tag now builds the module, uploads it to
+  the Forge and attaches the same tarball to the GitHub release; a `Puppetfile`
+  can pin either source. CI builds the package on every pull request.
+- `metadata.json` declares the platforms ovadm is tested on: Rocky 9,
+  AlmaLinux 9 and 10, Ubuntu 22.04 and 24.04, Debian 12.
 - `ovadm::status` reports ovadm's own version, read from `metadata.json`, so a
   deployment can say which ovadm is reporting on it. The per-target line for the
   installed server version is now labelled `OpenVox Server:`.
