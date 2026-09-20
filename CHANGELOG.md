@@ -7,6 +7,18 @@ Notable changes to ovadm are recorded here. The format follows
 
 ## [Unreleased]
 
+### Removed
+
+- **Breaking:** `ovadm::codavox` and its tasks (`install_codavox`,
+  `configure_codavox`, `wire_codavox`, `verify_fleet`, `seed_environment`,
+  `wait_for_environment`). Setting up code distribution is a day-2 concern
+  outside what ovadm does, the same line it already draws at OpenVoxDB, and the
+  plan duplicated in shell what the
+  [codavox Puppet module](https://github.com/miharp/puppet-codavox) does
+  declaratively. Deployments wired by the plan keep working; manage them with
+  that module from here on. ovadm now installs packages only from the Vox Pupuli
+  repositories.
+
 ## [0.3.0] - 2026-09-20
 
 First release on the Puppet Forge.
