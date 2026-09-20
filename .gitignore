@@ -18,3 +18,6 @@ spec/fixtures
 
 # Forge build output (rake module:build)
 /pkg/
+
+# openvox-strings cache (rake strings:generate:reference)
+/.yardoc/
