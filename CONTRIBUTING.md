@@ -146,8 +146,8 @@ from the same commit, so a `Puppetfile` can pin either and get the same code.
 
    ```bash
    git checkout main && git pull
-   git tag -a v0.3.0 -m 'v0.3.0'
-   git push origin v0.3.0
+   git tag -a v0.4.0 -m 'v0.4.0'
+   git push origin v0.4.0
    ```
 
 The `Release` workflow takes it from there, in three jobs:
