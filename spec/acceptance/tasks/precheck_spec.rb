@@ -15,7 +15,7 @@ RSpec.describe 'ovadm::precheck task' do
   it 'includes the expected check names' do
     result = run_bolt_task('ovadm::precheck', {})
     names = result.result['checks'].map { |c| c['check'] }
-    expect(names).to include('os_family', 'java', 'port_8140', 'ntp')
+    expect(names).to include('os_family', 'java', 'port_8140', 'firewall', 'ntp')
   end
 
   it 'each check has a status and detail field' do
@@ -30,5 +30,11 @@ RSpec.describe 'ovadm::precheck task' do
     result = run_bolt_task('ovadm::precheck', {})
     os_check = result.result['checks'].find { |c| c['check'] == 'os_family' }
     expect(os_check['status']).to eq('pass')
+  end
+
+  it 'never fails the firewall check — a closed 8140 is a warning, not a blocker' do
+    result = run_bolt_task('ovadm::precheck', {})
+    fw_check = result.result['checks'].find { |c| c['check'] == 'firewall' }
+    expect(%w[pass warn]).to include(fw_check['status'])
   end
 end

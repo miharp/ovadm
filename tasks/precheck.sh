@@ -66,6 +66,33 @@ fi
 
 port_check=$(printf '{"check":"port_8140","status":"%s","detail":"%s"}' "$port_status" "$port_detail")
 
+# --- Host firewall: is 8140 allowed in? ---
+# Warn-only. The install succeeds either way — readiness is probed on localhost
+# — so this is the one place an operator hears that agents and compilers will
+# be refused. Raw nftables/iptables rulesets are not inspected.
+fw_status='pass'
+fw_detail='no active firewalld or ufw'
+
+if command -v firewall-cmd >/dev/null 2>&1 && [ "$(firewall-cmd --state 2>/dev/null)" = 'running' ]; then
+  # firewalld ships a predefined service for 8140, named "puppetmaster".
+  if firewall-cmd --query-port=8140/tcp >/dev/null 2>&1 ||
+     firewall-cmd --query-service=puppetmaster >/dev/null 2>&1; then
+    fw_detail='firewalld allows 8140/tcp in the default zone'
+  else
+    fw_status='warn'
+    fw_detail='firewalld is running and its default zone does not allow 8140/tcp; agents and compilers will be refused — firewall-cmd --permanent --add-port=8140/tcp && firewall-cmd --reload'
+  fi
+elif command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q '^Status: active'; then
+  if ufw status 2>/dev/null | grep -Eq '^8140(/tcp)?[[:space:]]+ALLOW'; then
+    fw_detail='ufw allows 8140/tcp'
+  else
+    fw_status='warn'
+    fw_detail='ufw is active and has no rule allowing 8140/tcp; agents and compilers will be refused — ufw allow 8140/tcp'
+  fi
+fi
+
+fw_check=$(printf '{"check":"firewall","status":"%s","detail":"%s"}' "$fw_status" "$fw_detail")
+
 # --- NTP / time sync ---
 ntp_status='fail'
 ntp_detail='time sync status unknown'
@@ -96,5 +123,5 @@ ntp_check=$(printf '{"check":"ntp","status":"%s","detail":"%s"}' "$ntp_status" "
 # --- Assemble output ---
 overall=$([ "$pass" = 'true' ] && echo 'pass' || echo 'fail')
 
-printf '{"status":"%s","checks":[%s,%s,%s,%s]}\n' \
-  "$overall" "$os_check" "$java_check" "$port_check" "$ntp_check"
+printf '{"status":"%s","checks":[%s,%s,%s,%s,%s]}\n' \
+  "$overall" "$os_check" "$java_check" "$port_check" "$fw_check" "$ntp_check"
