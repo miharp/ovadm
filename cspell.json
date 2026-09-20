@@ -2,6 +2,7 @@
   "version": "0.2",
   "language": "en",
   "words": [
+    "ausearch",
     "autosign",
     "bcrypt",
     "bento",
@@ -12,6 +13,7 @@
     "confdir",
     "dpkg",
     "facter",
+    "firewalld",
     "harpworks",
     "hiera",
     "modulepath",
@@ -32,6 +34,7 @@
     "rjson",
     "rockylinux",
     "rspec",
+    "setenforce",
     "storeconfigs",
     "voxpupuli",
     "waitforlock",

@@ -5,6 +5,7 @@
 - [OpenBolt](https://github.com/OpenVoxProject/openbolt) installed (`gem install openbolt`)
 - An inventory file — copy `inventory.yaml.example` to `inventory.yaml` and fill in your target details
 - A supported Linux target with network access to install packages
+- TCP 8140 open to the server from agents and compilers, and to each compiler from its agents — ovadm does not manage the host firewall (see below)
 
 See the [README](../README.md) for the full requirements list.
 
@@ -174,3 +175,24 @@ Or for a quick machine-readable snapshot:
 ```bash
 bolt task run ovadm::infrastatus --targets ovox-server.example.com
 ```
+
+`ovadm::install` checks readiness against `https://localhost:8140`, so it
+succeeds on a host whose firewall still blocks 8140 from everywhere else. If
+agents or compilers cannot connect after a clean install, open the port:
+
+```bash
+# firewalld (RHEL family)
+firewall-cmd --permanent --add-port=8140/tcp && firewall-cmd --reload
+
+# ufw (Ubuntu, Debian)
+ufw allow 8140/tcp
+```
+
+Then confirm from another machine:
+
+```bash
+curl -sk https://ovox-server.example.com:8140/status/v1/simple   # running
+```
+
+SELinux needs nothing extra: the install runs clean with SELinux enforcing
+(checked on AlmaLinux 10, no AVC denials).
