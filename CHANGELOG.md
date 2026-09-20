@@ -7,6 +7,10 @@ Notable changes to ovadm are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-20
+
+First release on the Puppet Forge.
+
 ### Added
 
 - ovadm is published to the [Puppet Forge](https://forge.puppet.com/modules/miharp/ovadm)
@@ -79,5 +83,6 @@ covers the module as it stands.
 - CI: plan unit tests, acceptance tests on Rocky 9, Ubuntu 22.04, Ubuntu 24.04 and
   Debian 12, and an end-to-end install test covering both topologies.
 
-[Unreleased]: https://github.com/miharp/ovadm/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/miharp/ovadm/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/miharp/ovadm/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/miharp/ovadm/releases/tag/v0.2.0
