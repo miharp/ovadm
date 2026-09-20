@@ -7,7 +7,7 @@ ovadm is an experimental, community-driven project. Contributions of all kinds a
 The core plans (install, upgrade, status, add_compiler) are implemented and tested. The highest-value contributions right now are:
 
 1. **Bug reports and fixes** — if something breaks on a supported platform, open an issue with OS, OpenVox version, and the full Bolt output
-2. **Broader platform testing** — CI covers Rocky 9, Ubuntu 22.04/24.04, Debian 12; feedback on other platforms is welcome
+2. **Broader platform testing** — CI covers Rocky 9, Ubuntu 22.04/24.04, Debian 12, all in Docker. AlmaLinux 9 and 10 have been run by hand on cloud VMs (see [Testing on real VMs](#testing-on-real-vms)); feedback on other platforms is welcome
 3. **Internal mirror / air-gap scenarios** — the `apt_base_url`/`yum_base_url` params exist but haven't been validated against real Artifactory or Nexus setups
 4. **OpenVoxDB integration** — wiring up `openvoxdb` and `openvoxdb-termini` as an optional post-install step is unimplemented
 
@@ -62,6 +62,57 @@ docker rm -f ovadm-acceptance
 ```
 
 For a full end-to-end test using the three-node Docker environment, see [Docker testing](documentation/docker_testing.md).
+
+### Testing on real VMs
+
+Everything in CI runs in Docker over Bolt's docker transport. That leaves real
+systemd, the SSH transport, SELinux and the host firewall untested, so a run
+against throwaway cloud VMs is worth doing before a release or when adding a
+platform. Any provider works; three small VMs (2 vCPU, 4 GB) cover Standard and
+Large, and the whole pass takes about ten minutes.
+
+The VMs need a resolvable FQDN each (`hostname -f` must return it, and the
+compilers must resolve the server's — `/etc/hosts` entries are enough), root
+SSH from your workstation, and nothing else: no Java, no OpenVox packages.
+
+```yaml
+# inventory.yaml — gitignored
+config:
+  transport: ssh
+  ssh:
+    user: root
+    host-key-check: false   # throwaway VMs get new host keys on every rebuild
+
+targets:
+  - name: server
+    uri: 203.0.113.10
+  - name: compiler01
+    uri: 203.0.113.11
+```
+
+```bash
+bolt plan run ovadm::install      server_host=server
+bolt plan run ovadm::status       server_host=server
+bolt plan run ovadm::add_compiler server_host=server compiler_hosts=compiler01
+bolt plan run ovadm::install      server_host=server   # rerun: must leave the CA and signed certs alone
+```
+
+Then check what the plans cannot see for themselves:
+
+- `puppetserver ca list --all` on the server shows every node, and
+  `grep -c 'BEGIN CERTIFICATE' /etc/puppetlabs/puppetserver/ca/ca_crt.pem` returns 2
+- `puppet agent -t --server <compiler fqdn>` from another node reports
+  `Catalog compiled by <compiler fqdn>`
+- port 8140 answers from a *different* machine, not just localhost — see the
+  firewall note in [Installing](documentation/install.md#verifying-the-install)
+
+Cloud images often ship with SELinux permissive and no firewall running. To
+test those, turn them on before the install (`setenforce 1`,
+`systemctl enable --now firewalld`) and look for denials afterwards with
+`ausearch -m avc -ts boot`.
+
+Delete the VMs when you are done, and check the provider's server list to be
+sure they are gone.
 
 ## Code style
 
