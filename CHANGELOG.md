@@ -13,6 +13,12 @@ Notable changes to ovadm are recorded here. The format follows
   deployment can say which ovadm is reporting on it. The per-target line for the
   installed server version is now labelled `OpenVox Server:`.
 - README badges for CI, the install test, the latest release, and the license.
+- The precheck warns when firewalld or ufw is active on a target without a rule
+  allowing 8140/tcp. The install succeeds on such a host, because readiness is
+  probed on localhost, while agents and compilers are refused; the warning names
+  the command that opens the port. It never fails the plan.
+- `CONTRIBUTING.md` documents testing on real VMs, and the install guide covers
+  the host firewall and SELinux.
 
 ### Fixed
 

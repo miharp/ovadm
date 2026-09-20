@@ -1,5 +1,5 @@
 {
-  "description": "Validate target readiness: OS family, Java version, port 8140, and NTP sync",
+  "description": "Validate target readiness: OS family, Java version, port 8140, host firewall, and NTP sync",
   "input_method": "environment",
   "parameters": {},
   "supports_noop": false

@@ -19,7 +19,7 @@ bolt plan run ovadm::install server_host=ovox-server.example.com
 
 The plan:
 
-1. Runs prechecks (OS, Java, port 8140, NTP)
+1. Runs prechecks (OS, Java, port 8140, host firewall, NTP)
 2. Configures the OpenVox package repository
 3. Installs `openvox-server`
 4. Writes `puppet.conf`
@@ -177,7 +177,10 @@ bolt task run ovadm::infrastatus --targets ovox-server.example.com
 ```
 
 `ovadm::install` checks readiness against `https://localhost:8140`, so it
-succeeds on a host whose firewall still blocks 8140 from everywhere else. If
+succeeds on a host whose firewall still blocks 8140 from everywhere else. The
+precheck prints a `WARNING ... firewall:` line when firewalld or ufw is active
+without a rule for 8140 (it reads firewalld's default zone only, and does not
+inspect raw nftables or iptables rules), but it never stops the install. If
 agents or compilers cannot connect after a clean install, open the port:
 
 ```bash

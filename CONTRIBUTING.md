@@ -109,7 +109,8 @@ Then check what the plans cannot see for themselves:
 Cloud images often ship with SELinux permissive and no firewall running. To
 test those, turn them on before the install (`setenforce 1`,
 `systemctl enable --now firewalld`) and look for denials afterwards with
-`ausearch -m avc -ts boot`.
+`ausearch --input-logs -m avc -ts boot` (without `--input-logs`, `ausearch`
+waits on stdin when run through `bolt command run`).
 
 Delete the VMs when you are done, and check the provider's server list to be
 sure they are gone.
