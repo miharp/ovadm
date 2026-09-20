@@ -7,6 +7,15 @@ Notable changes to ovadm are recorded here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `REFERENCE.md`: every plan and task with its parameters, generated from the
+  code, shipped in the package so the Forge shows a Reference tab. CI fails when
+  it is out of date. Subplans are marked `@api private`.
+- Parameter documentation for `apt_base_url`, `yum_base_url` and `package_url`
+  on `ovadm::install`, which `bolt plan show` previously listed with no
+  description.
+
 ## [0.4.0] - 2026-09-20
 
 ### Removed

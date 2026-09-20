@@ -11,6 +11,12 @@ RSpec::Core::RakeTask.new(:unit) do |t|
 end
 
 begin
+  require 'puppet-strings/tasks'
+rescue LoadError
+  # openvox-strings is only available in the development gem group
+end
+
+begin
   require 'voxpupuli/release/rake_tasks'
 rescue LoadError
   # voxpupuli-release is only available in the release gem group

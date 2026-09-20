@@ -1,5 +1,7 @@
 # @summary Upgrade openvox-server on a single node
 #
+# @api private
+#
 # Installs the target version (upgrading in place), restarts the service,
 # waits for it to become ready, then reports the installed version.
 #
@@ -8,6 +10,10 @@
 #
 # @param ovox_server_version
 #   The openvox-server version to upgrade to (e.g. '8.13.0')
+#
+# @param package_url
+#   Direct URL to an openvox-server rpm or deb to install instead of the
+#   repository's package. The repository is still configured, for dependencies.
 #
 plan ovadm::subplans::upgrade_server(
   TargetSpec          $server_host,

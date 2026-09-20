@@ -121,6 +121,19 @@ sure they are gone.
 - Shell tasks use `set -euo pipefail` and output valid JSON on stdout
 - Task metadata (`.json`) must define `input_method`, `parameters`, and `supports_noop`
 
+## Reference documentation
+
+`REFERENCE.md` is generated from the `@summary` and `@param` comments in the
+plans and the `description` fields in the task metadata. After changing either,
+regenerate it and commit the result. CI fails if it is out of date.
+
+```bash
+bundle exec rake strings:generate:reference
+```
+
+Subplans carry `@api private`, which lists them separately from the plans meant
+to be run directly.
+
 ## Pull requests
 
 - The `main` branch is protected — always work on a branch and open a PR

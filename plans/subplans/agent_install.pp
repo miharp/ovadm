@@ -1,5 +1,6 @@
-# @summary Install OpenVox Server on compiler hosts and configure them to use
-#          the server as their CA
+# @summary Install OpenVox Server on compiler hosts, with the server as their CA
+#
+# @api private
 #
 # @param compiler_hosts
 #   The compiler node(s) to set up

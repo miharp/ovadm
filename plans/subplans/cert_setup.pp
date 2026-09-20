@@ -1,5 +1,7 @@
 # @summary Submit and sign certificates for compiler hosts
 #
+# @api private
+#
 # For each compiler: runs the agent to submit a CSR, signs it on the server,
 # then runs the agent again to apply the initial catalog.
 #
