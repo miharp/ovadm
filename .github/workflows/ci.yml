@@ -44,6 +44,10 @@ jobs:
       - name: Lint metadata.json
         run: bundle exec metadata-json-lint metadata.json
 
+      - name: REFERENCE.md is up to date
+        # Regenerate with: bundle exec rake strings:generate:reference
+        run: bundle exec rake strings:validate:reference
+
       - name: Build the module
         # The same build the Release workflow uploads, so a tag only adds the
         # upload. The package must hold the plans and tasks and nothing local.

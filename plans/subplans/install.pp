@@ -1,5 +1,7 @@
 # @summary Install OpenVox Server packages on a target
 #
+# @api private
+#
 # Configures the OpenVox package repository and installs the openvox-server
 # package. The service is left in whatever state the package manager puts it —
 # typically auto-started on Debian systems.
@@ -12,6 +14,16 @@
 #
 # @param ovox_server_version
 #   Specific openvox-server version to install (e.g. '8.13.0'); omit for latest
+#
+# @param apt_base_url
+#   Base URL of an apt mirror to use instead of https://apt.voxpupuli.org
+#
+# @param yum_base_url
+#   Base URL of a yum/dnf mirror to use instead of https://yum.voxpupuli.org
+#
+# @param package_url
+#   Direct URL to an openvox-server rpm or deb to install instead of the
+#   repository's package. The repository is still configured, for dependencies.
 #
 plan ovadm::subplans::install(
   TargetSpec          $server_host,

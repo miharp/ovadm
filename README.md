@@ -57,6 +57,7 @@ Copy `inventory.yaml.example` to `inventory.yaml` and fill in your target detail
 - [Installing](https://github.com/miharp/ovadm/blob/main/documentation/install.md) - Standard, Large, DNS alt names, certificate auto-renewal, internal mirrors
 - [Upgrading](https://github.com/miharp/ovadm/blob/main/documentation/upgrade.md) - Minor/patch and major version upgrades
 - [Managing compilers](https://github.com/miharp/ovadm/blob/main/documentation/add_compiler.md) - Adding and removing compiler nodes
+- [Reference](https://github.com/miharp/ovadm/blob/main/REFERENCE.md) - Every plan and task with its parameters, generated from the code
 - [Architecture](https://github.com/miharp/ovadm/blob/main/documentation/architecture.md) - Topologies, plan structure, cert extensions, peadm comparison
 - [Docker testing](https://github.com/miharp/ovadm/blob/main/documentation/docker_testing.md) - Local three-node dev environment
 - [Implementation roadmap](https://github.com/miharp/ovadm/blob/main/documentation/plan.md) - Task catalog and design decisions

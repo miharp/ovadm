@@ -14,6 +14,12 @@ group :test do
   gem 'metadata-json-lint', '~> 5.0', require: false
 end
 
+# Generates REFERENCE.md from the plan and task documentation
+# (rake strings:generate:reference).
+group :development do
+  gem 'openvox-strings', '~> 7.0', require: false
+end
+
 # Same release tooling as miharp/puppet-headscale: rake module:build and
 # module:push, run by the shared Vox Pupuli release workflow.
 group :release do

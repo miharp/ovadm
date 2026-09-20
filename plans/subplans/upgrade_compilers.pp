@@ -1,5 +1,7 @@
 # @summary Upgrade openvox-server on compiler pool nodes
 #
+# @api private
+#
 # @param compiler_hosts
 #   The compiler node(s) to upgrade
 #

@@ -1,5 +1,7 @@
 # @summary Validate that a target is ready to run OpenVox Server
 #
+# @api private
+#
 # @param server_host
 #   The target node to validate
 #

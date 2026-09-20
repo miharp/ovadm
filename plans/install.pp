@@ -37,6 +37,16 @@
 #   TTL for auto-renewed certificates (e.g. '60d', '90d'). Only used when
 #   enable_cert_auto_renewal is true; omit to keep the packaged default.
 #
+# @param apt_base_url
+#   Base URL of an apt mirror to use instead of https://apt.voxpupuli.org
+#
+# @param yum_base_url
+#   Base URL of a yum/dnf mirror to use instead of https://yum.voxpupuli.org
+#
+# @param package_url
+#   Direct URL to an openvox-server rpm or deb to install instead of the
+#   repository's package. The repository is still configured, for dependencies.
+#
 plan ovadm::install(
   TargetSpec                   $server_host,
   Optional[TargetSpec]         $compiler_hosts           = undef,

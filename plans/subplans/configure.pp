@@ -1,5 +1,7 @@
 # @summary Configure puppet.conf on an OpenVox Server node
 #
+# @api private
+#
 # @param server_host
 #   The target node to configure
 #
