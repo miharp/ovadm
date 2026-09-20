@@ -150,14 +150,21 @@ from the same commit, so a `Puppetfile` can pin either and get the same code.
    git push origin v0.3.0
    ```
 
-The `Release` workflow takes it from there. It refuses the tag if
-`metadata.json` disagrees with it or if `CHANGELOG.md` has no entry for that
-version, builds the module, uploads it to the Forge, and then publishes a
-GitHub release with the changelog entry as the notes and the tarball attached.
+The `Release` workflow takes it from there, in three jobs:
 
-The Forge upload comes first on purpose. If it fails, nothing exists but the
-tag: fix the cause and re-run the workflow. Once the Forge has accepted a
-version, that number is spent. A release can be deleted from the Forge but
+1. **gates** refuses the tag if `metadata.json` disagrees with it or if
+   `CHANGELOG.md` has no entry for that version.
+2. **release** is Vox Pupuli's shared
+   [release workflow](https://github.com/voxpupuli/gha-puppet/blob/v4/.github/workflows/release.yml),
+   called exactly as [puppet-headscale](https://github.com/miharp/puppet-headscale)
+   calls it. It runs `rake module:push` (build, then upload to the Forge) and
+   creates the GitHub release with the tarball attached. It runs in a GitHub
+   environment named `release`, where approval rules can be added.
+3. **notes** replaces the release's generated notes with the changelog entry.
+
+The Forge upload comes before the GitHub release. If it fails, nothing exists
+but the tag: fix the cause and re-run the workflow. Once the Forge has accepted
+a version, that number is spent. A release can be deleted from the Forge but
 never uploaded again, so a bad release is fixed by shipping the next patch
 version, not by moving the tag.
 
@@ -175,3 +182,9 @@ bundle exec rake module:build && tar -tzf pkg/*.tar.gz
 ```
 
 CI runs the same build on every pull request.
+
+The release tooling is `voxpupuli-release`, as in puppet-headscale, but only its
+`module:build` and `module:push` tasks are used here. ovadm keeps a hand-written
+changelog and sets the version in the release PR, so the gem's
+`release:prepare` (generated changelog) and `-rc0` version bumps are not part of
+this flow.

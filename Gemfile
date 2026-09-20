@@ -10,8 +10,12 @@ gem 'rspec'
 gem 'ed25519', '>= 1.2', '< 2.0'
 gem 'bcrypt_pbkdf', '>= 1.0', '< 2.0'
 
-# Builds the Forge tarball (rake module:build) and uploads it (rake module:push).
-group :release do
-  gem 'puppet-blacksmith', '~> 9.1', require: false
+group :test do
   gem 'metadata-json-lint', '~> 5.0', require: false
+end
+
+# Same release tooling as miharp/puppet-headscale: rake module:build and
+# module:push, run by the shared Vox Pupuli release workflow.
+group :release do
+  gem 'voxpupuli-release', '~> 5.4', require: false
 end
