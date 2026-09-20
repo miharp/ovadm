@@ -134,20 +134,57 @@ This project may move under the OpenVox project organization if it gains communi
 
 ## Releasing
 
-Releases are git tags. There is no package and nothing is published to the Forge —
-a tag is what a `Puppetfile` pins, so cutting one is the whole release.
+A release is a git tag. Pushing one publishes the module to the
+[Forge](https://forge.puppet.com/modules/miharp/ovadm) and cuts a GitHub release
+from the same commit, so a `Puppetfile` can pin either and get the same code.
 
-1. In a PR: add the version's section to `CHANGELOG.md` and set the same version
-   in `metadata.json`. While ovadm is in 0.x, a minor bump covers breaking
-   changes; reserve patch bumps for fixes.
+1. In a PR: add the version's section to `CHANGELOG.md`, set the same version in
+   `metadata.json`, and update the version in the README's `Puppetfile`
+   examples. While ovadm is in 0.x, a minor bump covers breaking changes;
+   reserve patch bumps for fixes.
 2. After it merges, tag the merge commit on `main` and push:
 
    ```bash
    git checkout main && git pull
-   git tag -a v0.2.0 -m 'v0.2.0'
-   git push origin v0.2.0
+   git tag -a v0.3.0 -m 'v0.3.0'
+   git push origin v0.3.0
    ```
 
-The `Release` workflow takes it from there: it refuses the tag if `metadata.json`
-disagrees with it or if `CHANGELOG.md` has no entry for that version, then
-publishes a GitHub release using that entry as the notes.
+The `Release` workflow takes it from there, in three jobs:
+
+1. **gates** refuses the tag if `metadata.json` disagrees with it or if
+   `CHANGELOG.md` has no entry for that version.
+2. **release** is Vox Pupuli's shared
+   [release workflow](https://github.com/voxpupuli/gha-puppet/blob/v4/.github/workflows/release.yml),
+   called exactly as [puppet-headscale](https://github.com/miharp/puppet-headscale)
+   calls it. It runs `rake module:push` (build, then upload to the Forge) and
+   creates the GitHub release with the tarball attached. It runs in a GitHub
+   environment named `release`, where approval rules can be added.
+3. **notes** replaces the release's generated notes with the changelog entry.
+
+The Forge upload comes before the GitHub release. If it fails, nothing exists
+but the tag: fix the cause and re-run the workflow. Once the Forge has accepted
+a version, that number is spent. A release can be deleted from the Forge but
+never uploaded again, so a bad release is fixed by shipping the next patch
+version, not by moving the tag.
+
+The upload needs two repository secrets, `PUPPET_FORGE_USERNAME` and
+`PUPPET_FORGE_API_KEY` (a key from the Forge account's profile page).
+
+The package holds only what a Bolt module needs: `plans/`, `tasks/`,
+`examples/`, `README.md`, `LICENSE`, `CHANGELOG.md` and `metadata.json`. The
+builder works from a fixed list, so `documentation/`, the specs and the Docker
+environment stay out. That is why README links are absolute: the Forge renders
+the README on its own. To see exactly what would ship:
+
+```bash
+bundle exec rake module:build && tar -tzf pkg/*.tar.gz
+```
+
+CI runs the same build on every pull request.
+
+The release tooling is `voxpupuli-release`, as in puppet-headscale, but only its
+`module:build` and `module:push` tasks are used here. ovadm keeps a hand-written
+changelog and sets the version in the release PR, so the gem's
+`release:prepare` (generated changelog) and `-rc0` version bumps are not part of
+this flow.

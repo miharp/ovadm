@@ -3,23 +3,23 @@ name: Release
 
 on:
   push:
-    tags: ['v*']
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
 
 permissions:
   contents: write
 
 jobs:
-  release:
-    name: Publish GitHub release
+  gates:
+    name: Release gates
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
 
       - name: Check metadata.json matches the tag
         run: |
-          # The tag is the artifact, so a deployment can only name the version
-          # that built it if metadata.json agrees with the tag.
+          # The Forge takes its version from metadata.json and the Puppetfile
+          # git form takes it from the tag, so the two have to agree.
           tag="${GITHUB_REF_NAME#v}"
           meta=$(ruby -rjson -e 'puts JSON.parse(File.read("metadata.json"))["version"]')
           echo "tag: $tag / metadata.json: $meta"
@@ -28,28 +28,33 @@ jobs:
             exit 1
           fi
 
-      - name: Take the release notes from the changelog
-        run: |
-          # Everything between this version's heading and the next one. Failing
-          # here is the point: an unreleased change with no changelog entry is
-          # the thing that gets skipped, so the tag refuses to ship without one.
-          tag="${GITHUB_REF_NAME#v}"
-          awk -v v="$tag" '
-            $0 ~ "^## \\[" v "\\]"          { found = 1; next }
-            found && /^## \[/               { exit }
-            found && /^\[[^]]+\]: /         { exit }
-            found                           { print }
-          ' CHANGELOG.md > "$RUNNER_TEMP/release-notes.md"
-          if [ ! -s "$RUNNER_TEMP/release-notes.md" ]; then
-            echo "::error::CHANGELOG.md has no entry for $tag"
-            exit 1
-          fi
-          cat "$RUNNER_TEMP/release-notes.md"
+      - name: Check the changelog has an entry for the version
+        run: .github/release-notes.sh "${GITHUB_REF_NAME#v}"
 
-      - name: Create the release
+  # The same job as miharp/puppet-headscale: build, push to the Forge, then
+  # create the GitHub release with the tarball attached.
+  release:
+    name: Release
+    needs: gates
+    uses: voxpupuli/gha-puppet/.github/workflows/release.yml@v4
+    with:
+      allowed_owner: 'miharp'
+    secrets:
+      # Configure secrets here:
+      #  https://docs.github.com/en/actions/security-guides/encrypted-secrets
+      username: ${{ secrets.PUPPET_FORGE_USERNAME }}
+      api_key: ${{ secrets.PUPPET_FORGE_API_KEY }}
+
+  notes:
+    name: Release notes from the changelog
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Replace the generated notes with the changelog entry
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" \
-            --title "$GITHUB_REF_NAME" \
-            --notes-file "$RUNNER_TEMP/release-notes.md"
+          .github/release-notes.sh "${GITHUB_REF_NAME#v}" > "$RUNNER_TEMP/release-notes.md"
+          gh release edit "$GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/release-notes.md"

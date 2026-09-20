@@ -10,4 +10,13 @@ RSpec::Core::RakeTask.new(:unit) do |t|
   t.pattern = 'spec/plans/**/*_spec.rb'
 end
 
+begin
+  require 'voxpupuli/release/rake_tasks'
+rescue LoadError
+  # voxpupuli-release is only available in the release gem group
+else
+  GCGConfig.user = 'miharp'
+  GCGConfig.project = 'ovadm'
+end
+
 task default: :unit
