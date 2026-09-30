@@ -18,7 +18,7 @@
 * [`install_server`](#install_server): Install or upgrade the openvox-server package from the configured repository, replacing puppetserver if it is installed; edited configuration
 * [`os_identification`](#os_identification): Detect OS family, name, version, and architecture
 * [`precheck`](#precheck): Validate target readiness: OS family, Java version, port 8140, host firewall, and NTP sync
-* [`select_java`](#select_java): Point the java alternative at a Java the installed openvox-server supports (17 or 21 for 8, 21 or 25 for 9), when the default is not one alre
+* [`select_java`](#select_java): Make sure the installed openvox-server has a supported Java: on 8, point the java alternative at Java 17 or 21 when the default is neither; o
 * [`service_restart`](#service_restart): Restart the puppetserver service
 * [`service_start`](#service_start): Start the puppetserver service
 * [`service_status`](#service_status): Report running status of OpenVox Server services
@@ -241,7 +241,7 @@ Check a host ovadm::upgrade is about to upgrade. A Java below the supported vers
 
 ### <a name="select_java"></a>`select_java`
 
-Point the java alternative at a Java the installed openvox-server supports (17 or 21 for 8, 21 or 25 for 9), when the default is not one already
+Make sure the installed openvox-server has a supported Java: on 8, point the java alternative at Java 17 or 21 when the default is neither; on packages with a Java launcher (9), leave the alternative alone and check that the launcher finds one
 
 **Supports noop?** false
 

@@ -85,7 +85,7 @@ Tasks are the atomic operations that plans compose. The following are implemente
 | `ovadm::install_server` | Install `openvox-server` package | Triggers systemd service setup |
 | `ovadm::install_agent` | Install `openvox-agent` package | For compilers |
 | `ovadm::get_version` | Return installed OpenVox Server version, or Puppet Server's | Used in upgrade validation |
-| `ovadm::select_java` | Point the `java` alternative at a Java the installed server supports | Run after every upgrade install |
+| `ovadm::select_java` | Make sure the installed server has a supported Java (sets the `java` alternative on 8; checks the launcher on 9) | Run after every upgrade install |
 
 ### Service Management
 
