@@ -10,6 +10,10 @@ bolt plan run ovadm::upgrade \
 
 The plan stops the service, installs the target version, restarts, waits for readiness, and confirms the installed version matches. The `openvox-agent` package is managed by the server package's dependency — the package manager will satisfy it automatically.
 
+## Edited configuration files
+
+Configuration files you have edited are kept. When the new package ships a different version of one, it is written beside yours for you to compare: `.dpkg-dist` on Debian and Ubuntu (for example `/etc/default/puppetserver.dpkg-dist`), `.rpmnew` on EL. Files you have not edited are replaced by the new version.
+
 ## Large topology
 
 ```bash

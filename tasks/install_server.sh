@@ -23,12 +23,17 @@ fi
 
 if [ "$os_family" = 'Debian' ]; then
   export DEBIAN_FRONTEND=noninteractive
+  # Keep conffiles the operator edited (e.g. JAVA_ARGS in
+  # /etc/default/puppetserver); the package's version lands as .dpkg-dist.
+  # Without this dpkg prompts, reads EOF from Bolt's non-TTY stdin, and leaves
+  # openvox-server unpacked but not configured.
+  apt_opts=(-y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold)
   if [ -n "$package_url" ]; then
-    apt-get install -y "$package_url" >&2
+    apt-get install "${apt_opts[@]}" "$package_url" >&2
   elif [ -n "$version" ]; then
-    apt-get install -y "openvox-server=${version}*" >&2
+    apt-get install "${apt_opts[@]}" "openvox-server=${version}*" >&2
   else
-    apt-get install -y openvox-server >&2
+    apt-get install "${apt_opts[@]}" openvox-server >&2
   fi
   installed=$(dpkg -l openvox-server 2>/dev/null | awk '/^ii/{print $3}' || echo 'unknown')
 elif [ "$os_family" = 'RedHat' ]; then

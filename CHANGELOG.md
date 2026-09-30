@@ -16,6 +16,17 @@ Notable changes to ovadm are recorded here. The format follows
   on `ovadm::install`, which `bolt plan show` previously listed with no
   description.
 
+### Fixed
+
+- `install_server` no longer fails on Debian and Ubuntu when the operator has
+  edited a configuration file that the new package also changes, such as
+  `JAVA_ARGS` in `/etc/default/puppetserver` (changed between 8.8.0 and
+  8.16.0). dpkg prompted, read end-of-file from Bolt, and left `openvox-server`
+  unpacked but not configured, after the old version was already removed. The
+  edited file is now kept and the package's version is written beside it as
+  `.dpkg-dist`. Part of
+  [#60](https://github.com/miharp/ovadm/issues/60).
+
 ## [0.4.0] - 2026-09-20
 
 ### Removed
