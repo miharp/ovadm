@@ -21,3 +21,4 @@ spec/fixtures
 
 # openvox-strings cache (rake strings:generate:reference)
 /.yardoc/
+/.rerun.json

@@ -22,10 +22,14 @@ Notable changes to ovadm are recorded here. The format follows
   ([#60](https://github.com/miharp/ovadm/issues/60)).
 - `ovadm::upgrade` takes `apt_base_url` and `yum_base_url`, for nodes moving
   to a new major version's repository through a mirror.
-- `select_java` task: points the `java` alternative at a Java the installed
-  `openvox-server` supports (17 or 21 for 8, 21 or 25 for 9) when the default
-  is not one. A host upgraded from Puppet Server 7 on Java 8 or 11 otherwise
-  fails at startup with `UnsupportedClassVersionError`.
+- `select_java` task: on OpenVox Server 8, points the `java` alternative at
+  Java 17 or 21 when the default is neither. A host upgraded from Puppet Server
+  7 on Java 8 or 11 otherwise fails at startup with
+  `UnsupportedClassVersionError`. OpenVox Server 9 packages pick their Java
+  through a launcher that ignores the alternative, so there the task leaves it
+  alone and checks what the launcher runs instead: that it finds a Java, and
+  that a `JAVA_BIN` set in the defaults file, which the launcher uses as it
+  is, is not older than Java 21.
 - CI: an install-test job upgrades an Ubuntu 22.04 Puppet Server 7 host, with
   Java 11 pinned, an edited `JAVA_ARGS` and a custom `codedir`, to OpenVox 8.
 

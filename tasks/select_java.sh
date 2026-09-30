@@ -17,6 +17,10 @@ if [ -z "$server_version" ]; then
   exit 1
 fi
 
+java_major() {
+  "$1" -version 2>&1 | awk -F'"' '/version/{print $2; exit}' | cut -d. -f1
+}
+
 server_major="${server_version%%.*}"
 if [ "$server_major" -ge 9 ]; then
   supported='21 25'
@@ -24,9 +28,32 @@ else
   supported='17 21'
 fi
 
-java_major() {
-  "$1" -version 2>&1 | awk -F'"' '/version/{print $2; exit}' | cut -d. -f1
-}
+# OpenVox Server 9 packages ship a launcher that the service and the
+# puppetserver CLI both run. It picks a supported Java from the distribution's
+# JVM directories and ignores JAVA_BIN=/usr/bin/java, so the java alternative
+# does not reach the server; changing it would only move every other program on
+# the host. Check that the launcher finds a Java, reading the defaults file
+# first as the CLI does: a JAVA_BIN set there is used as it is, whatever its
+# version, so check that it is not older than the server supports.
+launcher=/opt/puppetlabs/server/apps/puppetserver/bin/java
+if [ -x "$launcher" ]; then
+  defaults=/etc/default/puppetserver
+  [ -r "$defaults" ] || defaults=/etc/sysconfig/puppetserver
+  # shellcheck source=/dev/null
+  if java=$(set +u -a; [ -r "$defaults" ] && . "$defaults"; set +a; "$launcher" 2>/dev/null); then
+    major=$(java_major "$java")
+    if [ "${major:-0}" -lt "${supported%% *}" ]; then
+      printf '{"status":"fail","error":"openvox-server %s runs %s (Java %s) from JAVA_BIN in %s; it needs Java %s"}\n' \
+        "$server_version" "$java" "${major:-unknown}" "$defaults" "${supported// / or }"
+      exit 1
+    fi
+    printf '{"status":"launcher","java":"%s","version":"%s"}\n' "$java" "$major"
+    exit 0
+  fi
+  printf '{"status":"fail","error":"openvox-server %s picks its Java through %s, which found no supported Java installed"}\n' \
+    "$server_version" "$launcher"
+  exit 1
+fi
 
 is_supported() {
   case " $supported " in

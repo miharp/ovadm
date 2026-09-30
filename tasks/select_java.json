@@ -1,5 +1,5 @@
 {
-  "description": "Point the java alternative at a Java the installed openvox-server supports (17 or 21 for 8, 21 or 25 for 9), when the default is not one already",
+  "description": "Make sure the installed openvox-server has a supported Java: on 8, point the java alternative at Java 17 or 21 when the default is neither; on packages with a Java launcher (9), leave the alternative alone and check that the launcher finds one",
   "input_method": "environment",
   "parameters": {},
   "supports_noop": false
