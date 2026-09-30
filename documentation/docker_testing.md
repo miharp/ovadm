@@ -67,9 +67,26 @@ bolt plan run ovadm::upgrade server_host=puppet \
   --inventoryfile docker/inventory.yaml
 ```
 
-The upgrade task actually downloads and installs the new package (vs the idempotent no-op when running the same version twice), so this exercises the full stop → install → restart → readiness path.
+The upgrade task actually downloads and installs the new package (vs the idempotent no-op when running the same version twice), so this exercises the full install → Java selection → restart → readiness path.
 
 Note: `openvox-server 8.12.1` depends on `openvox-agent >= 8.21.1`, so yum resolves that to the latest available agent at install time. The agent is managed by the server package's dependency — ovadm does not separately pin it.
+
+### From Puppet Server 7
+
+`docker/puppet7` builds an Ubuntu 22.04 host with Puppet Server 7 from `apt.puppet.com`. The `Upgrade (Puppet 7 to OpenVox 8)` job in `.github/workflows/install-test.yml` starts it under the name `ovadm-server`, so `docker/inventory.yaml` reaches it as `puppet`. The job then pins Java 11, edits `JAVA_ARGS`, and sets a custom `codedir` before running `ovadm::upgrade`. The job's steps run the same way locally, without Compose:
+
+```bash
+docker build -t ovadm-puppet7 docker/puppet7
+docker run -d --name ovadm-server --hostname puppet --privileged --cgroupns=host \
+  -v /sys/fs/cgroup:/sys/fs/cgroup:rw ovadm-puppet7
+docker exec ovadm-server bash -c '/opt/puppetlabs/bin/puppetserver ca setup && systemctl start puppetserver'
+
+bolt plan run ovadm::upgrade server_host=puppet \
+  ovox_server_version=8.16.0 \
+  --inventoryfile docker/inventory.yaml
+```
+
+On an arm64 machine, Puppet's el9 repository has no `puppetserver`, but the Ubuntu one does, which is why the image is Ubuntu.
 
 ## API access
 

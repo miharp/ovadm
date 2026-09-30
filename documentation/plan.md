@@ -61,6 +61,7 @@ The top-level plans should be thin orchestrators that call focused subplans. Thi
 |------|-------------|
 | `ovadm::subplans::upgrade_server` | Upgrade the server |
 | `ovadm::subplans::upgrade_compilers` | Upgrade compiler pool nodes |
+| `ovadm::subplans::upgrade_repo` | Switch nodes moving to a new major version (or from Puppet Server) to its repository |
 
 ---
 
@@ -80,10 +81,11 @@ Tasks are the atomic operations that plans compose. The following are implemente
 
 | Task | Description | Notes |
 |------|-------------|-------|
-| `ovadm::configure_repo` | Enable the appropriate OpenVox apt/yum repo | Supports `apt_base_url`/`yum_base_url` for internal mirrors |
+| `ovadm::configure_repo` | Enable the appropriate OpenVox apt/yum repo | Supports `apt_base_url`/`yum_base_url` for internal mirrors; removes other majors' release packages |
 | `ovadm::install_server` | Install `openvox-server` package | Triggers systemd service setup |
 | `ovadm::install_agent` | Install `openvox-agent` package | For compilers |
-| `ovadm::get_version` | Return installed OpenVox Server version | Used in upgrade validation |
+| `ovadm::get_version` | Return installed OpenVox Server version, or Puppet Server's | Used in upgrade validation |
+| `ovadm::select_java` | Point the `java` alternative at a Java the installed server supports | Run after every upgrade install |
 
 ### Service Management
 
@@ -181,6 +183,7 @@ Goal: in-place version upgrade with service continuity.
 - [x] `ovadm::service_stop` / `ovadm::service_start` / `ovadm::service_restart`
 - [x] `ovadm::subplans::upgrade_server` plan
 - [x] `ovadm::upgrade` plan (standard topology)
+- [x] Major version upgrades, including from Puppet Server 7 ([#60](https://github.com/miharp/ovadm/issues/60))
 
 **Deliverable:** `bolt plan run ovadm::upgrade server_host=<target> ovox_version=8.x.x` upgrades cleanly.
 

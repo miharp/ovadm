@@ -5,10 +5,15 @@
 # @param server_host
 #   The target node to validate
 #
+# @param upgrade
+#   Whether the target is about to be upgraded by ovadm::upgrade, which
+#   selects a supported Java itself, so an older default Java is only a warning
+#
 plan ovadm::subplans::precheck(
   TargetSpec $server_host,
+  Boolean    $upgrade = false,
 ) {
-  $results = run_task('ovadm::precheck', $server_host)
+  $results = run_task('ovadm::precheck', $server_host, { 'upgrade' => $upgrade })
 
   $results.each |$result| {
     $data = $result.value

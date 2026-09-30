@@ -21,6 +21,17 @@ if [ -f /etc/os-release ]; then
   esac
 fi
 
+# When openvox-server replaces puppetserver, its install hook sees a fresh
+# install and resets vardir, logdir, rundir, pidfile and codedir in [server] of
+# puppet.conf to the package defaults. Keep a copy to put back afterwards. An
+# existing copy is from a run that failed partway; it holds the original.
+PUPPET_CONF='/etc/puppetlabs/puppet/puppet.conf'
+conf_backup="${PUPPET_CONF}.ovadm-pre-openvox"
+if [ -f "$PUPPET_CONF" ] && [ ! -f "$conf_backup" ] &&
+   { dpkg -l puppetserver 2>/dev/null | grep -q '^ii' || rpm -q puppetserver >/dev/null 2>&1; }; then
+  cp -p "$PUPPET_CONF" "$conf_backup"
+fi
+
 if [ "$os_family" = 'Debian' ]; then
   export DEBIAN_FRONTEND=noninteractive
   # Keep conffiles the operator edited (e.g. JAVA_ARGS in
@@ -50,4 +61,13 @@ else
   exit 1
 fi
 
-printf '{"status":"success","version":"%s"}\n' "$installed"
+restored_puppet_conf=false
+if [ -f "$conf_backup" ]; then
+  if ! cmp -s "$conf_backup" "$PUPPET_CONF"; then
+    cp -p "$conf_backup" "$PUPPET_CONF"
+    restored_puppet_conf=true
+  fi
+  rm -f "$conf_backup"
+fi
+
+printf '{"status":"success","version":"%s","restored_puppet_conf":%s}\n' "$installed" "$restored_puppet_conf"

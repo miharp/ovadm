@@ -1,5 +1,5 @@
 {
-  "description": "Return the installed openvox-server package version, or 'not_installed'",
+  "description": "Return the installed openvox-server version, or puppetserver's on a host not yet upgraded to OpenVox, and which package it is; version is 'not_installed' when neither is",
   "input_method": "environment",
   "parameters": {},
   "supports_noop": false
