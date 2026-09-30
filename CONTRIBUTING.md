@@ -155,12 +155,14 @@ from the same commit, so a `Puppetfile` can pin either and get the same code.
    `metadata.json`, and update the version in the README's `Puppetfile`
    examples. While ovadm is in 0.x, a minor bump covers breaking changes;
    reserve patch bumps for fixes.
-2. After it merges, tag the merge commit on `main` and push:
+2. After it merges, tag the merge commit on `main` with the version from
+   `metadata.json` and push:
 
    ```bash
    git checkout main && git pull
-   git tag -a v0.4.0 -m 'v0.4.0'
-   git push origin v0.4.0
+   v="v$(ruby -rjson -e 'puts JSON.parse(File.read("metadata.json"))["version"]')"
+   git tag -a "$v" -m "$v"
+   git push origin "$v"
    ```
 
 The `Release` workflow takes it from there, in three jobs:
