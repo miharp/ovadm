@@ -1,5 +1,5 @@
 {
-  "description": "Install the openvox-server package from the configured repository",
+  "description": "Install or upgrade the openvox-server package from the configured repository, replacing puppetserver if it is installed; edited configuration files and, when replacing puppetserver, puppet.conf are kept",
   "input_method": "environment",
   "parameters": {
     "version": {

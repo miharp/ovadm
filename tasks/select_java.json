@@ -1,0 +1,6 @@
+{
+  "description": "Point the java alternative at a Java the installed openvox-server supports (17 or 21 for 8, 21 or 25 for 9), when the default is not one already",
+  "input_method": "environment",
+  "parameters": {},
+  "supports_noop": false
+}

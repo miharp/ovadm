@@ -38,4 +38,60 @@ describe 'ovadm::upgrade' do
     end
   end
 
+  context 'target major version' do
+    it 'prechecks in upgrade mode, so an old default Java only warns' do
+      expect_plan('ovadm::subplans::precheck')
+        .with_params('server_host' => server, 'upgrade' => true)
+        .be_called_times(1)
+      allow_plan('ovadm::subplans::upgrade_server')
+
+      result = run_plan('ovadm::upgrade', { 'server_host' => server, 'ovox_server_version' => '9.0.0' })
+      expect(result).to be_ok
+    end
+
+    it 'takes the major version from ovox_server_version' do
+      allow_plan('ovadm::subplans::precheck')
+      expect_plan('ovadm::subplans::upgrade_server')
+        .with_params(
+          'server_host'         => server,
+          'ovox_server_version' => '9.0.0',
+          'package_url'         => nil,
+          'ovox_major'          => 9,
+          'apt_base_url'        => nil,
+          'yum_base_url'        => nil,
+        )
+        .be_called_times(1)
+
+      result = run_plan('ovadm::upgrade', { 'server_host' => server, 'ovox_server_version' => '9.0.0' })
+      expect(result).to be_ok
+    end
+
+    it 'takes ovox_major when upgrading from package_url alone' do
+      pkg_url = 'https://s3.example.com/openvox-server-9.0.0.rpm'
+      allow_plan('ovadm::subplans::precheck')
+      expect_plan('ovadm::subplans::upgrade_server')
+        .with_params(
+          'server_host'         => server,
+          'ovox_server_version' => nil,
+          'package_url'         => pkg_url,
+          'ovox_major'          => 9,
+          'apt_base_url'        => nil,
+          'yum_base_url'        => nil,
+        )
+        .be_called_times(1)
+
+      result = run_plan('ovadm::upgrade', { 'server_host' => server, 'package_url' => pkg_url, 'ovox_major' => 9 })
+      expect(result).to be_ok
+    end
+
+    it 'fails when ovox_major and ovox_server_version disagree' do
+      result = run_plan('ovadm::upgrade', {
+        'server_host'         => server,
+        'ovox_server_version' => '8.16.0',
+        'ovox_major'          => 9
+      })
+      expect(result).not_to be_ok
+      expect(result.value.msg).to match(/does not match/)
+    end
+  end
 end

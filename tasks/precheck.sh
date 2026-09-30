@@ -39,6 +39,11 @@ if command -v java >/dev/null 2>&1; then
   if [ "$major" = '17' ] || [ "$major" = '21' ]; then
     java_status='pass'
     java_detail="java $java_version"
+  elif [ "${PT_upgrade:-false}" = 'true' ]; then
+    # ovadm::upgrade runs select_java after the package install, which points
+    # java at the JRE the package pulls in.
+    java_status='warn'
+    java_detail="java $java_version is the default; the upgrade will select the Java that openvox-server installs"
   else
     java_status='fail'
     java_detail="java $java_version found but OpenVox requires 17 or 21"

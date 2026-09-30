@@ -7,6 +7,47 @@ Notable changes to ovadm are recorded here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `ovadm::upgrade` upgrades to a new major version (OpenVox 8 to 9) and from
+  Puppet Server to OpenVox (Puppet 7 to OpenVox 8), where it used to need the
+  repository switched by hand and handled neither the Java change nor a
+  `puppetserver` host. The target major version comes from
+  `ovox_server_version`, or from the new `ovox_major` parameter when upgrading
+  from `package_url` alone. For each node that is behind, the plan switches the
+  package repository, installs, selects a supported Java, and restarts. Nodes
+  already on the target major keep their repository, so a re-run after a
+  failure is safe. The plan refuses to downgrade or to skip a major version.
+  See [documentation/upgrade.md](documentation/upgrade.md#major-version-upgrades)
+  ([#60](https://github.com/miharp/ovadm/issues/60)).
+- `ovadm::upgrade` takes `apt_base_url` and `yum_base_url`, for nodes moving
+  to a new major version's repository through a mirror.
+- `select_java` task: points the `java` alternative at a Java the installed
+  `openvox-server` supports (17 or 21 for 8, 21 or 25 for 9) when the default
+  is not one. A host upgraded from Puppet Server 7 on Java 8 or 11 otherwise
+  fails at startup with `UnsupportedClassVersionError`.
+- CI: an install-test job upgrades an Ubuntu 22.04 Puppet Server 7 host, with
+  Java 11 pinned, an edited `JAVA_ARGS` and a custom `codedir`, to OpenVox 8.
+
+### Changed
+
+- `configure_repo` removes the release packages of other OpenVox and Puppet
+  major versions (`openvox7-release`, `puppet7-release`, and so on), and lists
+  them in its result as `removed`. On Debian and Ubuntu the old OpenVox one
+  made `dpkg` refuse the new one.
+- `install_server` keeps `puppet.conf` when `openvox-server` replaces
+  `puppetserver`. The package's install hook treats that as a fresh install and
+  resets `vardir`, `logdir`, `rundir`, `pidfile` and `codedir` in `[server]`.
+- `get_version` also reports `puppetserver`, and says which package it found
+  in a new `package` field. `ovadm::status` labels a host still on Puppet
+  Server as such.
+- `precheck` takes `upgrade`; with it, a default Java below the supported
+  versions is a warning instead of a failure, since the upgrade selects one.
+  `ovadm::upgrade` sets it.
+- `ovadm::upgrade` fails on a node that has neither `openvox-server` nor
+  `puppetserver` installed, pointing at `ovadm::install`, instead of installing
+  the package there.
+
 ## [0.4.1] - 2026-09-30
 
 ### Added

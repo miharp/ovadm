@@ -12,5 +12,6 @@ RSpec.describe 'ovadm::get_version task' do
   it 'returns not_installed when openvox-server is absent' do
     result = run_bolt_task('ovadm::get_version', {})
     expect(result.result['version']).to eq('not_installed')
+    expect(result.result['package']).to be_nil
   end
 end

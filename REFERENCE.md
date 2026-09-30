@@ -11,13 +11,14 @@
 * [`configure_ca_renewal`](#configure_ca_renewal): Set certificate auto-renewal settings in ca.conf on the CA. Takes effect on the next puppetserver (re)start and only affects certificates sig
 * [`configure_compiler_ssl`](#configure_compiler_ssl): Configure puppetserver SSL on a compiler to use the puppet-CA-signed node certificate
 * [`configure_puppet_conf`](#configure_puppet_conf): Write /etc/puppetlabs/puppet/puppet.conf with server identity and optional DNS alt names
-* [`configure_repo`](#configure_repo): Configure the OpenVox package repository for this OS
-* [`get_version`](#get_version): Return the installed openvox-server package version, or 'not_installed'
+* [`configure_repo`](#configure_repo): Configure the OpenVox package repository for this OS, removing the release packages of other OpenVox and Puppet major versions
+* [`get_version`](#get_version): Return the installed openvox-server version, or puppetserver's on a host not yet upgraded to OpenVox, and which package it is; version is 'no
 * [`infrastatus`](#infrastatus): Return a concise status summary: installed version, service state, and port 8140
 * [`install_agent`](#install_agent): Install the openvox-agent package from the configured repository
-* [`install_server`](#install_server): Install the openvox-server package from the configured repository
+* [`install_server`](#install_server): Install or upgrade the openvox-server package from the configured repository, replacing puppetserver if it is installed; edited configuration
 * [`os_identification`](#os_identification): Detect OS family, name, version, and architecture
 * [`precheck`](#precheck): Validate target readiness: OS family, Java version, port 8140, host firewall, and NTP sync
+* [`select_java`](#select_java): Point the java alternative at a Java the installed openvox-server supports (17 or 21 for 8, 21 or 25 for 9), when the default is not one alre
 * [`service_restart`](#service_restart): Restart the puppetserver service
 * [`service_start`](#service_start): Start the puppetserver service
 * [`service_status`](#service_status): Report running status of OpenVox Server services
@@ -43,6 +44,7 @@
 * `ovadm::subplans::install`: Install OpenVox Server packages on a target
 * `ovadm::subplans::precheck`: Validate that a target is ready to run OpenVox Server
 * `ovadm::subplans::upgrade_compilers`: Upgrade openvox-server on compiler pool nodes
+* `ovadm::subplans::upgrade_repo`: Move nodes to the package repository of the major version they are upgraded to
 * `ovadm::subplans::upgrade_server`: Upgrade openvox-server on a single node
 
 ## Tasks
@@ -147,7 +149,7 @@ Comma-separated list of DNS alternative names for the server certificate
 
 ### <a name="configure_repo"></a>`configure_repo`
 
-Configure the OpenVox package repository for this OS
+Configure the OpenVox package repository for this OS, removing the release packages of other OpenVox and Puppet major versions
 
 **Supports noop?** false
 
@@ -173,7 +175,7 @@ Base URL for the yum/dnf release package; defaults to https://yum.voxpupuli.org
 
 ### <a name="get_version"></a>`get_version`
 
-Return the installed openvox-server package version, or 'not_installed'
+Return the installed openvox-server version, or puppetserver's on a host not yet upgraded to OpenVox, and which package it is; version is 'not_installed' when neither is
 
 **Supports noop?** false
 
@@ -199,7 +201,7 @@ Version to install (e.g. '8.3.1'); omit for latest
 
 ### <a name="install_server"></a>`install_server`
 
-Install the openvox-server package from the configured repository
+Install or upgrade the openvox-server package from the configured repository, replacing puppetserver if it is installed; edited configuration files and, when replacing puppetserver, puppet.conf are kept
 
 **Supports noop?** false
 
@@ -226,6 +228,20 @@ Detect OS family, name, version, and architecture
 ### <a name="precheck"></a>`precheck`
 
 Validate target readiness: OS family, Java version, port 8140, host firewall, and NTP sync
+
+**Supports noop?** false
+
+#### Parameters
+
+##### `upgrade`
+
+Data type: `Optional[Boolean]`
+
+Check a host ovadm::upgrade is about to upgrade. A Java below the supported versions is a warning rather than a failure, since the upgrade installs and selects one.
+
+### <a name="select_java"></a>`select_java`
+
+Point the java alternative at a Java the installed openvox-server supports (17 or 21 for 8, 21 or 25 for 9), when the default is not one already
 
 **Supports noop?** false
 
@@ -495,7 +511,9 @@ The target node running OpenVox Server
 
 ### <a name="ovadm--upgrade"></a>`ovadm::upgrade`
 
-Upgrade an existing OpenVox Server deployment
+Upgrades within a major version, to a new major version (8 to 9), and from
+Puppet Server to OpenVox (7 to 8). The server is upgraded first, then the
+compilers.
 
 #### Parameters
 
@@ -505,6 +523,9 @@ The following parameters are available in the `ovadm::upgrade` plan:
 * [`ovox_server_version`](#-ovadm--upgrade--ovox_server_version)
 * [`compiler_hosts`](#-ovadm--upgrade--compiler_hosts)
 * [`package_url`](#-ovadm--upgrade--package_url)
+* [`ovox_major`](#-ovadm--upgrade--ovox_major)
+* [`apt_base_url`](#-ovadm--upgrade--apt_base_url)
+* [`yum_base_url`](#-ovadm--upgrade--yum_base_url)
 
 ##### <a name="-ovadm--upgrade--server_host"></a>`server_host`
 
@@ -516,7 +537,8 @@ The OpenVox Server node
 
 Data type: `Optional[String[1]]`
 
-The openvox-server version to upgrade to (e.g. '8.13.0')
+The openvox-server version to upgrade to (e.g. '8.13.0'). Its major version
+is the one the nodes move to.
 
 Default value: `undef`
 
@@ -532,7 +554,36 @@ Default value: `undef`
 
 Data type: `Optional[String[1]]`
 
+Direct URL to an openvox-server rpm or deb to install instead of the
+repository's package
 
+Default value: `undef`
+
+##### <a name="-ovadm--upgrade--ovox_major"></a>`ovox_major`
+
+Data type: `Optional[Integer[8]]`
+
+The OpenVox major version to upgrade to. Defaults to the major version of
+ovox_server_version; set it when upgrading to a new major from package_url
+alone.
+
+Default value: `undef`
+
+##### <a name="-ovadm--upgrade--apt_base_url"></a>`apt_base_url`
+
+Data type: `Optional[String[1]]`
+
+Base URL of an apt mirror to use instead of https://apt.voxpupuli.org, for
+nodes that move to a new major version's repository
+
+Default value: `undef`
+
+##### <a name="-ovadm--upgrade--yum_base_url"></a>`yum_base_url`
+
+Data type: `Optional[String[1]]`
+
+Base URL of a yum/dnf mirror to use instead of https://yum.voxpupuli.org,
+for nodes that move to a new major version's repository
 
 Default value: `undef`
 

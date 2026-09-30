@@ -1,6 +1,11 @@
 {
   "description": "Validate target readiness: OS family, Java version, port 8140, host firewall, and NTP sync",
   "input_method": "environment",
-  "parameters": {},
+  "parameters": {
+    "upgrade": {
+      "description": "Check a host ovadm::upgrade is about to upgrade. A Java below the supported versions is a warning rather than a failure, since the upgrade installs and selects one.",
+      "type": "Optional[Boolean]"
+    }
+  },
   "supports_noop": false
 }

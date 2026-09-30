@@ -51,7 +51,11 @@ plan ovadm::status(
       out::message("  ${icon} service/${svc['service']}: ${svc['status']}")
     }
 
-    out::message("  OpenVox Server: ${ver_val['version']}")
+    $server_label = $ver_val['package'] ? {
+      'puppetserver' => 'Puppet Server (not yet upgraded to OpenVox)',
+      default        => 'OpenVox Server',
+    }
+    out::message("  ${server_label}: ${ver_val['version']}")
   }
 
   return({

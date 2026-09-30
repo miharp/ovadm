@@ -37,4 +37,10 @@ RSpec.describe 'ovadm::precheck task' do
     fw_check = result.result['checks'].find { |c| c['check'] == 'firewall' }
     expect(%w[pass warn]).to include(fw_check['status'])
   end
+
+  it 'never fails the java check for a host about to be upgraded' do
+    result = run_bolt_task('ovadm::precheck', 'upgrade' => true)
+    java_check = result.result['checks'].find { |c| c['check'] == 'java' }
+    expect(%w[pass warn]).to include(java_check['status'])
+  end
 end

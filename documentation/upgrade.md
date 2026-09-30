@@ -8,7 +8,9 @@ bolt plan run ovadm::upgrade \
   ovox_server_version=8.13.0
 ```
 
-The plan stops the service, installs the target version, restarts, waits for readiness, and confirms the installed version matches. The `openvox-agent` package is managed by the server package's dependency — the package manager will satisfy it automatically.
+The plan installs the target version, makes sure the default Java is one the new version supports, restarts the service, waits for readiness, and reports the installed version. The `openvox-agent` package is managed by the server package's dependency — the package manager will satisfy it automatically.
+
+The same command upgrades to a new major version, or from Puppet Server to OpenVox; see [Major version upgrades](#major-version-upgrades).
 
 ## Edited configuration files
 
@@ -27,7 +29,9 @@ The server is upgraded first, then all compilers. Compilers are currently upgrad
 
 ## Internal package mirror
 
-No special flag is needed. The upgrade plan installs the new version against the package repo that was configured at install time. If your nodes were pointed at an internal mirror during install, they are already configured to use it — just specify the target version.
+Within a major version, no flag is needed: the plan installs from the repository configured at install time, so nodes pointed at an internal mirror keep using it.
+
+A node moving to a new major version gets that version's release package, which is downloaded from `https://apt.voxpupuli.org` or `https://yum.voxpupuli.org` unless you pass `apt_base_url` or `yum_base_url` with the same values you gave `ovadm::install`.
 
 ## Upgrading from a direct package URL
 
@@ -62,11 +66,34 @@ Add `compiler_hosts` as needed.
 
 ## Major version upgrades
 
-The `upgrade` plan calls `install_server` directly against the already-configured package repo. This works for **minor and patch upgrades within the same major version** (e.g. 8.12.x → 8.13.0).
-
-For a **major version upgrade** (e.g. 8.x → 9.x), the release package must be updated first to point at the new repo. Run `ovadm::configure_repo` manually on each node before upgrading:
+Upgrading to a new major version is the same command with a version from the new line. The plan works out the target major version from `ovox_server_version`:
 
 ```bash
-bolt task run ovadm::configure_repo ovox_major=9 --targets ovox-server.example.com
+# OpenVox 8 to 9
 bolt plan run ovadm::upgrade server_host=ovox-server.example.com ovox_server_version=9.0.0
+
+# Puppet Server 7 to OpenVox 8
+bolt plan run ovadm::upgrade server_host=puppet7.example.com ovox_server_version=8.16.0
 ```
+
+Upgrade one major version at a time. A Puppet Server 7 host goes straight to OpenVox 8; OpenVox 7 is not needed in between. A Puppet Server 8 host moves to OpenVox 8 the same way.
+
+For each node on an older major version, or still running Puppet Server, the plan does what the upstream upgrade guides describe by hand:
+
+1. **Switches the package repository.** It installs the new major's release package (`openvox9-release`, say) and removes the release packages of other OpenVox and Puppet major versions. On Debian and Ubuntu the old one has to go first, since each ships the same apt preferences file. Nodes already on the target major keep their repository, so re-running the plan after a failure is safe.
+2. **Installs the new package.** `openvox-server` replaces `puppetserver`, and the agent package on the node moves to the matching `openvox-agent`. The CA, certificates, `puppet.conf`, `conf.d`, and gems installed with `puppetserver gem` carry over. Replacing `puppetserver` makes the package's install hook reset the `[server]` paths in `puppet.conf` (`vardir`, `logdir`, `rundir`, `pidfile`, `codedir`); the plan puts your `puppet.conf` back afterwards.
+3. **Selects a supported Java.** The package pulls in a JRE but leaves the `java` alternative alone, so a Puppet Server 7 host still on Java 8 or 11 would fail at startup with `UnsupportedClassVersionError`. When the default Java is not one the new version supports (17 or 21 for OpenVox 8, 21 or 25 for OpenVox 9), the plan points the `java` alternative at the newest supported one installed. Precheck reports the old Java as a warning rather than a failure for this reason.
+4. **Restarts and waits for readiness**, as for any upgrade.
+
+To upgrade to a new major version from a `package_url` alone, pass `ovox_major` as well, since there is no version to take it from.
+
+### Order and what ovadm leaves to you
+
+The plan upgrades the server, then the compilers. Upgrade agents only after that: an OpenVox 8 agent cannot use a Puppet 7 server, and fails with `Error 406 on SERVER: Not Acceptable` when the server falls back to PSON for a catalog. Older agents keep working against the upgraded server while you roll the new version out.
+
+ovadm does not manage OpenVoxDB. Upgrade `openvoxdb` and `openvoxdb-termini` by hand, in the same maintenance window as the server, so the two do not run different major versions for longer than the upgrade takes.
+
+Read the upstream guide for the upgrade first. Most of what changes between major versions is in the language, agents, and settings, which ovadm does not touch:
+
+- [Upgrading from Puppet 7 to OpenVox 8](https://github.com/OpenVoxProject/openvox-docs/pull/498) (openvox-docs#498, in review)
+- [Upgrading from OpenVox 8 to OpenVox 9](https://github.com/OpenVoxProject/openvox-docs/pull/461) (openvox-docs#461, in review)

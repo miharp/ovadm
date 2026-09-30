@@ -1,5 +1,5 @@
 {
-  "description": "Configure the OpenVox package repository for this OS",
+  "description": "Configure the OpenVox package repository for this OS, removing the release packages of other OpenVox and Puppet major versions",
   "input_method": "environment",
   "parameters": {
     "ovox_major": {

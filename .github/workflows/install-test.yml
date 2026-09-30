@@ -89,3 +89,69 @@ jobs:
       - name: Tear down
         if: always()
         run: docker compose down
+
+  upgrade-from-puppet7:
+    name: Upgrade (Puppet 7 to OpenVox 8)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+
+      - name: Start a Puppet Server 7 host
+        run: |
+          # Named ovadm-server so docker/inventory.yaml's `puppet` target is it.
+          docker build -t ovadm-puppet7 docker/puppet7
+          docker run -d --name ovadm-server --hostname puppet --privileged --cgroupns=host \
+            -v /sys/fs/cgroup:/sys/fs/cgroup:rw ovadm-puppet7
+
+      - name: Leave the host the way an operator would have
+        run: |
+          docker exec ovadm-server bash -euc '
+            # Java 11 chosen by hand, so installing a newer JRE does not move it.
+            update-alternatives --set java "$(update-alternatives --list java | grep java-11)"
+            # A tuned JAVA_ARGS, in a file the OpenVox package also changes.
+            sed -i "s/-Xms2g -Xmx2g/-Xms768m -Xmx768m/" /etc/default/puppetserver
+            # A [server] path that the OpenVox package install hook resets.
+            mkdir -p /etc/puppetlabs/code-custom
+            cp -a /etc/puppetlabs/code/. /etc/puppetlabs/code-custom/
+            /opt/puppetlabs/bin/puppet config set --section server codedir /etc/puppetlabs/code-custom
+            /opt/puppetlabs/bin/puppetserver ca setup
+            systemctl start puppetserver
+            systemctl is-active puppetserver
+          '
+
+      - name: Upgrade to OpenVox 8
+        run: |
+          bundle exec bolt plan run ovadm::upgrade \
+            server_host=puppet \
+            ovox_server_version=8.16.0 \
+            --inventoryfile docker/inventory.yaml
+
+      - name: Verify the upgrade kept the operator's setup
+        run: |
+          docker exec ovadm-server bash -euc '
+            dpkg -l openvox-server | grep -Eq "^ii +openvox-server +8\.16\.0"
+            # `! cmd` never trips -e, so fail explicitly.
+            if dpkg -l puppetserver puppet7-release 2>/dev/null | grep -q "^ii"; then
+              echo "Puppet packages are still installed"; exit 1
+            fi
+            java -version 2>&1 | grep -Eq "version \"(17|21)\."
+            grep -q -- "-Xmx768m" /etc/default/puppetserver
+            test -f /etc/default/puppetserver.dpkg-dist
+            grep -q "^codedir = /etc/puppetlabs/code-custom" /etc/puppetlabs/puppet/puppet.conf
+            systemctl is-active puppetserver
+          '
+
+      - name: Check status
+        run: |
+          bundle exec bolt plan run ovadm::status \
+            server_host=puppet \
+            --inventoryfile docker/inventory.yaml
+
+      - name: Tear down
+        if: always()
+        run: docker rm -f ovadm-server || true
