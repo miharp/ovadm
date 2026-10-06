@@ -1,5 +1,5 @@
 {
-  "description": "Poll until puppetserver responds on port 8140 or a timeout expires",
+  "description": "Poll until puppetserver responds on port 8140 or a timeout expires. On a timeout, the error says why: the service state and the last error puppetserver logged, such as its startup memory check",
   "input_method": "environment",
   "parameters": {
     "max_wait": {

@@ -19,7 +19,7 @@ bolt plan run ovadm::install server_host=ovox-server.example.com
 
 The plan:
 
-1. Runs prechecks (OS, Java, port 8140, host firewall, NTP)
+1. Runs prechecks (OS, Java, port 8140, host firewall, NTP, memory for the heap)
 2. Configures the OpenVox package repository
 3. Installs `openvox-server`
 4. Writes `puppet.conf`

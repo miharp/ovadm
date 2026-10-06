@@ -15,7 +15,7 @@ RSpec.describe 'ovadm::precheck task' do
   it 'includes the expected check names' do
     result = run_bolt_task('ovadm::precheck', {})
     names = result.result['checks'].map { |c| c['check'] }
-    expect(names).to include('os_family', 'java', 'port_8140', 'firewall', 'ntp')
+    expect(names).to include('os_family', 'java', 'port_8140', 'firewall', 'ntp', 'memory')
   end
 
   it 'each check has a status and detail field' do
@@ -42,5 +42,44 @@ RSpec.describe 'ovadm::precheck task' do
     result = run_bolt_task('ovadm::precheck', 'upgrade' => true)
     java_check = result.result['checks'].find { |c| c['check'] == 'java' }
     expect(%w[pass warn]).to include(java_check['status'])
+  end
+
+  describe 'the memory check' do
+    def memory_check(result)
+      result.result['checks'].find { |c| c['check'] == 'memory' }
+    end
+
+    def defaults_file
+      run_shell('test -f /etc/debian_version && echo /etc/default/puppetserver || echo /etc/sysconfig/puppetserver')['stdout'].strip
+    end
+
+    # Runs the precheck with JAVA_ARGS set in the service's defaults file,
+    # putting back whatever was there before.
+    def precheck_with_java_args(java_args)
+      file = defaults_file
+      run_shell("mkdir -p #{File.dirname(file)}; if [ -e #{file} ]; then cp -p #{file} #{file}.ovadm-spec; fi; " \
+                "echo 'JAVA_ARGS=\"#{java_args}\"' > #{file}")
+      run_bolt_task('ovadm::precheck', {})
+    ensure
+      run_shell("if [ -e #{file}.ovadm-spec ]; then mv #{file}.ovadm-spec #{file}; else rm -f #{file}; fi")
+    end
+
+    it 'passes with the heap OpenVox Server ships' do
+      check = memory_check(run_bolt_task('ovadm::precheck', {}))
+      expect(check['status']).to eq('pass')
+      expect(check['detail']).to match(/2048 MB heap/)
+    end
+
+    it 'fails when the configured heap needs more memory than the host has' do
+      result = precheck_with_java_args('-Xms4096g -Xmx4096g')
+      expect(result.result['status']).to eq('fail')
+      expect(memory_check(result)['detail']).to match(/refuses to start with the 4194304 MB heap \(-Xmx4096g\)/)
+    end
+
+    it 'goes by the last -Xmx, as the JVM does' do
+      check = memory_check(precheck_with_java_args('-Xmx4096g -Xms512m -Xmx512m'))
+      expect(check['status']).to eq('pass')
+      expect(check['detail']).to match(/512 MB heap \(-Xmx512m\)/)
+    end
   end
 end

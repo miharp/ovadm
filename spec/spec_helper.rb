@@ -2,6 +2,7 @@
 
 require 'bolt_spec/run'
 require 'ostruct'
+require 'shellwords'
 
 DOCKER_TARGET = 'docker://ovadm-acceptance'
 MODULE_PARENT = File.expand_path('../..', __dir__)
@@ -29,6 +30,12 @@ module OvadmTaskHelper
       exit_code: first['status'] == 'success' ? 0 : 1,
       result:    first['value']
     )
+  end
+
+  # Runs a shell script in the container. Bolt's docker transport runs a
+  # command without a shell, so the script goes to bash.
+  def run_shell(script)
+    run_command("bash -c #{Shellwords.escape(script)}", DOCKER_TARGET).first['value']
   end
 end
 

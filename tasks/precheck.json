@@ -1,5 +1,5 @@
 {
-  "description": "Validate target readiness: OS family, Java version, port 8140, host firewall, and NTP sync",
+  "description": "Validate target readiness: OS family, Java version, port 8140, host firewall, NTP sync, and enough memory for OpenVox Server's heap",
   "input_method": "environment",
   "parameters": {
     "upgrade": {

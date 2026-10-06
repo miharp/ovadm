@@ -125,8 +125,70 @@ fi
 
 ntp_check=$(printf '{"check":"ntp","status":"%s","detail":"%s"}' "$ntp_status" "$ntp_detail")
 
+# --- Memory for the heap ---
+# OpenVox Server refuses to start when MemTotal is less than 1.1 times its
+# maximum heap (validate-memory-requirements! in master_core.clj). Without
+# this check an install on a smaller host fails only when
+# wait_until_service_ready times out. The heap is -Xmx in JAVA_ARGS, read as
+# the service reads it, or the packaged 2 GB where OpenVox Server is not
+# installed yet.
+mem_status='pass'
+mem_detail='cannot read MemTotal from /proc/meminfo'
+mem_kb=$(awk '/^MemTotal:/ { print $2 }' /proc/meminfo 2>/dev/null || true)
+
+if [ -n "$mem_kb" ]; then
+  heap_kb=2097152
+  heap_source='the packaged 2048 MB heap'
+  defaults=''
+  for f in /etc/sysconfig/puppetserver /etc/default/puppetserver; do
+    if [ -r "$f" ]; then
+      defaults=$f
+      break
+    fi
+  done
+
+  if [ -n "$defaults" ]; then
+    # shellcheck source=/dev/null
+    java_args=$(set +eu; . "$defaults" >/dev/null 2>&1; printf '%s' "${JAVA_ARGS:-}")
+    # The JVM uses the last -Xmx it is given.
+    xmx=$(printf '%s\n' "$java_args" | tr ' ' '\n' | grep -E '^-Xmx[0-9]+[kKmMgG]?$' | tail -1 || true)
+    if [ -n "$xmx" ]; then
+      size=${xmx#-Xmx}
+      case "$size" in
+        *[kK]) heap_kb=${size%?} ;;
+        *[mM]) heap_kb=$(( ${size%?} * 1024 )) ;;
+        *[gG]) heap_kb=$(( ${size%?} * 1048576 )) ;;
+        *)     heap_kb=$(( size / 1024 )) ;;
+      esac
+      heap_source="the $(( heap_kb / 1024 )) MB heap (${xmx}) in ${defaults}"
+    else
+      # Without -Xmx the JVM takes a quarter of the memory, which always fits.
+      heap_kb=0
+    fi
+  fi
+
+  mem_mb=$(( mem_kb / 1024 ))
+  need_mb=$(( (heap_kb * 11 + 10239) / 10240 ))
+  if [ "$heap_kb" -eq 0 ]; then
+    mem_detail="${mem_mb} MB of memory; JAVA_ARGS in ${defaults} sets no -Xmx, so the JVM sizes the heap to fit"
+  elif [ $(( mem_kb * 10 )) -lt $(( heap_kb * 11 )) ]; then
+    mem_status='fail'
+    if [ -n "$defaults" ] && [ -n "${xmx:-}" ]; then
+      remedy="lower -Xms and -Xmx in JAVA_ARGS in ${defaults}, or use a host with more memory"
+    else
+      remedy="use a host with at least ${need_mb} MB of memory"
+    fi
+    mem_detail="${mem_mb} MB of memory, but OpenVox Server refuses to start with ${heap_source} on less than ${need_mb} MB (1.1 times the heap); ${remedy}"
+    pass=false
+  else
+    mem_detail="${mem_mb} MB of memory, enough for ${heap_source} (OpenVox Server needs ${need_mb} MB)"
+  fi
+fi
+
+mem_check=$(printf '{"check":"memory","status":"%s","detail":"%s"}' "$mem_status" "$mem_detail")
+
 # --- Assemble output ---
 overall=$([ "$pass" = 'true' ] && echo 'pass' || echo 'fail')
 
-printf '{"status":"%s","checks":[%s,%s,%s,%s,%s]}\n' \
-  "$overall" "$os_check" "$java_check" "$port_check" "$fw_check" "$ntp_check"
+printf '{"status":"%s","checks":[%s,%s,%s,%s,%s,%s]}\n' \
+  "$overall" "$os_check" "$java_check" "$port_check" "$fw_check" "$ntp_check" "$mem_check"

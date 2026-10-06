@@ -49,7 +49,7 @@ The top-level plans should be thin orchestrators that call focused subplans. Thi
 
 | Plan | Description |
 |------|-------------|
-| `ovadm::subplans::precheck` | Validate targets, OS, Java, ports, time sync |
+| `ovadm::subplans::precheck` | Validate targets, OS, Java, ports, time sync, memory |
 | `ovadm::subplans::install` | Install packages and start services on the server |
 | `ovadm::subplans::configure` | Apply initial configuration (puppet.conf) |
 | `ovadm::subplans::agent_install` | Install OpenVox server on `compiler_hosts` targets and configure puppet.conf |
@@ -73,7 +73,7 @@ Tasks are the atomic operations that plans compose. The following are implemente
 
 | Task | Description | Notes |
 |------|-------------|-------|
-| `ovadm::precheck` | Validate OS, Java version, open ports, NTP sync | Returns structured JSON |
+| `ovadm::precheck` | Validate OS, Java version, open ports, NTP sync, memory for the heap | Returns structured JSON |
 | `ovadm::os_identification` | Detect OS family, version, arch | Used to select package repo |
 | `ovadm::wait_until_service_ready` | Poll until `puppetserver` responds on :8140 | Avoids race conditions after start |
 

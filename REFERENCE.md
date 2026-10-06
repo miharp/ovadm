@@ -17,7 +17,7 @@
 * [`install_agent`](#install_agent): Install the openvox-agent package from the configured repository
 * [`install_server`](#install_server): Install or upgrade the openvox-server package from the configured repository, replacing puppetserver if it is installed; edited configuration
 * [`os_identification`](#os_identification): Detect OS family, name, version, and architecture
-* [`precheck`](#precheck): Validate target readiness: OS family, Java version, port 8140, host firewall, and NTP sync
+* [`precheck`](#precheck): Validate target readiness: OS family, Java version, port 8140, host firewall, NTP sync, and enough memory for OpenVox Server's heap
 * [`select_java`](#select_java): Make sure the installed openvox-server has a supported Java: on 8, point the java alternative at Java 17 or 21 when the default is neither; o
 * [`service_restart`](#service_restart): Restart the puppetserver service
 * [`service_start`](#service_start): Start the puppetserver service
@@ -25,7 +25,7 @@
 * [`service_stop`](#service_stop): Stop the puppetserver service
 * [`set_csr_attributes`](#set_csr_attributes): Write /etc/puppetlabs/puppet/csr_attributes.yaml so the node's CSR embeds a pp_role extension
 * [`sign_csr`](#sign_csr): Sign a pending CSR on the OpenVox CA server
-* [`wait_until_service_ready`](#wait_until_service_ready): Poll until puppetserver responds on port 8140 or a timeout expires
+* [`wait_until_service_ready`](#wait_until_service_ready): Poll until puppetserver responds on port 8140 or a timeout expires. On a timeout, the error says why: the service state and the last error pu
 
 ### Plans
 
@@ -227,7 +227,7 @@ Detect OS family, name, version, and architecture
 
 ### <a name="precheck"></a>`precheck`
 
-Validate target readiness: OS family, Java version, port 8140, host firewall, and NTP sync
+Validate target readiness: OS family, Java version, port 8140, host firewall, NTP sync, and enough memory for OpenVox Server's heap
 
 **Supports noop?** false
 
@@ -299,7 +299,7 @@ The certificate name to sign
 
 ### <a name="wait_until_service_ready"></a>`wait_until_service_ready`
 
-Poll until puppetserver responds on port 8140 or a timeout expires
+Poll until puppetserver responds on port 8140 or a timeout expires. On a timeout, the error says why: the service state and the last error puppetserver logged, such as its startup memory check
 
 **Supports noop?** false
 

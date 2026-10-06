@@ -31,7 +31,7 @@ Plans are thin orchestrators — they call subplans and tasks in sequence, handl
 
 ```mermaid
 flowchart TD
-    install([ovadm::install]) --> precheck[subplans::precheck\nOS · Java · ports · NTP]
+    install([ovadm::install]) --> precheck[subplans::precheck\nOS · Java · ports · NTP · memory]
     precheck --> installsp[subplans::install\nconfigure_repo → install_server]
     installsp --> configure[subplans::configure\npuppet.conf]
     configure --> csr[set_csr_attributes\npp_role: openvox_server]
