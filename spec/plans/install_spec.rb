@@ -28,6 +28,30 @@ describe 'ovadm::install' do
     end
   end
 
+  context 'with an OpenVox version' do
+    it 'prechecks for the major version it installs' do
+      expect_plan('ovadm::subplans::precheck').with_params('server_host' => server, 'ovox_major' => 9).be_called_times(1)
+      allow_plan('ovadm::subplans::install')
+      allow_plan('ovadm::subplans::configure')
+      allow_task('ovadm::set_csr_attributes').always_return('status' => 'success')
+      allow_task('ovadm::wait_until_service_ready')
+
+      result = run_plan('ovadm::install', { 'server_host' => server, 'ovox_server_version' => '9.0.1' })
+      expect(result).to be_ok
+    end
+
+    it 'prechecks for OpenVox 8 when no version is given' do
+      expect_plan('ovadm::subplans::precheck').with_params('server_host' => server, 'ovox_major' => 8).be_called_times(1)
+      allow_plan('ovadm::subplans::install')
+      allow_plan('ovadm::subplans::configure')
+      allow_task('ovadm::set_csr_attributes').always_return('status' => 'success')
+      allow_task('ovadm::wait_until_service_ready')
+
+      result = run_plan('ovadm::install', { 'server_host' => server })
+      expect(result).to be_ok
+    end
+  end
+
   context 'with dns_alt_names' do
     it 'hands the alt names to ca setup' do
       expect_plan('ovadm::subplans::precheck').be_called_times(1)

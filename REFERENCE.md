@@ -239,6 +239,12 @@ Data type: `Optional[Boolean]`
 
 Check a host ovadm::upgrade is about to upgrade. A Java below the supported versions is a warning rather than a failure, since the upgrade installs and selects one.
 
+##### `ovox_major`
+
+Data type: `Optional[Integer[8]]`
+
+The OpenVox major version about to be installed or upgraded to, when known. On 9 and later the server picks its own Java through a launcher, so the system java is not checked. A host where the launcher is already installed is checked against the Java it runs, whatever this says.
+
 ### <a name="select_java"></a>`select_java`
 
 Make sure the installed openvox-server has a supported Java: on 8, point the java alternative at Java 17 or 21 when the default is neither; on packages with a Java launcher (9), leave the alternative alone and check that the launcher finds one

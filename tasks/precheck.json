@@ -5,6 +5,10 @@
     "upgrade": {
       "description": "Check a host ovadm::upgrade is about to upgrade. A Java below the supported versions is a warning rather than a failure, since the upgrade installs and selects one.",
       "type": "Optional[Boolean]"
+    },
+    "ovox_major": {
+      "description": "The OpenVox major version about to be installed or upgraded to, when known. On 9 and later the server picks its own Java through a launcher, so the system java is not checked. A host where the launcher is already installed is checked against the Java it runs, whatever this says.",
+      "type": "Optional[Integer[8]]"
     }
   },
   "supports_noop": false

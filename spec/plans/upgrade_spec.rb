@@ -39,9 +39,9 @@ describe 'ovadm::upgrade' do
   end
 
   context 'target major version' do
-    it 'prechecks in upgrade mode, so an old default Java only warns' do
+    it 'prechecks in upgrade mode for the target major, so the Java check fits it' do
       expect_plan('ovadm::subplans::precheck')
-        .with_params('server_host' => server, 'upgrade' => true)
+        .with_params('server_host' => server, 'upgrade' => true, 'ovox_major' => 9)
         .be_called_times(1)
       allow_plan('ovadm::subplans::upgrade_server')
 

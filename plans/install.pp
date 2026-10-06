@@ -59,7 +59,17 @@ plan ovadm::install(
   Boolean                      $enable_cert_auto_renewal = false,
   Optional[String[1]]          $auto_renewal_cert_ttl    = undef,
 ) {
-  run_plan('ovadm::subplans::precheck', { 'server_host' => $server_host })
+  # The major version the repository is set up for, as subplans::install
+  # works it out, so that precheck checks the Java that major runs.
+  $ovox_major = $ovox_version ? {
+    undef   => $ovox_server_version ? {
+      undef   => 8,
+      default => Integer($ovox_server_version.split('\.')[0]),
+    },
+    default => Integer($ovox_version.split('\.')[0]),
+  }
+
+  run_plan('ovadm::subplans::precheck', { 'server_host' => $server_host, 'ovox_major' => $ovox_major })
 
   run_plan('ovadm::subplans::install', {
     'server_host'         => $server_host,
@@ -106,7 +116,7 @@ plan ovadm::install(
   if $compiler_hosts {
     $server_fqdn = run_command('hostname -f', $server_host).first.value['stdout'].strip
 
-    run_plan('ovadm::subplans::precheck', { 'server_host' => $compiler_hosts })
+    run_plan('ovadm::subplans::precheck', { 'server_host' => $compiler_hosts, 'ovox_major' => $ovox_major })
 
     run_plan('ovadm::subplans::agent_install', {
       'compiler_hosts'      => $compiler_hosts,

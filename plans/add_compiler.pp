@@ -21,7 +21,17 @@ plan ovadm::add_compiler(
   Optional[String[1]] $yum_base_url        = undef,
   Optional[String[1]] $package_url         = undef,
 ) {
-  run_plan('ovadm::subplans::precheck', { 'server_host' => $compiler_hosts })
+  # The major version the repository is set up for, as subplans::agent_install
+  # works it out, so that precheck checks the Java that major runs.
+  $ovox_major = $ovox_version ? {
+    undef   => $ovox_server_version ? {
+      undef   => 8,
+      default => Integer($ovox_server_version.split('\.')[0]),
+    },
+    default => Integer($ovox_version.split('\.')[0]),
+  }
+
+  run_plan('ovadm::subplans::precheck', { 'server_host' => $compiler_hosts, 'ovox_major' => $ovox_major })
 
   $server_fqdn = run_command('hostname -f', $server_host).first.value['stdout'].strip
 
