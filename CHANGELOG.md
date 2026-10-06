@@ -68,6 +68,15 @@ Notable changes to ovadm are recorded here. The format follows
   `puppetserver` installed, pointing at `ovadm::install`, instead of installing
   the package there.
 
+### Fixed
+
+- `precheck`, and so `ovadm::status`, checked the system `java` against 17
+  and 21 on OpenVox Server 9 hosts too, so it failed a healthy server whose
+  default Java is 25, as on Rocky 9. Where OpenVox Server 9's Java launcher
+  is installed, it now checks the Java the launcher runs, 21 or 25. Before
+  an install of or upgrade to 9, which the plans now pass as `ovox_major`,
+  it does not check the system `java`, since the package brings Java 21.
+
 ## [0.4.1] - 2026-09-30
 
 ### Added

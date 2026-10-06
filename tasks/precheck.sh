@@ -29,11 +29,45 @@ else
 fi
 
 # --- Java ---
+# OpenVox Server 8 runs the system java, which must be 17 or 21. OpenVox
+# Server 9 packages ship a launcher that the service runs instead: it picks
+# the first of Java 25 and 21 installed, or JAVA_BIN from the defaults file,
+# and ignores the java alternative (see select_java). So where the launcher is
+# installed, check the Java it runs; where 9 or later is about to be
+# installed, the system java does not matter, since the package brings
+# Java 21.
 java_version=''
 java_status='warn'
 java_detail='java not found; will be installed as a dependency of openvox-server'
+launcher=/opt/puppetlabs/server/apps/puppetserver/bin/java
 
-if command -v java >/dev/null 2>&1; then
+java_major() {
+  "$1" -version 2>&1 | awk -F'"' '/version/{print $2; exit}' | cut -d. -f1
+}
+
+if [ -x "$launcher" ]; then
+  java_defaults=/etc/default/puppetserver
+  [ -r "$java_defaults" ] || java_defaults=/etc/sysconfig/puppetserver
+  # shellcheck source=/dev/null
+  if launcher_java=$(set +eu -a; [ -r "$java_defaults" ] && . "$java_defaults"; set +a; "$launcher" 2>/dev/null); then
+    launcher_major=$(java_major "$launcher_java" || true)
+    if [ "${launcher_major:-0}" -ge 21 ] 2>/dev/null; then
+      java_status='pass'
+      java_detail="openvox-server runs Java ${launcher_major} (${launcher_java}) through its launcher"
+    else
+      java_status='fail'
+      java_detail="openvox-server runs ${launcher_java} (Java ${launcher_major:-unknown}), set as JAVA_BIN in ${java_defaults}; it needs Java 21 or 25"
+      pass=false
+    fi
+  else
+    java_status='fail'
+    java_detail="openvox-server picks its Java through ${launcher}, which found no Java 21 or 25 installed"
+    pass=false
+  fi
+elif [ "${PT_ovox_major:-0}" -ge 9 ]; then
+  java_status='pass'
+  java_detail="OpenVox Server ${PT_ovox_major} installs Java 21 as a dependency and picks its Java through a launcher, not the system java"
+elif command -v java >/dev/null 2>&1; then
   java_version=$(java -version 2>&1 | awk -F'"' '/version/{print $2}' | head -1)
   major=$(echo "$java_version" | cut -d. -f1)
   if [ "$major" = '17' ] || [ "$major" = '21' ]; then
@@ -46,7 +80,7 @@ if command -v java >/dev/null 2>&1; then
     java_detail="java $java_version is the default; the upgrade will select the Java that openvox-server installs"
   else
     java_status='fail'
-    java_detail="java $java_version found but OpenVox requires 17 or 21"
+    java_detail="java $java_version found but OpenVox Server 8 requires 17 or 21"
     pass=false
   fi
 fi

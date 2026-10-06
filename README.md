@@ -15,7 +15,7 @@ ovadm is an [OpenBolt](https://github.com/OpenVoxProject/openbolt) module for de
 - [OpenBolt](https://github.com/OpenVoxProject/openbolt) >= 5.0.0 (gem: `gem install openbolt`)
 - Ruby >= 3.2 (for the test suite - use rbenv or equivalent, not the system Ruby)
 - A supported Linux target: Rocky Linux 9, Ubuntu 22.04, Ubuntu 24.04, Debian 12 (tested in CI); AlmaLinux 9 and 10 (tested by hand on cloud VMs)
-- Java 17 or 21 on the target - installed automatically as a dependency of `openvox-server`
+- Java 17 or 21 for OpenVox Server 8, or 21 or 25 for OpenVox Server 9, on the target - installed automatically as a dependency of `openvox-server`
 - At least 2,253 MB of memory on the server and each compiler: OpenVox Server refuses to start on less than 1.1 times its heap, which is 2 GB as packaged. The precheck fails below that
 
 ## Plans

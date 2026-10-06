@@ -44,6 +44,13 @@ RSpec.describe 'ovadm::precheck task' do
     expect(%w[pass warn]).to include(java_check['status'])
   end
 
+  it 'leaves the system java alone for a host about to get OpenVox 9, whose launcher picks its own' do
+    result = run_bolt_task('ovadm::precheck', 'ovox_major' => 9)
+    java_check = result.result['checks'].find { |c| c['check'] == 'java' }
+    expect(java_check['status']).to eq('pass')
+    expect(java_check['detail']).to match(/picks its Java through a launcher/)
+  end
+
   describe 'the memory check' do
     def memory_check(result)
       result.result['checks'].find { |c| c['check'] == 'memory' }

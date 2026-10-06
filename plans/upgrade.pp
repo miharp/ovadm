@@ -56,7 +56,7 @@ plan ovadm::upgrade(
     default => $ovox_major,
   }
 
-  run_plan('ovadm::subplans::precheck', { 'server_host' => $server_host, 'upgrade' => true })
+  run_plan('ovadm::subplans::precheck', { 'server_host' => $server_host, 'upgrade' => true, 'ovox_major' => $target_major })
 
   $node_params = {
     'ovox_server_version' => $ovox_server_version,
