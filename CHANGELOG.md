@@ -9,6 +9,12 @@ Notable changes to ovadm are recorded here. The format follows
 
 ### Added
 
+- `precheck` checks that a host has enough memory for OpenVox Server's heap:
+  at least 1.1 times `-Xmx`, which OpenVox Server checks at startup. It uses
+  the `-Xmx` in `JAVA_ARGS` where the service's defaults file sets one, and
+  the packaged 2 GB heap on a host without OpenVox Server yet, which needs
+  2,253 MB. Below that, `ovadm::install` used to fail only when
+  `wait_until_service_ready` timed out after five minutes.
 - Documentation on sizing the server and compilers after an install, with
   [miharp-openvox_tune](https://forge.puppet.com/modules/miharp/openvox_tune),
   and a README section on the related modules: openvox_tune for sizing and
@@ -41,6 +47,10 @@ Notable changes to ovadm are recorded here. The format follows
 
 ### Changed
 
+- When `wait_until_service_ready` times out, its error says why: the
+  service's state and the last error puppetserver logged, with the exception
+  after it, such as its startup memory check's "Not enough available RAM".
+  It used to report only a timeout.
 - `configure_repo` removes the release packages of other OpenVox and Puppet
   major versions (`openvox7-release`, `puppet7-release`, and so on), and lists
   them in its result as `removed`. On Debian and Ubuntu the old OpenVox one
