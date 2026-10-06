@@ -9,6 +9,12 @@ Notable changes to ovadm are recorded here. The format follows
 
 ### Added
 
+- Documentation on sizing the server and compilers after an install, with
+  [miharp-openvox_tune](https://forge.puppet.com/modules/miharp/openvox_tune),
+  and a README section on the related modules: openvox_tune for sizing and
+  [miharp-openvox_agent](https://forge.puppet.com/modules/miharp/openvox_agent)
+  for agent upgrades.
+
 - `ovadm::upgrade` upgrades to a new major version (OpenVox 8 to 9) and from
   Puppet Server to OpenVox (Puppet 7 to OpenVox 8), where it used to need the
   repository switched by hand and handled neither the Java change nor a

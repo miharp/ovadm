@@ -30,6 +30,13 @@ bolt plan run ovadm::add_compiler \
   ovox_server_version=8.13.0
 ```
 
+After adding compilers, size them with
+[miharp-openvox_tune](https://forge.puppet.com/modules/miharp/openvox_tune):
+run its plan against the server and every compiler together, so that the
+server, which now compiles few catalogs, gets fewer JRuby instances and
+compilers built alike get the same settings. See
+[Sizing the server](install.md#sizing-the-server).
+
 ## Removing a compiler
 
 ovadm does not have a `remove_compiler` plan. The compiler is stateless — deleting the VM leaves no broken state on the server.
