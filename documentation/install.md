@@ -199,3 +199,41 @@ curl -sk https://ovox-server.example.com:8140/status/v1/simple   # running
 
 SELinux needs nothing extra: the install runs clean with SELinux enforcing
 (checked on AlmaLinux 10, no AVC denials).
+
+## Sizing the server
+
+ovadm leaves OpenVox Server's packaged settings in place: at most 4 JRuby
+instances and a 2 GB heap, however many CPUs and how much memory the host
+has. On a larger host, catalog requests then wait for a JRuby while most of
+the CPU sits idle. In a
+[benchmark](https://github.com/miharp/puppet-openvox_tune/blob/main/benchmark/results/2026-10-06-hetzner-cpx62.md)
+on a 16-vCPU server, the settings recommended for it compiled about three
+times as many catalogs a minute as the packaged ones: 300 against 105, with
+environment caching on in both.
+
+[miharp-openvox_tune](https://forge.puppet.com/modules/miharp/openvox_tune)
+recommends settings for each host from its CPUs and memory. Add it to your
+Bolt project beside ovadm:
+
+```ruby
+mod 'miharp-openvox_tune', '0.1.0'
+```
+
+and run its plan after the install. In a Large topology, run it against the
+server and the compilers together: the compilers compile the catalogs, so
+the server gets only a few JRuby instances.
+
+```bash
+bolt plan run openvox_tune::tune \
+  --targets ovox-server.example.com,ovox-compiler01.example.com,ovox-compiler02.example.com \
+  hiera=openvox_tune
+```
+
+The plan changes nothing on the hosts. It prints each host's settings as
+Hiera data, with compilers built alike sharing one block. To apply them,
+commit that data and assign the module's `openvox_tune` class to the server
+and the compilers. The class restarts puppetserver after a change, and more
+JRuby instances take a while to warm up, so apply new settings at a quiet
+time. See the module's
+[README](https://github.com/miharp/puppet-openvox_tune#applying-the-settings)
+for details.

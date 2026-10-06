@@ -7,7 +7,7 @@
 ### Tasks
 
 * [`agent_runonce`](#agent_runonce): Run the Puppet agent once and return the exit status
-* [`ca_setup`](#ca_setup): Create the CA with `puppetserver ca setup` (root + intermediate, 15-year lifetime) before the first service start. Skipped when a CA already 
+* [`ca_setup`](#ca_setup): Create the CA with `puppetserver ca setup` (root + intermediate, 15-year lifetime) before the first service start. Skipped when a CA already
 * [`configure_ca_renewal`](#configure_ca_renewal): Set certificate auto-renewal settings in ca.conf on the CA. Takes effect on the next puppetserver (re)start and only affects certificates sig
 * [`configure_compiler_ssl`](#configure_compiler_ssl): Configure puppetserver SSL on a compiler to use the puppet-CA-signed node certificate
 * [`configure_puppet_conf`](#configure_puppet_conf): Write /etc/puppetlabs/puppet/puppet.conf with server identity and optional DNS alt names
@@ -586,4 +586,3 @@ Base URL of a yum/dnf mirror to use instead of https://yum.voxpupuli.org,
 for nodes that move to a new major version's repository
 
 Default value: `undef`
-

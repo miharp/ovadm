@@ -62,6 +62,21 @@ Copy `inventory.yaml.example` to `inventory.yaml` and fill in your target detail
 - [Docker testing](https://github.com/miharp/ovadm/blob/main/documentation/docker_testing.md) - Local three-node dev environment
 - [Implementation roadmap](https://github.com/miharp/ovadm/blob/main/documentation/plan.md) - Task catalog and design decisions
 
+## Related modules
+
+ovadm installs OpenVox Server with its packaged settings: at most 4 JRuby
+instances and a 2 GB heap, whatever the host's size. Two separate modules
+pick up where it leaves off:
+
+- [miharp-openvox_tune](https://forge.puppet.com/modules/miharp/openvox_tune)
+  sizes the server and compilers for their CPUs and memory. An OpenBolt plan
+  recommends the settings, and a class applies them from Hiera. See
+  [Sizing the server](https://github.com/miharp/ovadm/blob/main/documentation/install.md#sizing-the-server).
+- [miharp-openvox_agent](https://forge.puppet.com/modules/miharp/openvox_agent)
+  upgrades `openvox-agent` on agents from a Puppet run, including from
+  Puppet 7 and between OpenVox major versions. ovadm upgrades the server and
+  compilers.
+
 ## Contributing
 
 See [CONTRIBUTING.md](https://github.com/miharp/ovadm/blob/main/CONTRIBUTING.md) for code style, testing, and PR guidance.
