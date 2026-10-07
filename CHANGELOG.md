@@ -7,6 +7,19 @@ Notable changes to ovadm are recorded here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- `apt_base_url` and `yum_base_url` now point nodes at the mirror. They used
+  to change only where the release package was downloaded from: its
+  repository file still named `apt.voxpupuli.org` or `yum.voxpupuli.org`, so
+  nodes installed from the public site, and air-gapped ones could not install
+  at all. `configure_repo` now points the repository file at the base URL
+  given, which must be a mirror with the public site's layout
+  ([#70](https://github.com/miharp/ovadm/issues/70)).
+- `configure_repo` keeps a repository file edited on a Debian or Ubuntu node
+  when the release package ships a new one, instead of failing on dpkg's
+  question about it, as `install_server` does since 0.4.1.
+
 ## [0.5.0] - 2026-10-06
 
 ### Added

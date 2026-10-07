@@ -4,6 +4,19 @@ set -euo pipefail
 OVOX_MAJOR="${PT_ovox_major:-8}"
 APT_BASE_URL="${PT_apt_base_url:-https://apt.voxpupuli.org}"
 YUM_BASE_URL="${PT_yum_base_url:-https://yum.voxpupuli.org}"
+APT_BASE_URL="${APT_BASE_URL%/}"
+YUM_BASE_URL="${YUM_BASE_URL%/}"
+
+# The release package's repository file names the public repository whatever
+# URL the package came from, so point it at the base URL given: a mirror of
+# apt.voxpupuli.org or yum.voxpupuli.org, with the same layout. With the
+# default base URL this changes nothing.
+point_repository_at() {
+  local file=$1 public=$2 base=$3 escaped
+  [ -f "$file" ] || return 0
+  escaped=$(printf '%s' "$base" | sed -e 's/[\\&#]/\\&/g')
+  sed -i "s#${public//./\\.}#${escaped}#g" "$file"
+}
 
 os_id=''
 os_version=''
@@ -29,6 +42,7 @@ if [ -f /etc/os-release ]; then
 fi
 
 url=''
+repository_file=''
 keep="openvox${OVOX_MAJOR}-release"
 stale=()
 
@@ -50,14 +64,22 @@ if [ "$os_family" = 'Debian' ]; then
     dpkg --purge "${stale[@]}" >&2
   fi
 
-  dpkg -i "$tmpfile" >&2
+  # The .list is a conffile. Keep a copy edited on the node, as install_server
+  # does: with no terminal, dpkg's question about it would fail the run.
+  dpkg -i --force-confdef --force-confold "$tmpfile" >&2
   rm -f "$tmpfile"
+  repository_file="/etc/apt/sources.list.d/openvox${OVOX_MAJOR}-release.list"
+  point_repository_at "$repository_file" 'https://apt.voxpupuli.org' "$APT_BASE_URL"
   apt-get update -qq >&2
 elif [ "$os_family" = 'RedHat' ]; then
   el_major="${os_version%%.*}"
   pkg_name="openvox${OVOX_MAJOR}-release-el-${el_major}.noarch.rpm"
   url="${YUM_BASE_URL}/${pkg_name}"
   rpm -Uvh --replacepkgs "$url" >&2
+  # The package does not mark the .repo as a config file, so reinstalling it
+  # puts the public URL back; point it at the base URL again each time.
+  repository_file="/etc/yum.repos.d/openvox${OVOX_MAJOR}-release.repo"
+  point_repository_at "$repository_file" 'https://yum.voxpupuli.org' "$YUM_BASE_URL"
 
   # On EL the release packages install side by side, so the old ones can go
   # once the new one is in.
@@ -78,4 +100,10 @@ for pkg in "${stale[@]}"; do
   removed="${removed:+$removed,}\"$pkg\""
 done
 
-printf '{"status":"success","repo_url":"%s","removed":[%s]}\n' "$url" "$removed"
+repository=''
+if [ -f "$repository_file" ]; then
+  repository=$(grep -m1 -o -E 'https?://[^ ]+' "$repository_file" || true)
+fi
+
+printf '{"status":"success","repo_url":"%s","repository_file":"%s","repository":"%s","removed":[%s]}\n' \
+  "$url" "$repository_file" "$repository" "$removed"

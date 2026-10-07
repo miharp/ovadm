@@ -11,7 +11,7 @@
 * [`configure_ca_renewal`](#configure_ca_renewal): Set certificate auto-renewal settings in ca.conf on the CA. Takes effect on the next puppetserver (re)start and only affects certificates sig
 * [`configure_compiler_ssl`](#configure_compiler_ssl): Configure puppetserver SSL on a compiler to use the puppet-CA-signed node certificate
 * [`configure_puppet_conf`](#configure_puppet_conf): Write /etc/puppetlabs/puppet/puppet.conf with server identity and optional DNS alt names
-* [`configure_repo`](#configure_repo): Configure the OpenVox package repository for this OS, removing the release packages of other OpenVox and Puppet major versions
+* [`configure_repo`](#configure_repo): Configure the OpenVox package repository for this OS, removing the release packages of other OpenVox and Puppet major versions. With apt_base
 * [`get_version`](#get_version): Return the installed openvox-server version, or puppetserver's on a host not yet upgraded to OpenVox, and which package it is; version is 'no
 * [`infrastatus`](#infrastatus): Return a concise status summary: installed version, service state, and port 8140
 * [`install_agent`](#install_agent): Install the openvox-agent package from the configured repository
@@ -149,7 +149,7 @@ Comma-separated list of DNS alternative names for the server certificate
 
 ### <a name="configure_repo"></a>`configure_repo`
 
-Configure the OpenVox package repository for this OS, removing the release packages of other OpenVox and Puppet major versions
+Configure the OpenVox package repository for this OS, removing the release packages of other OpenVox and Puppet major versions. With apt_base_url or yum_base_url, the release package comes from that mirror and its repository file is pointed at it
 
 **Supports noop?** false
 
@@ -165,13 +165,13 @@ OpenVox major version (e.g. 8)
 
 Data type: `Optional[String[1]]`
 
-Base URL for the apt release package; defaults to https://apt.voxpupuli.org
+Base URL of a mirror of apt.voxpupuli.org, with the same layout: the release package is downloaded from it, and the repository file points at it. Defaults to https://apt.voxpupuli.org
 
 ##### `yum_base_url`
 
 Data type: `Optional[String[1]]`
 
-Base URL for the yum/dnf release package; defaults to https://yum.voxpupuli.org
+Base URL of a mirror of yum.voxpupuli.org, with the same layout: the release package is downloaded from it, and the repository file points at it. Defaults to https://yum.voxpupuli.org
 
 ### <a name="get_version"></a>`get_version`
 
