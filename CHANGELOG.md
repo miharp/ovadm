@@ -9,7 +9,9 @@ Notable changes to ovadm are recorded here. The format follows
 
 ### Added
 
-- A README badge for Forge downloads, as the sibling modules have.
+- README badges for Forge downloads, the OpenVox versions ovadm installs
+  (8 and 9) and the OpenBolt version it needs (5), as the sibling modules
+  have.
 
 ### Fixed
 
