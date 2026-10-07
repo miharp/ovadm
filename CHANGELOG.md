@@ -19,6 +19,12 @@ Notable changes to ovadm are recorded here. The format follows
 - `configure_repo` keeps a repository file edited on a Debian or Ubuntu node
   when the release package ships a new one, instead of failing on dpkg's
   question about it, as `install_server` does since 0.4.1.
+- `ovadm::add_compiler` gives the compilers the `openvox-server` version the
+  server runs when no version is given. It used to set up the OpenVox 8
+  repository and install the newest release there, whatever the server ran,
+  so a deployment upgraded to OpenVox 9 got OpenVox 8 compilers. It stops
+  when the server still runs Puppet Server
+  ([#69](https://github.com/miharp/ovadm/issues/69)).
 
 ## [0.5.0] - 2026-10-06
 

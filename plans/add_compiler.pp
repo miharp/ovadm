@@ -10,7 +10,9 @@
 #   OpenVox Agent version (e.g. '8.26.2'); determines which major repo to enable
 #
 # @param ovox_server_version
-#   Specific openvox-server version to install on compilers; omit for latest
+#   Specific openvox-server version to install on compilers. Omitted, along
+#   with ovox_version and package_url, the compilers get the version the
+#   server runs, so the pool stays on one version
 #
 plan ovadm::add_compiler(
   TargetSpec          $server_host,
@@ -21,12 +23,34 @@ plan ovadm::add_compiler(
   Optional[String[1]] $yum_base_url        = undef,
   Optional[String[1]] $package_url         = undef,
 ) {
+  # With no version given, the compilers get the server's, so a pool added to
+  # after an upgrade does not fall back to the newest OpenVox 8.
+  if $ovox_version or $ovox_server_version or $package_url {
+    $compiler_server_version = $ovox_server_version
+  } else {
+    $installed = run_task('ovadm::get_version', $server_host).first.value
+    if $installed['package'] != 'openvox-server' {
+      $found = $installed['package'] ? {
+        undef   => 'no openvox-server',
+        default => "${installed['package']} ${installed['version']}",
+      }
+      fail_plan(@("MSG"/L))
+        ${server_host} has ${found}, so there is no version to give the compilers. \
+        Upgrade it to OpenVox with ovadm::upgrade first, or pass ovox_server_version.
+        |- MSG
+    }
+    # get_version reports the package version with its release, such as
+    # 9.0.1-1.el10 or 8.16.0-1+ubuntu24.04; install_server takes the part before.
+    $compiler_server_version = $installed['version'].match(/\A(?:\d+:)?([^-]+)/)[1]
+    out::message("Installing openvox-server ${compiler_server_version} on the compilers, the version ${server_host} runs.")
+  }
+
   # The major version the repository is set up for, as subplans::agent_install
   # works it out, so that precheck checks the Java that major runs.
   $ovox_major = $ovox_version ? {
-    undef   => $ovox_server_version ? {
+    undef   => $compiler_server_version ? {
       undef   => 8,
-      default => Integer($ovox_server_version.split('\.')[0]),
+      default => Integer($compiler_server_version.split('\.')[0]),
     },
     default => Integer($ovox_version.split('\.')[0]),
   }
@@ -39,7 +63,7 @@ plan ovadm::add_compiler(
     'compiler_hosts'      => $compiler_hosts,
     'server_fqdn'         => $server_fqdn,
     'ovox_version'        => $ovox_version,
-    'ovox_server_version' => $ovox_server_version,
+    'ovox_server_version' => $compiler_server_version,
     'apt_base_url'        => $apt_base_url,
     'yum_base_url'        => $yum_base_url,
     'package_url'         => $package_url,

@@ -359,7 +359,9 @@ Default value: `undef`
 
 Data type: `Optional[String[1]]`
 
-Specific openvox-server version to install on compilers; omit for latest
+Specific openvox-server version to install on compilers. Omitted, along
+with ovox_version and package_url, the compilers get the version the
+server runs, so the pool stays on one version
 
 Default value: `undef`
 
