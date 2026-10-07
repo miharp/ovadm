@@ -2,8 +2,11 @@
 
 [![CI](https://github.com/miharp/ovadm/actions/workflows/ci.yml/badge.svg)](https://github.com/miharp/ovadm/actions/workflows/ci.yml)
 [![Install test](https://github.com/miharp/ovadm/actions/workflows/install-test.yml/badge.svg)](https://github.com/miharp/ovadm/actions/workflows/install-test.yml)
+[![OpenVox compatible](https://img.shields.io/badge/OpenVox-8%20%7C%209-orange.svg)](https://voxpupuli.org/openvox/)
+[![OpenBolt](https://img.shields.io/badge/OpenBolt-5-orange.svg)](https://github.com/OpenVoxProject/openbolt)
 [![Release](https://img.shields.io/github/v/release/miharp/ovadm)](https://github.com/miharp/ovadm/releases/latest)
 [![Puppet Forge](https://img.shields.io/puppetforge/v/miharp/ovadm)](https://forge.puppet.com/modules/miharp/ovadm)
+[![Puppet Forge downloads](https://img.shields.io/puppetforge/dt/miharp/ovadm)](https://forge.puppet.com/modules/miharp/ovadm)
 [![License](https://img.shields.io/github/license/miharp/ovadm)](https://github.com/miharp/ovadm/blob/main/LICENSE)
 
 ovadm is an [OpenBolt](https://github.com/OpenVoxProject/openbolt) module for deploying, upgrading, and managing [OpenVox Server](https://docs.openvoxproject.org) infrastructure. It is modeled after [puppetlabs-peadm](https://github.com/puppetlabs/puppetlabs-peadm) and adapted for OpenVox's package-based install and simpler architecture (no console, orchestrator, or RBAC database).
