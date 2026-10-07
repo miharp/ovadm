@@ -21,7 +21,9 @@ The plan:
 
 The new compiler's certificate carries `$trusted['extensions']['pp_role'] == 'openvox_compiler'`, which Puppet code on the server can use for role-based classification without a node classifier.
 
-To pin a specific `openvox-server` version on the compiler, pass `ovox_server_version`:
+The compiler gets the `openvox-server` version the server runs: the plan reads it from the server first, so a deployment upgraded to OpenVox 9 gets OpenVox 9 compilers. The plan stops if the server still runs Puppet Server; upgrade it with `ovadm::upgrade` first.
+
+To install a different version on the compiler, such as a newer patch release, pass `ovox_server_version`:
 
 ```bash
 bolt plan run ovadm::add_compiler \
