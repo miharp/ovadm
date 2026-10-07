@@ -117,7 +117,7 @@ Both parameters are optional. When `ovox_version` is omitted, the major repo is 
 
 ## Internal package mirror
 
-If your nodes cannot reach the public VoxPupuli repositories, point `apt_base_url` and/or `yum_base_url` at an internal mirror:
+If your nodes cannot reach the public VoxPupuli repositories, point `apt_base_url` and/or `yum_base_url` at an internal mirror of `https://apt.voxpupuli.org` or `https://yum.voxpupuli.org`. The mirror needs the same layout as the public site, such as a full copy or a caching proxy of it: ovadm downloads the release package from it (`openvox8-release-ubuntu24.04.deb`, `openvox8-release-el-9.noarch.rpm`) and points the repository file the package installs at it. That file is `/etc/apt/sources.list.d/openvox8-release.list` or `/etc/yum.repos.d/openvox8-release.repo`, and it names the public site otherwise.
 
 ```bash
 bolt plan run ovadm::install \
@@ -126,7 +126,7 @@ bolt plan run ovadm::install \
   yum_base_url=https://packages.example.com/vox-yum
 ```
 
-Both parameters are optional and default to the public repos. Pass them to `ovadm::add_compiler` as well if compilers are on an air-gapped network.
+Both parameters are optional and default to the public repos. Pass them to `ovadm::add_compiler` as well if compilers are on an air-gapped network, and to `ovadm::upgrade` when it moves nodes to a new major version. On EL, reinstalling the release package rewrites its `.repo` file, so a node set up again without the parameter points back at the public site. On Debian and Ubuntu, ovadm keeps a `.list` file that was edited on the node.
 
 ## Installing from a direct package URL
 

@@ -1,5 +1,5 @@
 {
-  "description": "Configure the OpenVox package repository for this OS, removing the release packages of other OpenVox and Puppet major versions",
+  "description": "Configure the OpenVox package repository for this OS, removing the release packages of other OpenVox and Puppet major versions. With apt_base_url or yum_base_url, the release package comes from that mirror and its repository file is pointed at it",
   "input_method": "environment",
   "parameters": {
     "ovox_major": {
@@ -7,11 +7,11 @@
       "type": "Optional[Integer]"
     },
     "apt_base_url": {
-      "description": "Base URL for the apt release package; defaults to https://apt.voxpupuli.org",
+      "description": "Base URL of a mirror of apt.voxpupuli.org, with the same layout: the release package is downloaded from it, and the repository file points at it. Defaults to https://apt.voxpupuli.org",
       "type": "Optional[String[1]]"
     },
     "yum_base_url": {
-      "description": "Base URL for the yum/dnf release package; defaults to https://yum.voxpupuli.org",
+      "description": "Base URL of a mirror of yum.voxpupuli.org, with the same layout: the release package is downloaded from it, and the repository file points at it. Defaults to https://yum.voxpupuli.org",
       "type": "Optional[String[1]]"
     }
   },

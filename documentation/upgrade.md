@@ -31,7 +31,7 @@ The server is upgraded first, then all compilers. Compilers are currently upgrad
 
 Within a major version, no flag is needed: the plan installs from the repository configured at install time, so nodes pointed at an internal mirror keep using it.
 
-A node moving to a new major version gets that version's release package, which is downloaded from `https://apt.voxpupuli.org` or `https://yum.voxpupuli.org` unless you pass `apt_base_url` or `yum_base_url` with the same values you gave `ovadm::install`.
+A node moving to a new major version gets that version's release package, which is downloaded from `https://apt.voxpupuli.org` or `https://yum.voxpupuli.org` unless you pass `apt_base_url` or `yum_base_url` with the same values you gave `ovadm::install`. With them, the new repository file points at the mirror too.
 
 ## Upgrading from a direct package URL
 
