@@ -7,6 +7,10 @@ Notable changes to ovadm are recorded here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- A README badge for Forge downloads, as the sibling modules have.
+
 ### Fixed
 
 - `apt_base_url` and `yum_base_url` now point nodes at the mirror. They used
