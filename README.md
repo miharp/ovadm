@@ -68,30 +68,26 @@ Copy `inventory.yaml.example` to `inventory.yaml` and fill in your target detail
 
 ## Related modules
 
-ovadm installs OpenVox Server with its packaged settings: at most 4 JRuby
-instances and a 2 GB heap, whatever the host's size. Two separate modules
-pick up where it leaves off:
+ovadm installs, upgrades and adds compilers from a workstation, and then
+leaves the hosts in the state the OpenVox packages define: at most 4 JRuby
+instances and a 2 GB heap, whatever the host's size, and nothing enforced
+afterwards. It does not care what takes over: theforeman-puppet, your own
+profiles, or these modules from the same family, which pick up where it
+leaves off:
 
+- [miharp-openvox_server](https://forge.puppet.com/modules/miharp/openvox_server)
+  manages a server or compiler from a Puppet run: package, CA, settings,
+  TLS termination and service. With the same inputs, its first run after
+  `ovadm::install` changes nothing. Upgrades across a server and its
+  compilers stay with `ovadm::upgrade`, which orders the CA server before
+  its compilers, as a Puppet run on one host cannot.
 - [miharp-openvox_tune](https://forge.puppet.com/modules/miharp/openvox_tune)
   sizes the server and compilers for their CPUs and memory. An OpenBolt plan
   recommends the settings, and a class applies them from Hiera. See
   [Sizing the server](https://github.com/miharp/ovadm/blob/main/documentation/install.md#sizing-the-server).
 - [miharp-openvox_agent](https://forge.puppet.com/modules/miharp/openvox_agent)
   upgrades `openvox-agent` on agents from a Puppet run, including from
-  Puppet 7 and between OpenVox major versions. ovadm upgrades the server and
-  compilers.
-
-## After the install
-
-ovadm installs, upgrades and adds compilers from a workstation, and then
-leaves the hosts in the state the OpenVox packages define. It does not
-enforce anything afterwards, and it does not care what does: assign
-[openvox_server](https://forge.puppet.com/modules/miharp/openvox_server),
-theforeman-puppet, or your own profiles to the hosts from then on. With
-the same inputs, openvox_server's first run after `ovadm::install` changes
-nothing. For upgrades with compilers, keep using `ovadm::upgrade`: the CA
-server has to move before its compilers, which a Puppet run on one host
-cannot order.
+  Puppet 7 and between OpenVox major versions.
 
 ## Contributing
 
