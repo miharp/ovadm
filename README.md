@@ -81,6 +81,18 @@ pick up where it leaves off:
   Puppet 7 and between OpenVox major versions. ovadm upgrades the server and
   compilers.
 
+## After the install
+
+ovadm installs, upgrades and adds compilers from a workstation, and then
+leaves the hosts in the state the OpenVox packages define. It does not
+enforce anything afterwards, and it does not care what does: assign
+[openvox_server](https://forge.puppet.com/modules/miharp/openvox_server),
+theforeman-puppet, or your own profiles to the hosts from then on. With
+the same inputs, openvox_server's first run after `ovadm::install` changes
+nothing. For upgrades with compilers, keep using `ovadm::upgrade`: the CA
+server has to move before its compilers, which a Puppet run on one host
+cannot order.
+
 ## Contributing
 
 See [CONTRIBUTING.md](https://github.com/miharp/ovadm/blob/main/CONTRIBUTING.md) for code style, testing, and PR guidance.
