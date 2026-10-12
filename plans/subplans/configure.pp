@@ -14,10 +14,14 @@
 #   ovadm::install also passes them to `puppetserver ca setup`, which is what
 #   puts them on the server certificate created at install time.
 #
+# @param environment
+#   Puppet environment the server's own agent asks for; omit for the default
+#
 plan ovadm::subplans::configure(
   TargetSpec                 $server_host,
   Optional[String[1]]        $certname      = undef,
   Optional[Array[String[1]]] $dns_alt_names = undef,
+  Optional[String[1]]        $environment   = undef,
 ) {
   $params = {}
   $p1 = $certname ? {
@@ -28,5 +32,9 @@ plan ovadm::subplans::configure(
     undef   => $p1,
     default => $p1 + { 'dns_alt_names' => $dns_alt_names.join(',') },
   }
-  run_task('ovadm::configure_puppet_conf', $server_host, $p2)
+  $p3 = $environment ? {
+    undef   => $p2,
+    default => $p2 + { 'environment' => $environment },
+  }
+  run_task('ovadm::configure_puppet_conf', $server_host, $p3)
 }

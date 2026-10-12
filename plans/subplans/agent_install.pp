@@ -14,6 +14,9 @@
 # @param ovox_server_version
 #   Specific openvox-server version to install on compilers; omit for latest
 #
+# @param environment
+#   Puppet environment the compilers' agents ask for; omit for the default
+#
 plan ovadm::subplans::agent_install(
   TargetSpec          $compiler_hosts,
   String[1]           $server_fqdn,
@@ -22,6 +25,7 @@ plan ovadm::subplans::agent_install(
   Optional[String[1]] $apt_base_url        = undef,
   Optional[String[1]] $yum_base_url        = undef,
   Optional[String[1]] $package_url         = undef,
+  Optional[String[1]] $environment         = undef,
 ) {
   if $package_url {
     run_task('ovadm::install_server', $compiler_hosts, { 'package_url' => $package_url })
@@ -52,8 +56,12 @@ plan ovadm::subplans::agent_install(
     run_task('ovadm::install_server', $compiler_hosts, $install_params)
   }
 
-  run_task('ovadm::configure_puppet_conf', $compiler_hosts, {
+  $conf_params = {
     'server'    => $server_fqdn,
     'ca_server' => $server_fqdn,
+  }
+  run_task('ovadm::configure_puppet_conf', $compiler_hosts, $environment ? {
+    undef   => $conf_params,
+    default => $conf_params + { 'environment' => $environment },
   })
 }

@@ -32,6 +32,18 @@ bolt plan run ovadm::add_compiler \
   ovox_server_version=8.13.0
 ```
 
+`environment` sets the environment the compiler's agent asks for, from the
+first run inside the plan on; see [Environment](install.md#environment). Pass
+it when the deployment's pins live outside `production`, or that first run
+applies `production`'s pins to the server package the plan just installed:
+
+```bash
+bolt plan run ovadm::add_compiler \
+  server_host=ovox-server.example.com \
+  compiler_hosts=ovox-compiler03.example.com \
+  environment=openvox9
+```
+
 After adding compilers, size them with
 [miharp-openvox_tune](https://forge.puppet.com/modules/miharp/openvox_tune):
 run its plan against the server and every compiler together, so that the

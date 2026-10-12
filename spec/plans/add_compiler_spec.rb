@@ -23,6 +23,7 @@ describe 'ovadm::add_compiler' do
       'apt_base_url'        => nil,
       'yum_base_url'        => nil,
       'package_url'         => nil,
+      'environment'         => nil,
     }
   end
 
@@ -70,6 +71,16 @@ describe 'ovadm::add_compiler' do
       expect(result).not_to be_ok
       expect(result.value.message).to match(/has puppetserver 7\.17\.3-1jammy.*ovadm::upgrade first, or pass ovox_server_version/)
     end
+  end
+
+  it 'hands the environment to agent_install' do
+    server_runs('9.0.1-1.el10')
+    allow_plan('ovadm::subplans::precheck')
+    expect_plan('ovadm::subplans::agent_install').with_params(agent_install_params('9.0.1').merge('environment' => 'openvox9'))
+    allow_plan('ovadm::subplans::cert_setup')
+
+    result = run_plan('ovadm::add_compiler', params.merge('environment' => 'openvox9'))
+    expect(result).to be_ok
   end
 
   it 'installs the version given without asking the server' do

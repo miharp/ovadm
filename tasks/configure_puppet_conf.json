@@ -17,6 +17,10 @@
     "dns_alt_names": {
       "description": "Comma-separated list of DNS alternative names for the server certificate",
       "type": "Optional[String[1]]"
+    },
+    "environment": {
+      "description": "Puppet environment for this node's agent ([agent] environment); omit for the server's default",
+      "type": "Optional[String[1]]"
     }
   },
   "supports_noop": false

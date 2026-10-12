@@ -47,6 +47,14 @@
 #   Direct URL to an openvox-server rpm or deb to install instead of the
 #   repository's package. The repository is still configured, for dependencies.
 #
+# @param environment
+#   Puppet environment the nodes' agents ask for from their first run on
+#   (`environment` in the `[agent]` section of `puppet.conf`); omit for the
+#   server's default, `production`. Matters where that first run applies the
+#   site's code to the server or compiler: a control-repo whose pins for this
+#   deployment live in another environment would otherwise be applied from
+#   `production`, moving the packages ovadm just installed.
+#
 plan ovadm::install(
   TargetSpec                   $server_host,
   Optional[TargetSpec]         $compiler_hosts           = undef,
@@ -58,6 +66,7 @@ plan ovadm::install(
   Optional[String[1]]          $package_url              = undef,
   Boolean                      $enable_cert_auto_renewal = false,
   Optional[String[1]]          $auto_renewal_cert_ttl    = undef,
+  Optional[String[1]]          $environment              = undef,
 ) {
   # The major version the repository is set up for, as subplans::install
   # works it out, so that precheck checks the Java that major runs.
@@ -83,6 +92,7 @@ plan ovadm::install(
   run_plan('ovadm::subplans::configure', {
     'server_host'   => $server_host,
     'dns_alt_names' => $dns_alt_names,
+    'environment'   => $environment,
   })
 
   # csr_attributes.yaml must be written before first start — puppetserver reads
@@ -126,6 +136,7 @@ plan ovadm::install(
       'apt_base_url'        => $apt_base_url,
       'yum_base_url'        => $yum_base_url,
       'package_url'         => $package_url,
+      'environment'         => $environment,
     })
 
     run_plan('ovadm::subplans::cert_setup', {

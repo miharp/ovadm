@@ -7,6 +7,16 @@ Notable changes to ovadm are recorded here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `environment` on `ovadm::install` and `ovadm::add_compiler`: the Puppet
+  environment the nodes' agents ask for, written to the `[agent]` section
+  of `puppet.conf` before the first run. Without it a compiler's first run,
+  which happens inside the plan, applies `production`; on a site whose pins
+  for the deployment live in another environment that run moved the
+  compiler back to the other major (OpenVox 9 server, `production` on 8:
+  the compiler ended on 8.17.0). Found on the Hetzner lab.
+
 ### Fixed
 
 - `ovadm::add_compiler` no longer stops when the server has already signed
