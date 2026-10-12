@@ -147,6 +147,12 @@ Data type: `Optional[String[1]]`
 
 Comma-separated list of DNS alternative names for the server certificate
 
+##### `environment`
+
+Data type: `Optional[String[1]]`
+
+Puppet environment for this node's agent ([agent] environment); omit for the server's default
+
 ### <a name="configure_repo"></a>`configure_repo`
 
 Configure the OpenVox package repository for this OS, removing the release packages of other OpenVox and Puppet major versions. With apt_base_url or yum_base_url, the release package comes from that mirror and its repository file is pointed at it
@@ -331,6 +337,7 @@ The following parameters are available in the `ovadm::add_compiler` plan:
 * [`compiler_hosts`](#-ovadm--add_compiler--compiler_hosts)
 * [`ovox_version`](#-ovadm--add_compiler--ovox_version)
 * [`ovox_server_version`](#-ovadm--add_compiler--ovox_server_version)
+* [`environment`](#-ovadm--add_compiler--environment)
 * [`apt_base_url`](#-ovadm--add_compiler--apt_base_url)
 * [`yum_base_url`](#-ovadm--add_compiler--yum_base_url)
 * [`package_url`](#-ovadm--add_compiler--package_url)
@@ -362,6 +369,19 @@ Data type: `Optional[String[1]]`
 Specific openvox-server version to install on compilers. Omitted, along
 with ovox_version and package_url, the compilers get the version the
 server runs, so the pool stays on one version
+
+Default value: `undef`
+
+##### <a name="-ovadm--add_compiler--environment"></a>`environment`
+
+Data type: `Optional[String[1]]`
+
+Puppet environment the compilers' agents ask for from their first run on
+(`environment` in the `[agent]` section of `puppet.conf`); omit for the
+server's default, `production`. The first run applies the site's code to
+the compiler, so where the deployment's pins live in another environment,
+name it here or the run applies `production`'s pins to the packages the
+plan just installed.
 
 Default value: `undef`
 
@@ -409,6 +429,7 @@ The following parameters are available in the `ovadm::install` plan:
 * [`apt_base_url`](#-ovadm--install--apt_base_url)
 * [`yum_base_url`](#-ovadm--install--yum_base_url)
 * [`package_url`](#-ovadm--install--package_url)
+* [`environment`](#-ovadm--install--environment)
 
 ##### <a name="-ovadm--install--server_host"></a>`server_host`
 
@@ -498,6 +519,19 @@ Data type: `Optional[String[1]]`
 
 Direct URL to an openvox-server rpm or deb to install instead of the
 repository's package. The repository is still configured, for dependencies.
+
+Default value: `undef`
+
+##### <a name="-ovadm--install--environment"></a>`environment`
+
+Data type: `Optional[String[1]]`
+
+Puppet environment the nodes' agents ask for from their first run on
+(`environment` in the `[agent]` section of `puppet.conf`); omit for the
+server's default, `production`. Matters where that first run applies the
+site's code to the server or compiler: a control-repo whose pins for this
+deployment live in another environment would otherwise be applied from
+`production`, moving the packages ovadm just installed.
 
 Default value: `undef`
 

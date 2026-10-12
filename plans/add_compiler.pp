@@ -14,6 +14,14 @@
 #   with ovox_version and package_url, the compilers get the version the
 #   server runs, so the pool stays on one version
 #
+# @param environment
+#   Puppet environment the compilers' agents ask for from their first run on
+#   (`environment` in the `[agent]` section of `puppet.conf`); omit for the
+#   server's default, `production`. The first run applies the site's code to
+#   the compiler, so where the deployment's pins live in another environment,
+#   name it here or the run applies `production`'s pins to the packages the
+#   plan just installed.
+#
 plan ovadm::add_compiler(
   TargetSpec          $server_host,
   TargetSpec          $compiler_hosts,
@@ -22,6 +30,7 @@ plan ovadm::add_compiler(
   Optional[String[1]] $apt_base_url        = undef,
   Optional[String[1]] $yum_base_url        = undef,
   Optional[String[1]] $package_url         = undef,
+  Optional[String[1]] $environment         = undef,
 ) {
   # With no version given, the compilers get the server's, so a pool added to
   # after an upgrade does not fall back to the newest OpenVox 8.
@@ -67,6 +76,7 @@ plan ovadm::add_compiler(
     'apt_base_url'        => $apt_base_url,
     'yum_base_url'        => $yum_base_url,
     'package_url'         => $package_url,
+    'environment'         => $environment,
   })
 
   run_plan('ovadm::subplans::cert_setup', {

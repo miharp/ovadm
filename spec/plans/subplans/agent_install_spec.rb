@@ -24,6 +24,22 @@ describe 'ovadm::subplans::agent_install' do
     expect(result).to be_ok
   end
 
+  it 'writes server and ca_server, and no environment unless given' do
+    expect_task('ovadm::configure_puppet_conf')
+      .with_params('server' => server, 'ca_server' => server)
+      .always_return('status' => 'success')
+
+    run_plan('ovadm::subplans::agent_install', params)
+  end
+
+  it 'forwards the environment to configure_puppet_conf when provided' do
+    expect_task('ovadm::configure_puppet_conf')
+      .with_params('server' => server, 'ca_server' => server, 'environment' => 'openvox9')
+      .always_return('status' => 'success')
+
+    run_plan('ovadm::subplans::agent_install', params.merge('environment' => 'openvox9'))
+  end
+
   it 'forwards apt_base_url to configure_repo when provided' do
     expect_task('ovadm::configure_repo')
       .with_params('ovox_major' => 8, 'apt_base_url' => 'https://packages.example.com/vox-apt')

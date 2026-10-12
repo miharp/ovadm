@@ -115,6 +115,24 @@ bolt plan run ovadm::install \
 
 Both parameters are optional. When `ovox_version` is omitted, the major repo is derived from `ovox_server_version` (or defaults to openvox8). If both are set, they should target the same major line.
 
+## Environment
+
+`environment` sets the environment the nodes' agents ask for from their first
+run on, as `environment` in the `[agent]` section of `puppet.conf`. Omitted,
+the agents use the server's default, `production`.
+
+```bash
+bolt plan run ovadm::install server_host=ovox-server.example.com \
+  compiler_hosts=ovox-compiler01.example.com \
+  environment=openvox9
+```
+
+It matters where the first agent run applies the site's code to the server or
+compiler. If the control-repo keeps this deployment's pins in an environment
+other than `production` (an `openvox9` branch next to a `production` on 8,
+say), a run from `production` applies the other environment's pins and moves
+the packages ovadm just installed.
+
 ## Internal package mirror
 
 If your nodes cannot reach the public VoxPupuli repositories, point `apt_base_url` and/or `yum_base_url` at an internal mirror of `https://apt.voxpupuli.org` or `https://yum.voxpupuli.org`. The mirror needs the same layout as the public site, such as a full copy or a caching proxy of it: ovadm downloads the release package from it (`openvox8-release-ubuntu24.04.deb`, `openvox8-release-el-9.noarch.rpm`) and points the repository file the package installs at it. That file is `/etc/apt/sources.list.d/openvox8-release.list` or `/etc/yum.repos.d/openvox8-release.repo`, and it names the public site otherwise.

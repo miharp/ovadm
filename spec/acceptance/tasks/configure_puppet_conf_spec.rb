@@ -24,6 +24,17 @@ RSpec.describe 'ovadm::configure_puppet_conf task' do
     expect(result.result['certname']).to eq('mynode.example.com')
   end
 
+  it 'writes the environment to the agent section when given' do
+    result = run_bolt_task('ovadm::configure_puppet_conf', {
+      'server'      => 'puppet.example.com',
+      'environment' => 'openvox9',
+    })
+    expect(result.exit_code).to eq(0)
+    expect(result.result['environment']).to eq('openvox9')
+    conf = run_shell('cat /etc/puppetlabs/puppet/puppet.conf')['stdout']
+    expect(conf).to match(/^\[agent\]\nenvironment = openvox9$/m)
+  end
+
   it 'accepts a ca_server parameter without error' do
     result = run_bolt_task('ovadm::configure_puppet_conf', {
       'server'    => 'puppet.example.com',

@@ -72,6 +72,39 @@ describe 'ovadm::install' do
     end
   end
 
+  context 'with an environment' do
+    it 'hands it to configure and to agent_install' do
+      expect_plan('ovadm::subplans::precheck').be_called_times(2)
+      expect_plan('ovadm::subplans::install').be_called_times(1)
+      expect_plan('ovadm::subplans::configure')
+        .with_params('server_host' => server, 'dns_alt_names' => nil, 'environment' => 'openvox9')
+        .be_called_times(1)
+      expect_task('ovadm::set_csr_attributes').be_called_times(1).always_return('status' => 'success')
+      expect_task('ovadm::wait_until_service_ready').be_called_times(1)
+      expect_plan('ovadm::subplans::agent_install')
+        .with_params(
+          'compiler_hosts'      => compiler,
+          'server_fqdn'         => server,
+          'ovox_version'        => nil,
+          'ovox_server_version' => nil,
+          'apt_base_url'        => nil,
+          'yum_base_url'        => nil,
+          'package_url'         => nil,
+          'environment'         => 'openvox9',
+        )
+        .be_called_times(1)
+      expect_plan('ovadm::subplans::cert_setup').be_called_times(1)
+      allow_command('hostname -f').always_return('stdout' => "#{server}\n", 'stderr' => '')
+
+      result = run_plan('ovadm::install', {
+        'server_host'    => server,
+        'compiler_hosts' => compiler,
+        'environment'    => 'openvox9'
+      })
+      expect(result).to be_ok
+    end
+  end
+
   context 'with enable_cert_auto_renewal' do
     it 'configures ca.conf before the service starts' do
       expect_plan('ovadm::subplans::precheck').be_called_times(1)

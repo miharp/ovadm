@@ -7,6 +7,7 @@ certname="${PT_certname:-$(hostname -f)}"
 server="${PT_server:-$(hostname -f)}"
 ca_server="${PT_ca_server:-}"
 dns_alt_names="${PT_dns_alt_names:-}"
+environment="${PT_environment:-}"
 
 mkdir -p "$(dirname "$PUPPET_CONF")"
 
@@ -18,7 +19,14 @@ mkdir -p "$(dirname "$PUPPET_CONF")"
   if [ -n "$dns_alt_names" ]; then
     printf '\n[server]\ndns_alt_names = %s\n' "$dns_alt_names"
   fi
+  # The environment this node's agent asks the server for, from its first run
+  # on. Unset, the agent uses the server's default (production). In [agent],
+  # where `puppet config set environment --section agent` puts it, so that
+  # the server side is not affected.
+  if [ -n "$environment" ]; then
+    printf '\n[agent]\nenvironment = %s\n' "$environment"
+  fi
 } > "$PUPPET_CONF"
 
-printf '{"status":"success","path":"%s","certname":"%s","server":"%s"}\n' \
-  "$PUPPET_CONF" "$certname" "$server"
+printf '{"status":"success","path":"%s","certname":"%s","server":"%s","environment":"%s"}\n' \
+  "$PUPPET_CONF" "$certname" "$server" "$environment"
