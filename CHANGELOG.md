@@ -7,6 +7,17 @@ Notable changes to ovadm are recorded here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- `ovadm::add_compiler` no longer stops when the server has already signed
+  the compiler's certificate, as it has when the CA autosigns or the
+  compiler is being enrolled again. The `sign_csr` task meant to report
+  `already_signed` in that case, but checked with `puppetserver ca list
+  --signed`, a flag the command does not have, so the check never matched
+  and the plan failed after the compiler's first agent run with "No
+  certificate request found". It now checks `puppetserver ca list --all`.
+  Found on the Hetzner lab, where the master autosigns.
+
 ## [0.5.1] - 2026-10-07
 
 ### Fixed
