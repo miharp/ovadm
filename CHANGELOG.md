@@ -7,6 +7,8 @@ Notable changes to ovadm are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-12
+
 ### Added
 
 - `environment` on `ovadm::install` and `ovadm::add_compiler`: the Puppet
@@ -16,6 +18,12 @@ Notable changes to ovadm are recorded here. The format follows
   for the deployment live in another environment that run moved the
   compiler back to the other major (OpenVox 9 server, `production` on 8:
   the compiler ended on 8.17.0). Found on the Hetzner lab.
+
+### Changed
+
+- `documentation/add_compiler.md` lists what a compiler still needs from the
+  site after the plan: classification, the environment, the PuppetDB
+  terminus and OpenVoxDB's port open on the server, code, Hiera secrets.
 
 ### Fixed
 
@@ -233,7 +241,8 @@ covers the module as it stands.
 - CI: plan unit tests, acceptance tests on Rocky 9, Ubuntu 22.04, Ubuntu 24.04 and
   Debian 12, and an end-to-end install test covering both topologies.
 
-[Unreleased]: https://github.com/miharp/ovadm/compare/v0.5.1...HEAD
+[Unreleased]: https://github.com/miharp/ovadm/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/miharp/ovadm/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/miharp/ovadm/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/miharp/ovadm/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/miharp/ovadm/compare/v0.4.0...v0.4.1

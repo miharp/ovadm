@@ -51,6 +51,42 @@ server, which now compiles few catalogs, gets fewer JRuby instances and
 compilers built alike get the same settings. See
 [Sizing the server](install.md#sizing-the-server).
 
+## What a compiler still needs from the site
+
+`add_compiler` leaves the compiler able to answer on 8140 with a certificate
+from the server's CA, and nothing more. Before it can compile a catalog that
+is any use, the site has to give it what the server already has, and ovadm
+does not carry any of it over:
+
+- **Classification.** The compiler's first agent run happens inside the plan,
+  against the server, so whatever the site's code does for an unknown node
+  happens to the compiler then. Give it a role before running the plan: a
+  node entry by certname, or a rule on
+  `$trusted['extensions']['pp_role'] == 'openvox_compiler'`, which the plan
+  puts in its certificate. If that role manages `openvox-server` (with
+  [miharp-openvox_server](https://forge.puppet.com/modules/miharp/openvox_server)
+  the CA is turned off with `ca => false` and `ca_server`), the same run
+  takes over the files `configure_compiler_ssl` writes; the module writes
+  them the same way, so nothing changes hands twice.
+- **The environment**, where the deployment's pins live outside `production`:
+  pass `environment`, as above.
+- **The PuppetDB terminus.** A compiler stores facts and reports and answers
+  `puppetdb_query` only with `openvoxdb-termini` installed and `puppetdb.conf`
+  and `routes.yaml` pointed at the server's OpenVoxDB (`openvoxdb::master::config`
+  from voxpupuli/puppet-openvoxdb, with `puppetdb_server` set to the server).
+  OpenVoxDB accepts any certificate the CA signed, but its port, 8081, has to
+  be open on the server to the compilers; a firewall that only opened 8140
+  for the agents fails the terminus's connection check, and the role's run
+  stops there, puppetserver unstarted.
+- **Code.** r10k or Code Manager's equivalent on the compiler, with the same
+  control-repo and deploy key as the server, and a timer or hook to keep it
+  current. A compiler with no code compiles nothing.
+- **Hiera secrets.** The eyaml keys, or whatever the site's lookups need,
+  installed where the server has them.
+
+Each of these is a site decision ovadm has no business making. The list is
+what the Hetzner lab had to supply by hand around the plan, in that order.
+
 ## Removing a compiler
 
 ovadm does not have a `remove_compiler` plan. The compiler is stateless — deleting the VM leaves no broken state on the server.
