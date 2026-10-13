@@ -166,7 +166,7 @@ Example contents of `examples/add-agent.json`:
 
 [voxpupuli/puppet-openvox_bootstrap](https://github.com/voxpupuli/puppet-openvox_bootstrap)
 installs `openvox-agent` on EL, Debian, Ubuntu, Fedora and Windows, with Bolt
-tasks that run on the node and an `apply_prep` hook. It does not enrol the
+tasks that run on the node and an `apply_prep` hook. It does not enroll the
 node. Use it where only the package is wanted, or for a platform ovadm does
 not install on; `add_agent` is for hosts on the platforms ovadm tests, that
 should come out the other side as enrolled agents.

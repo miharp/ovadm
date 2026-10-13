@@ -8,13 +8,13 @@
 #
 # A host that fails a step is left out of the following ones and reported at
 # the end, with the hosts that got through; the plan then fails, so a batch
-# with one bad host still enrols the others.
+# with one bad host still enrolls the others.
 #
 # @param server_host
 #   The OpenVox Server (acts as CA)
 #
 # @param agent_hosts
-#   The agent node(s) to install and enrol
+#   The agent node(s) to install and enroll
 #
 # @param agent_server
 #   The name the agents ask for catalogs from, written as `server` in their

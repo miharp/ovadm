@@ -31,7 +31,7 @@ describe 'ovadm::add_agent' do
     allow_plan('ovadm::subplans::precheck')
   end
 
-  it 'prechecks the agents as agents, packages them, then enrols them' do
+  it 'prechecks the agents as agents, packages them, then enrolls them' do
     server_runs('8.17.0-1.el10')
     expect_plan('ovadm::subplans::precheck')
       .with_params('server_host' => [agent01, agent02], 'role' => 'agent')
@@ -100,7 +100,7 @@ describe 'ovadm::add_agent' do
     expect(result).to be_ok
   end
 
-  it 'enrols the hosts that got through and fails with the ones that did not' do
+  it 'enrolls the hosts that got through and fails with the ones that did not' do
     server_runs('8.17.0-1.el10')
     expect_plan('ovadm::subplans::agent_package')
       .always_return('ok' => [agent01], 'failed' => { agent02 => 'No package openvox-agent available' })

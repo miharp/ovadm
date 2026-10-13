@@ -40,7 +40,7 @@ A server plus one or more compilers to distribute compilation load across large 
 | `ovadm::upgrade` | Upgrade an existing deployment in-place | P0 |
 | `ovadm::status` | Report health of a running deployment | P0 |
 | `ovadm::add_compiler` | Add a node to the `compiler_hosts` pool | P1 |
-| `ovadm::add_agent` | Install and enrol agent nodes from the workstation | P2 |
+| `ovadm::add_agent` | Install and enroll agent nodes from the workstation | P2 |
 
 ### Subplans (internal)
 

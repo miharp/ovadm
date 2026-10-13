@@ -29,7 +29,7 @@ ovadm is an [OpenBolt](https://github.com/OpenVoxProject/openbolt) module for de
 | `ovadm::upgrade` | Upgrade an existing deployment in-place |
 | `ovadm::status` | Report health: prechecks, service state, and installed version |
 | `ovadm::add_compiler` | Add a compiler node to an existing deployment |
-| `ovadm::add_agent` | Install and enrol agent nodes from the workstation |
+| `ovadm::add_agent` | Install and enroll agent nodes from the workstation |
 
 ## Installing
 
@@ -70,7 +70,7 @@ Copy `inventory.yaml.example` to `inventory.yaml` and fill in your target detail
 
 ## Related modules
 
-ovadm installs, upgrades, adds compilers and enrols agents from a
+ovadm installs, upgrades, adds compilers and enrolls agents from a
 workstation, and then leaves the hosts in the state the OpenVox packages
 define: at most 4 JRuby instances and a 2 GB heap, whatever the host's size,
 no agent runs scheduled, and nothing enforced afterwards. It does not care what takes over: theforeman-puppet, your own
@@ -89,11 +89,11 @@ leaves off:
   [Sizing the server](https://github.com/miharp/ovadm/blob/main/documentation/install.md#sizing-the-server).
 - [miharp-openvox_agent](https://forge.puppet.com/modules/miharp/openvox_agent)
   upgrades `openvox-agent` on agents from a Puppet run, including from
-  Puppet 7 and between OpenVox major versions. `ovadm::add_agent` enrols a
+  Puppet 7 and between OpenVox major versions. `ovadm::add_agent` enrolls a
   host once; its upgrades afterwards are this module's.
 - [voxpupuli/puppet-openvox_bootstrap](https://github.com/voxpupuli/puppet-openvox_bootstrap)
   installs the agent package on more platforms than ovadm, Windows among
-  them, with tasks that run on the node. It does not enrol the node with the
+  them, with tasks that run on the node. It does not enroll the node with the
   CA; `ovadm::add_agent` does, on the platforms ovadm tests.
 
 ## Contributing

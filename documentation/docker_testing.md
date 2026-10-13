@@ -29,7 +29,7 @@ bolt plan run ovadm::add_compiler \
   server_host=puppet compiler_hosts=compiler01 \
   --inventoryfile docker/inventory.yaml
 
-# 3. Enrol a stock host as an agent of the compiler; the plan signs its
+# 3. Enroll a stock host as an agent of the compiler; the plan signs its
 #    certificate on the server
 bolt plan run ovadm::add_agent \
   server_host=puppet agent_hosts=agent01 agent_server=compiler01 \

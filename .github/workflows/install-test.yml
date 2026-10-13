@@ -79,6 +79,8 @@ jobs:
             | tee "$RUNNER_TEMP/agent01.log"
           rc=${PIPESTATUS[0]}
           if [ "$rc" -ne 0 ] && [ "$rc" -ne 2 ]; then exit "$rc"; fi
+          # -e is back on, so each check below fails the step on its own.
+          set -e
           # puppet.conf, not a --server flag, has to be what points it at the
           # right host, so the run goes without one.
           grep -q 'Catalog compiled by ${{ matrix.agent_server }}' "$RUNNER_TEMP/agent01.log"

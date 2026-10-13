@@ -1,4 +1,4 @@
-# @summary Enrol agent hosts with the CA and apply their first catalog
+# @summary Enroll agent hosts with the CA and apply their first catalog
 #
 # @api private
 #
@@ -9,7 +9,7 @@
 # left out of the following ones rather than stopping the rest.
 #
 # @param agent_hosts
-#   The agent node(s) to enrol; `openvox-agent` installed and `puppet.conf`
+#   The agent node(s) to enroll; `openvox-agent` installed and `puppet.conf`
 #   written
 #
 # @param server_host
@@ -57,11 +57,18 @@ plan ovadm::subplans::agent_enroll(
   # First catalog. agent_runonce exits 0 whatever the agent did and reports
   # the agent's exit status instead, so a run that applied nothing (the
   # environment is missing on the server, the catalog failed to compile) is
-  # read off the status rather than caught as a task error.
+  # read off the status rather than caught as a task error. Only a run that
+  # applied a catalog counts; anything else, `failed` or `not_installed`
+  # (the first catalog removed the agent, say), is a failure.
+  $applied_statuses = ['no_changes', 'changes_applied']
   $apply = run_task('ovadm::agent_runonce', $signed, $run_params + { '_catch_errors' => true })
-  $applied    = $apply.ok_set.results.filter |$r| { $r.value['status'] != 'failed' }.map |$r| { $r.target.name }
-  $run_failed = Hash($apply.ok_set.results.filter |$r| { $r.value['status'] == 'failed' }.map |$r| {
-    [$r.target.name, "puppet agent exited ${r.value['exit_code']} on its first run; its output is above"]
+  $applied    = $apply.ok_set.results.filter |$r| { $r.value['status'] in $applied_statuses }.map |$r| { $r.target.name }
+  $run_failed = Hash($apply.ok_set.results.filter |$r| { !($r.value['status'] in $applied_statuses) }.map |$r| {
+    $reason = $r.value['status'] ? {
+      'failed' => "puppet agent exited ${r.value['exit_code']} on its first run; its output is above",
+      default  => "agent_runonce reported ${r.value['status']} on the first run",
+    }
+    [$r.target.name, $reason]
   })
 
   $errors = $names.error_set.results + $submit.error_set.results + $apply.error_set.results

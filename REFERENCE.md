@@ -39,7 +39,7 @@
 
 #### Private Plans
 
-* `ovadm::subplans::agent_enroll`: Enrol agent hosts with the CA and apply their first catalog
+* `ovadm::subplans::agent_enroll`: Enroll agent hosts with the CA and apply their first catalog
 * `ovadm::subplans::agent_install`: Install OpenVox Server on compiler hosts, with the server as their CA
 * `ovadm::subplans::agent_package`: Install openvox-agent on agent hosts and point them at the server
 * `ovadm::subplans::cert_setup`: Submit and sign certificates for compiler hosts
@@ -350,7 +350,7 @@ does not schedule runs.
 
 A host that fails a step is left out of the following ones and reported at
 the end, with the hosts that got through; the plan then fails, so a batch
-with one bad host still enrols the others.
+with one bad host still enrolls the others.
 
 #### Parameters
 
@@ -374,7 +374,7 @@ The OpenVox Server (acts as CA)
 
 Data type: `TargetSpec`
 
-The agent node(s) to install and enrol
+The agent node(s) to install and enroll
 
 ##### <a name="-ovadm--add_agent--agent_server"></a>`agent_server`
 
