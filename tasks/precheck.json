@@ -1,7 +1,11 @@
 {
-  "description": "Validate target readiness: OS family, Java version, port 8140, host firewall, NTP sync, and enough memory for OpenVox Server's heap",
+  "description": "Validate target readiness: OS family, Java version, port 8140, host firewall, NTP sync, and enough memory for OpenVox Server's heap; for an agent host, OS family and NTP sync only",
   "input_method": "environment",
   "parameters": {
+    "role": {
+      "description": "What the host is about to become: 'server' (the default; also a compiler) checks everything, 'agent' checks the OS family and time sync only, since an agent needs no Java, heap memory or 8140",
+      "type": "Optional[Enum['server', 'agent']]"
+    },
     "upgrade": {
       "description": "Check a host ovadm::upgrade is about to upgrade. A Java below the supported versions is a warning rather than a failure, since the upgrade installs and selects one.",
       "type": "Optional[Boolean]"

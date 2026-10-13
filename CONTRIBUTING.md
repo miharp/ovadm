@@ -4,7 +4,7 @@ ovadm is an experimental, community-driven project. Contributions of all kinds a
 
 ## What we need most
 
-The core plans (install, upgrade, status, add_compiler) are implemented and tested. The highest-value contributions right now are:
+The core plans (install, upgrade, status, add_compiler, add_agent) are implemented and tested. The highest-value contributions right now are:
 
 1. **Bug reports and fixes** — if something breaks on a supported platform, open an issue with OS, OpenVox version, and the full Bolt output
 2. **Broader platform testing** — CI covers Rocky 9, Ubuntu 22.04/24.04, Debian 12, all in Docker. AlmaLinux 9 and 10 have been run by hand on cloud VMs (see [Testing on real VMs](#testing-on-real-vms)); feedback on other platforms is welcome
@@ -94,6 +94,7 @@ targets:
 bolt plan run ovadm::install      server_host=server
 bolt plan run ovadm::status       server_host=server
 bolt plan run ovadm::add_compiler server_host=server compiler_hosts=compiler01
+bolt plan run ovadm::add_agent    server_host=server agent_hosts=agent01 agent_server=<compiler fqdn>
 bolt plan run ovadm::install      server_host=server   # rerun: must leave the CA and signed certs alone
 ```
 

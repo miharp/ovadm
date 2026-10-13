@@ -14,14 +14,23 @@
 #   known. On 9 and later the server picks its own Java, so the system java is
 #   not checked
 #
+# @param role
+#   What the targets are about to become. `server` (also for compilers)
+#   checks everything; `agent` checks the OS family and time sync only
+#
 plan ovadm::subplans::precheck(
-  TargetSpec           $server_host,
-  Boolean              $upgrade    = false,
-  Optional[Integer[8]] $ovox_major = undef,
+  TargetSpec               $server_host,
+  Boolean                  $upgrade    = false,
+  Optional[Integer[8]]     $ovox_major = undef,
+  Enum['server', 'agent']  $role       = 'server',
 ) {
-  $params = $ovox_major ? {
+  $params_1 = $ovox_major ? {
     undef   => { 'upgrade' => $upgrade },
     default => { 'upgrade' => $upgrade, 'ovox_major' => $ovox_major },
+  }
+  $params = $role ? {
+    'server' => $params_1,
+    default  => $params_1 + { 'role' => $role },
   }
   $results = run_task('ovadm::precheck', $server_host, $params)
 

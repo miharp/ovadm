@@ -9,6 +9,11 @@ targets:
     config:
       transport: docker
 
+  - name: agent01
+    uri: docker://ovadm-agent01
+    config:
+      transport: docker
+
   - name: agent
     uri: docker://ovadm-agent
     config:

@@ -44,6 +44,14 @@ describe 'ovadm::subplans::precheck' do
     expect(result).to be_ok
   end
 
+  it 'tells the task the targets are agents when asked to' do
+    expect_task('ovadm::precheck')
+      .with_params('upgrade' => false, 'role' => 'agent')
+      .always_return('status' => 'pass', 'checks' => [])
+    result = run_plan('ovadm::subplans::precheck', params.merge('role' => 'agent'))
+    expect(result).to be_ok
+  end
+
   it 'leaves the target major out when it is not known' do
     expect_task('ovadm::precheck')
       .with_params('upgrade' => false)

@@ -40,6 +40,7 @@ A server plus one or more compilers to distribute compilation load across large 
 | `ovadm::upgrade` | Upgrade an existing deployment in-place | P0 |
 | `ovadm::status` | Report health of a running deployment | P0 |
 | `ovadm::add_compiler` | Add a node to the `compiler_hosts` pool | P1 |
+| `ovadm::add_agent` | Install and enroll agent nodes from the workstation | P2 |
 
 ### Subplans (internal)
 
@@ -54,6 +55,8 @@ The top-level plans should be thin orchestrators that call focused subplans. Thi
 | `ovadm::subplans::configure` | Apply initial configuration (puppet.conf) |
 | `ovadm::subplans::agent_install` | Install OpenVox server on `compiler_hosts` targets and configure puppet.conf |
 | `ovadm::subplans::cert_setup` | Submit and sign CSRs; embed pp_role extension |
+| `ovadm::subplans::agent_package` | Install `openvox-agent` on `agent_hosts` and write puppet.conf; carries on past a failed host |
+| `ovadm::subplans::agent_enroll` | Submit and sign the agents' CSRs and apply their first catalog; carries on past a failed host |
 
 **Upgrade subplans:**
 
@@ -200,6 +203,7 @@ Goal: install and upgrade across `server_host` + `compiler_hosts` deployments.
 - [x] `ovadm::subplans::agent_install` plan
 - [x] `ovadm::subplans::cert_setup` plan — sets `pp_role: openvox_compiler`, submits CSR, signs, runs agent
 - [x] `ovadm::add_compiler` plan
+- [x] `ovadm::add_agent` plan — `subplans::agent_package` + `subplans::agent_enroll`, per-host failure tolerance
 - [x] Extend `ovadm::install` for Large topology
 - [x] `ovadm::subplans::upgrade_compilers`
 - [x] Extend `ovadm::upgrade` for Large topology

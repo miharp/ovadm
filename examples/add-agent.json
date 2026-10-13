@@ -1,0 +1,5 @@
+{
+  "server_host": "ovox-server.example.com",
+  "agent_hosts": ["agent01.example.com", "agent02.example.com"],
+  "agent_server": "ovox-compiler01.example.com"
+}
