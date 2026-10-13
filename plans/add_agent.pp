@@ -50,6 +50,11 @@
 #   `openvox_server` and `openvox_compiler`, ovadm's roles for the server and
 #   compilers, are refused
 #
+# @return [Hash] `ok`, the names of the agents enrolled, and `servers`, the
+#   server each one's `puppet.conf` names after its first catalog, which is
+#   `agent_server` unless the site's code changed it (undef where it could not
+#   be read)
+#
 plan ovadm::add_agent(
   TargetSpec          $server_host,
   TargetSpec          $agent_hosts,
@@ -118,8 +123,30 @@ plan ovadm::add_agent(
   $ok     = $enrolled['ok']
   $failed = $packaged['failed'] + $enrolled['failed']
 
-  $ok.each |$name| {
-    out::message("${name}: enrolled, getting catalogs from ${catalog_server}")
+  # The first catalog inside the plan is the site's, and an agent profile
+  # that manages `server` in puppet.conf repoints the host there and then.
+  # Say where each host was left, not where the plan pointed it.
+  $readback = $ok.empty ? {
+    true    => [],
+    default => run_command('/opt/puppetlabs/bin/puppet config print server --section agent', $ok, '_catch_errors' => true).results,
+  }
+  $servers = Hash($readback.map |$r| {
+    [$r.target.name, $r.ok ? { true => $r.value['stdout'].strip, default => undef }]
+  })
+
+  $readback.each |$r| {
+    $now = $servers[$r.target.name]
+    if $now == $catalog_server {
+      out::message("${r.target.name}: enrolled, getting catalogs from ${catalog_server}")
+    } elsif $now =~ Undef {
+      out::message("${r.target.name}: enrolled; could not read its server setting: ${r.error.message}")
+    } else {
+      out::message(@("MSG"/L))
+        WARNING ${r.target.name}: enrolled, but its first catalog changed server in puppet.conf \
+        from ${catalog_server} to ${now}, so it gets catalogs from ${now}. The site's code \
+        manages that setting; set it there.
+        |- MSG
+    }
   }
 
   unless $failed.empty {
@@ -132,5 +159,5 @@ plan ovadm::add_agent(
 
   out::message('Agent(s) added.')
 
-  return({ 'ok' => $ok })
+  return({ 'ok' => $ok, 'servers' => $servers })
 }

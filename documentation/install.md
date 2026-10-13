@@ -136,14 +136,17 @@ the packages ovadm just installed.
 The environment has to exist on the server by the time the compilers' first
 run asks for it, which happens inside the plan. The plans pass it to those runs
 as `--environment`, so a run against an environment the server does not have
-fails there, with the server's "Could not find a directory environment named"
-message, instead of succeeding against `production`. Without the flag that is
-what the agent would do, and worse: it remembers the environment the server
+fails instead of succeeding against `production`, and the plan stops there,
+naming each compiler whose run applied no catalog and before puppetserver is
+started on any of them. Without the flag the agent would have succeeded
+against `production`, and worse: it remembers the environment the server
 assigned and keeps using `production` on every later run, whatever
 `puppet.conf` says, until a run with `--environment` clears it. When the
 environment is deployed by r10k on the server the plan is building, deploy it
 between `ovadm::install` of the server and adding the compilers, or run the
-Standard install first and `ovadm::add_compiler` after the deploy.
+Standard install first and `ovadm::add_compiler` after the deploy. A compiler
+the plan stopped on keeps its signed certificate; once the environment is
+there, `ovadm::add_compiler` for it finishes the job.
 
 ## Internal package mirror
 

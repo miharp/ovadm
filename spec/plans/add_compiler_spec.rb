@@ -85,6 +85,19 @@ describe 'ovadm::add_compiler' do
     expect(result).to be_ok
   end
 
+  it 'stops before configuring SSL when a compiler applied no catalog' do
+    server_runs('8.17.0-1+ubuntu24.04')
+    allow_plan('ovadm::subplans::precheck')
+    allow_plan('ovadm::subplans::agent_install')
+    expect_plan('ovadm::subplans::cert_setup')
+      .error_with('msg' => "The first catalog run applied no catalog on 1 of 1 compiler(s):\n#{compiler}: puppet agent exited 1",
+                  'kind' => 'bolt/plan-failure')
+
+    result = run_plan('ovadm::add_compiler', params)
+    expect(result).not_to be_ok
+    expect(result.value.message).to match(/applied no catalog on 1 of 1 compiler/)
+  end
+
   it 'installs the version given without asking the server' do
     expect_task('ovadm::get_version').not_be_called
     expect_plan('ovadm::subplans::precheck').with_params('server_host' => compiler, 'ovox_major' => 8)

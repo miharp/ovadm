@@ -15,7 +15,7 @@ The plan:
 1. Runs prechecks on the compiler node
 2. Installs `openvox-server` and configures `puppet.conf` (pointing at the server as CA)
 3. Embeds `pp_role: openvox_compiler` in the certificate via `csr_attributes.yaml`
-4. Runs `puppet agent` to submit the CSR, signs it on the server, then runs the agent again to apply the initial catalog
+4. Runs `puppet agent` to submit the CSR, signs it on the server, then runs the agent again to apply the initial catalog. If that run applies no catalog on a compiler (the environment is missing, the catalog fails to compile or a resource fails), the plan still enrolls the other compilers, then stops before the next two steps on all of them and names each compiler that failed. Rerunning the plan for the same compilers once the cause is fixed finishes the job
 5. Configures SSL for compiler-mode operation
 6. Starts and enables `puppetserver`
 
@@ -38,7 +38,9 @@ it when the deployment's pins live outside `production`, or that first run
 applies `production`'s pins to the server package the plan just installed. The
 environment must already be deployed on the server: the plan runs the agent
 with `--environment`, and the run fails if the server does not have it, rather
-than falling back to `production` and leaving the compiler there:
+than falling back to `production` and leaving the compiler there. The plan
+then stops, before starting puppetserver; rerun it once the environment is
+deployed:
 
 ```bash
 bolt plan run ovadm::add_compiler \
