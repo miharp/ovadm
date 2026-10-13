@@ -21,7 +21,8 @@ describe 'ovadm::subplans::agent_enroll' do
     expect_task('ovadm::agent_runonce').with_targets([agent01, agent02]).with_params('waitforcert' => 0, '_catch_errors' => true).be_called_times(1)
     expect_task('ovadm::sign_csr').with_targets(server).with_params('certname' => agent01, '_catch_errors' => true).be_called_times(1)
     expect_task('ovadm::sign_csr').with_targets(server).with_params('certname' => agent02, '_catch_errors' => true).be_called_times(1)
-    expect_task('ovadm::agent_runonce').with_targets([agent01, agent02]).with_params('_catch_errors' => true).be_called_times(1)
+    expect_task('ovadm::agent_runonce').with_targets([agent01, agent02]).with_params('_catch_errors' => true)
+      .be_called_times(1).always_return('status' => 'no_changes', 'exit_code' => 0)
 
     result = run_plan('ovadm::subplans::agent_enroll', params)
     expect(result).to be_ok
