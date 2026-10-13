@@ -1,6 +1,6 @@
 # Local Docker testing
 
-`docker-compose.yml` defines a three-node environment using Rocky Linux 9 with systemd for end-to-end testing without real infrastructure.
+`docker-compose.yml` defines a four-node environment using Rocky Linux 9 with systemd for end-to-end testing without real infrastructure.
 
 ## Containers
 
@@ -8,6 +8,7 @@
 | --------- | ---- | ----- |
 | `ovadm-server` | OpenVox Server (CA) | Built from `docker/Dockerfile` |
 | `ovadm-compiler01` | Compiler | Built from `docker/Dockerfile` |
+| `ovadm-agent01` | Stock host for `ovadm::add_agent` | Built from `docker/Dockerfile` |
 | `ovadm-agent` | Agent (catalog verification) | `ghcr.io/openvoxproject/openvoxagent:latest` |
 
 The agent is pre-configured (via `docker/agent-puppet.conf`) to request catalogs from `compiler01` and certificates from the server.
@@ -15,7 +16,7 @@ The agent is pre-configured (via `docker/agent-puppet.conf`) to request catalogs
 ## Full Large topology test
 
 ```bash
-# Build and start all three containers
+# Build and start all four containers
 docker compose build
 docker compose up -d
 
@@ -28,14 +29,21 @@ bolt plan run ovadm::add_compiler \
   server_host=puppet compiler_hosts=compiler01 \
   --inventoryfile docker/inventory.yaml
 
-# 3. Enable autosign so the agent cert is signed on first run
+# 3. Enrol a stock host as an agent of the compiler; the plan signs its
+#    certificate on the server
+bolt plan run ovadm::add_agent \
+  server_host=puppet agent_hosts=agent01 agent_server=compiler01 \
+  --inventoryfile docker/inventory.yaml
+docker exec ovadm-agent01 /opt/puppetlabs/bin/puppet agent -t
+
+# 4. Enable autosign so the pre-built agent's cert is signed on first run
 #    (bolt's docker transport doesn't shell-expand redirects; use docker exec directly)
 docker exec ovadm-server bash -c 'echo "*" > /etc/puppetlabs/puppet/autosign.conf'
 
-# 4. Run the agent — connects to compiler01 for catalog compilation
+# 5. Run the pre-built agent — connects to compiler01 for catalog compilation
 docker exec ovadm-agent /opt/puppetlabs/bin/puppet agent -t
 
-# 5. Check status
+# 6. Check status
 bolt plan run ovadm::status server_host=puppet \
   --inventoryfile docker/inventory.yaml
 

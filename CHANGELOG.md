@@ -7,6 +7,22 @@ Notable changes to ovadm are recorded here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `ovadm::add_agent`: install `openvox-agent` on stock hosts from the
+  workstation, point them at the server, a compiler or a load balancer
+  (`agent_server`), sign their certificates on the server and run each
+  agent once, so every host applies its first catalog inside the plan. The
+  agents get the newest agent of the major the server runs unless
+  `ovox_version` says otherwise; `environment` and the mirror parameters
+  work as on `add_compiler`. A host that fails a step is left out of the
+  following ones and reported at the end with the hosts that got through,
+  so one bad host does not stop a batch. Two new subplans,
+  `agent_package` and `agent_enroll`, carry the steps
+  ([#79](https://github.com/miharp/ovadm/issues/79)).
+- `precheck` takes `role`: `agent` checks the OS family and time sync only,
+  since an agent needs no Java, heap memory or open 8140.
+
 ### Fixed
 
 - A compiler enrolled with `environment` before that environment existed on

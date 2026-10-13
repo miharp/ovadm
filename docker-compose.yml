@@ -19,6 +19,15 @@ services:
     networks:
       - ovadm
 
+  # A stock host for ovadm::add_agent: nothing of OpenVox on it.
+  agent01:
+    build: docker
+    container_name: ovadm-agent01
+    hostname: agent01
+    privileged: true
+    networks:
+      - ovadm
+
   agent:
     image: ghcr.io/openvoxproject/openvoxagent:latest
     container_name: ovadm-agent

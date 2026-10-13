@@ -4,6 +4,11 @@ set -euo pipefail
 # Each check returns a JSON fragment; we assemble them at the end.
 pass=true
 
+# What the host is about to become. A server (or compiler) needs Java, memory
+# for the heap and 8140 open; an agent needs a supported OS and its clock
+# right, and nothing else is checked.
+role="${PT_role:-server}"
+
 # --- OS family ---
 os_family='Unknown'
 if [ -f /etc/os-release ]; then
@@ -26,6 +31,44 @@ if [ "$os_family" = 'Unknown' ]; then
   pass=false
 else
   os_check=$(printf '{"check":"os_family","status":"pass","detail":"%s"}' "$os_family")
+fi
+
+# --- NTP / time sync ---
+# A function, since an agent host is checked for this and the OS only.
+check_ntp() {
+  ntp_status='fail'
+  ntp_detail='time sync status unknown'
+
+  if command -v timedatectl >/dev/null 2>&1; then
+    if timedatectl show --property=NTPSynchronized --value 2>/dev/null | grep -q '^yes$'; then
+      ntp_status='pass'
+      ntp_detail='NTP synchronised'
+    else
+      ntp_status='warn'
+      ntp_detail='NTP not synchronised — verify time sync before production use'
+    fi
+  elif command -v chronyc >/dev/null 2>&1; then
+    if chronyc tracking 2>/dev/null | grep -q 'Reference ID'; then
+      ntp_status='pass'
+      ntp_detail='chrony tracking active'
+    else
+      ntp_status='warn'
+      ntp_detail='chrony not synchronised — verify time sync before production use'
+    fi
+  else
+    ntp_status='warn'
+    ntp_detail='cannot determine time sync status (no timedatectl or chronyc)'
+  fi
+
+  ntp_check=$(printf '{"check":"ntp","status":"%s","detail":"%s"}' "$ntp_status" "$ntp_detail")
+}
+
+# --- Agent host: OS and time sync only ---
+if [ "$role" = 'agent' ]; then
+  check_ntp
+  overall=$([ "$pass" = 'true' ] && echo 'pass' || echo 'fail')
+  printf '{"status":"%s","checks":[%s,%s]}\n' "$overall" "$os_check" "$ntp_check"
+  exit 0
 fi
 
 # --- Java ---
@@ -133,31 +176,7 @@ fi
 fw_check=$(printf '{"check":"firewall","status":"%s","detail":"%s"}' "$fw_status" "$fw_detail")
 
 # --- NTP / time sync ---
-ntp_status='fail'
-ntp_detail='time sync status unknown'
-
-if command -v timedatectl >/dev/null 2>&1; then
-  if timedatectl show --property=NTPSynchronized --value 2>/dev/null | grep -q '^yes$'; then
-    ntp_status='pass'
-    ntp_detail='NTP synchronised'
-  else
-    ntp_status='warn'
-    ntp_detail='NTP not synchronised — verify time sync before production use'
-  fi
-elif command -v chronyc >/dev/null 2>&1; then
-  if chronyc tracking 2>/dev/null | grep -q 'Reference ID'; then
-    ntp_status='pass'
-    ntp_detail='chrony tracking active'
-  else
-    ntp_status='warn'
-    ntp_detail='chrony not synchronised — verify time sync before production use'
-  fi
-else
-  ntp_status='warn'
-  ntp_detail='cannot determine time sync status (no timedatectl or chronyc)'
-fi
-
-ntp_check=$(printf '{"check":"ntp","status":"%s","detail":"%s"}' "$ntp_status" "$ntp_detail")
+check_ntp
 
 # --- Memory for the heap ---
 # OpenVox Server refuses to start when MemTotal is less than 1.1 times its

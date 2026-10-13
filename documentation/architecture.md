@@ -45,6 +45,15 @@ flowchart TD
     cert_setup --> done
 ```
 
+`ovadm::add_agent` follows the same shape for plain agents: `subplans::precheck`
+with `role: agent` (OS and time sync only), `subplans::agent_package`
+(configure_repo → install_agent → configure_puppet_conf) and
+`subplans::agent_enroll` (agent_runonce → sign_csr → agent_runonce). Unlike the
+compiler subplans, which take hosts one at a time, the agent subplans run each
+step across the whole batch at once and carry on past a host that fails a step,
+returning the hosts that got through and the failures by name; the top-level
+plan reports both and fails if any host did not make it.
+
 ## Certificate role extensions
 
 ovadm embeds a `pp_role` trusted certificate extension in every infrastructure node's certificate at issuance time:

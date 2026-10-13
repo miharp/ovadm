@@ -18,6 +18,14 @@ RSpec.describe 'ovadm::precheck task' do
     expect(names).to include('os_family', 'java', 'port_8140', 'firewall', 'ntp', 'memory')
   end
 
+  it 'checks only the OS family and time sync on an agent host' do
+    result = run_bolt_task('ovadm::precheck', { 'role' => 'agent' })
+    expect(result.exit_code).to eq(0)
+    names = result.result['checks'].map { |c| c['check'] }
+    expect(names).to eq(%w[os_family ntp])
+    expect(%w[pass warn]).to include(result.result['status'])
+  end
+
   it 'each check has a status and detail field' do
     result = run_bolt_task('ovadm::precheck', {})
     result.result['checks'].each do |c|

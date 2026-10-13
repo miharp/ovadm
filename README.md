@@ -29,6 +29,7 @@ ovadm is an [OpenBolt](https://github.com/OpenVoxProject/openbolt) module for de
 | `ovadm::upgrade` | Upgrade an existing deployment in-place |
 | `ovadm::status` | Report health: prechecks, service state, and installed version |
 | `ovadm::add_compiler` | Add a compiler node to an existing deployment |
+| `ovadm::add_agent` | Install and enrol agent nodes from the workstation |
 
 ## Installing
 
@@ -61,6 +62,7 @@ Copy `inventory.yaml.example` to `inventory.yaml` and fill in your target detail
 - [Installing](https://github.com/miharp/ovadm/blob/main/documentation/install.md) - Standard, Large, DNS alt names, certificate auto-renewal, internal mirrors
 - [Upgrading](https://github.com/miharp/ovadm/blob/main/documentation/upgrade.md) - Minor/patch and major version upgrades
 - [Managing compilers](https://github.com/miharp/ovadm/blob/main/documentation/add_compiler.md) - Adding and removing compiler nodes
+- [Adding agents](https://github.com/miharp/ovadm/blob/main/documentation/add_agent.md) - Enrolling stock hosts as agents, pointed at the server, a compiler or a load balancer
 - [Reference](https://github.com/miharp/ovadm/blob/main/REFERENCE.md) - Every plan and task with its parameters, generated from the code
 - [Architecture](https://github.com/miharp/ovadm/blob/main/documentation/architecture.md) - Topologies, plan structure, cert extensions, peadm comparison
 - [Docker testing](https://github.com/miharp/ovadm/blob/main/documentation/docker_testing.md) - Local three-node dev environment
@@ -68,10 +70,10 @@ Copy `inventory.yaml.example` to `inventory.yaml` and fill in your target detail
 
 ## Related modules
 
-ovadm installs, upgrades and adds compilers from a workstation, and then
-leaves the hosts in the state the OpenVox packages define: at most 4 JRuby
-instances and a 2 GB heap, whatever the host's size, and nothing enforced
-afterwards. It does not care what takes over: theforeman-puppet, your own
+ovadm installs, upgrades, adds compilers and enrols agents from a
+workstation, and then leaves the hosts in the state the OpenVox packages
+define: at most 4 JRuby instances and a 2 GB heap, whatever the host's size,
+no agent runs scheduled, and nothing enforced afterwards. It does not care what takes over: theforeman-puppet, your own
 profiles, or these modules from the same family, which pick up where it
 leaves off:
 
@@ -87,7 +89,12 @@ leaves off:
   [Sizing the server](https://github.com/miharp/ovadm/blob/main/documentation/install.md#sizing-the-server).
 - [miharp-openvox_agent](https://forge.puppet.com/modules/miharp/openvox_agent)
   upgrades `openvox-agent` on agents from a Puppet run, including from
-  Puppet 7 and between OpenVox major versions.
+  Puppet 7 and between OpenVox major versions. `ovadm::add_agent` enrols a
+  host once; its upgrades afterwards are this module's.
+- [voxpupuli/puppet-openvox_bootstrap](https://github.com/voxpupuli/puppet-openvox_bootstrap)
+  installs the agent package on more platforms than ovadm, Windows among
+  them, with tasks that run on the node. It does not enrol the node with the
+  CA; `ovadm::add_agent` does, on the platforms ovadm tests.
 
 ## Contributing
 

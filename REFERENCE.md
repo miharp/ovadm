@@ -17,7 +17,7 @@
 * [`install_agent`](#install_agent): Install the openvox-agent package from the configured repository
 * [`install_server`](#install_server): Install or upgrade the openvox-server package from the configured repository, replacing puppetserver if it is installed; edited configuration
 * [`os_identification`](#os_identification): Detect OS family, name, version, and architecture
-* [`precheck`](#precheck): Validate target readiness: OS family, Java version, port 8140, host firewall, NTP sync, and enough memory for OpenVox Server's heap
+* [`precheck`](#precheck): Validate target readiness: OS family, Java version, port 8140, host firewall, NTP sync, and enough memory for OpenVox Server's heap; for an a
 * [`select_java`](#select_java): Make sure the installed openvox-server has a supported Java: on 8, point the java alternative at Java 17 or 21 when the default is neither; o
 * [`service_restart`](#service_restart): Restart the puppetserver service
 * [`service_start`](#service_start): Start the puppetserver service
@@ -31,6 +31,7 @@
 
 #### Public Plans
 
+* [`ovadm::add_agent`](#ovadm--add_agent): Add one or more agent nodes to an existing OpenVox Server deployment
 * [`ovadm::add_compiler`](#ovadm--add_compiler): Add one or more compiler nodes to an existing OpenVox Server deployment
 * [`ovadm::install`](#ovadm--install): Install a new OpenVox Server deployment
 * [`ovadm::status`](#ovadm--status): Check the status of an OpenVox Server deployment
@@ -38,7 +39,9 @@
 
 #### Private Plans
 
+* `ovadm::subplans::agent_enroll`: Enrol agent hosts with the CA and apply their first catalog
 * `ovadm::subplans::agent_install`: Install OpenVox Server on compiler hosts, with the server as their CA
+* `ovadm::subplans::agent_package`: Install openvox-agent on agent hosts and point them at the server
 * `ovadm::subplans::cert_setup`: Submit and sign certificates for compiler hosts
 * `ovadm::subplans::configure`: Configure puppet.conf on an OpenVox Server node
 * `ovadm::subplans::install`: Install OpenVox Server packages on a target
@@ -239,11 +242,17 @@ Detect OS family, name, version, and architecture
 
 ### <a name="precheck"></a>`precheck`
 
-Validate target readiness: OS family, Java version, port 8140, host firewall, NTP sync, and enough memory for OpenVox Server's heap
+Validate target readiness: OS family, Java version, port 8140, host firewall, NTP sync, and enough memory for OpenVox Server's heap; for an agent host, OS family and NTP sync only
 
 **Supports noop?** false
 
 #### Parameters
+
+##### `role`
+
+Data type: `Optional[Enum['server', 'agent']]`
+
+What the host is about to become: 'server' (the default; also a compiler) checks everything, 'agent' checks the OS family and time sync only, since an agent needs no Java, heap memory or 8140
 
 ##### `upgrade`
 
@@ -330,6 +339,91 @@ Data type: `Optional[Integer]`
 Maximum seconds to wait before failing (default: 300)
 
 ## Plans
+
+### <a name="ovadm--add_agent"></a>`ovadm::add_agent`
+
+Installs `openvox-agent` on stock hosts from the workstation, points them at
+the server (or a compiler or load balancer), signs their certificates on the
+server and runs each agent once, so every host applies its first catalog
+inside the plan. The agent service is left as the package leaves it: ovadm
+does not schedule runs.
+
+A host that fails a step is left out of the following ones and reported at
+the end, with the hosts that got through; the plan then fails, so a batch
+with one bad host still enrols the others.
+
+#### Parameters
+
+The following parameters are available in the `ovadm::add_agent` plan:
+
+* [`server_host`](#-ovadm--add_agent--server_host)
+* [`agent_hosts`](#-ovadm--add_agent--agent_hosts)
+* [`agent_server`](#-ovadm--add_agent--agent_server)
+* [`ovox_version`](#-ovadm--add_agent--ovox_version)
+* [`apt_base_url`](#-ovadm--add_agent--apt_base_url)
+* [`yum_base_url`](#-ovadm--add_agent--yum_base_url)
+* [`environment`](#-ovadm--add_agent--environment)
+
+##### <a name="-ovadm--add_agent--server_host"></a>`server_host`
+
+Data type: `TargetSpec`
+
+The OpenVox Server (acts as CA)
+
+##### <a name="-ovadm--add_agent--agent_hosts"></a>`agent_hosts`
+
+Data type: `TargetSpec`
+
+The agent node(s) to install and enrol
+
+##### <a name="-ovadm--add_agent--agent_server"></a>`agent_server`
+
+Data type: `Optional[String[1]]`
+
+The name the agents ask for catalogs from, written as `server` in their
+`puppet.conf`. Defaults to the server's FQDN; on a Large topology, give a
+compiler's FQDN or the load balancer's name in front of the pool. The CA
+is always the server
+
+Default value: `undef`
+
+##### <a name="-ovadm--add_agent--ovox_version"></a>`ovox_version`
+
+Data type: `Optional[String[1]]`
+
+OpenVox Agent version to install (e.g. '8.30.0'); determines which major
+repo to enable. Omitted, the agents get the newest agent of the major the
+server runs
+
+Default value: `undef`
+
+##### <a name="-ovadm--add_agent--apt_base_url"></a>`apt_base_url`
+
+Data type: `Optional[String[1]]`
+
+Base URL of an apt mirror to use instead of https://apt.voxpupuli.org
+
+Default value: `undef`
+
+##### <a name="-ovadm--add_agent--yum_base_url"></a>`yum_base_url`
+
+Data type: `Optional[String[1]]`
+
+Base URL of a yum/dnf mirror to use instead of https://yum.voxpupuli.org
+
+Default value: `undef`
+
+##### <a name="-ovadm--add_agent--environment"></a>`environment`
+
+Data type: `Optional[String[1]]`
+
+Puppet environment the agents ask for from their first run on
+(`environment` in the `[agent]` section of `puppet.conf`, and
+`--environment` on the runs inside the plan); omit for the server's
+default, `production`. It must exist on the server already: a run against
+an environment the server does not have fails
+
+Default value: `undef`
 
 ### <a name="ovadm--add_compiler"></a>`ovadm::add_compiler`
 
