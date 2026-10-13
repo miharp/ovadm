@@ -7,6 +7,8 @@ Notable changes to ovadm are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-13
+
 ### Added
 
 - `ovadm::add_agent`: install `openvox-agent` on stock hosts from the
@@ -291,7 +293,8 @@ covers the module as it stands.
 - CI: plan unit tests, acceptance tests on Rocky 9, Ubuntu 22.04, Ubuntu 24.04 and
   Debian 12, and an end-to-end install test covering both topologies.
 
-[Unreleased]: https://github.com/miharp/ovadm/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/miharp/ovadm/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/miharp/ovadm/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/miharp/ovadm/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/miharp/ovadm/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/miharp/ovadm/compare/v0.4.1...v0.5.0

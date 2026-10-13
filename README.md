@@ -36,7 +36,7 @@ ovadm is an [OpenBolt](https://github.com/OpenVoxProject/openbolt) module for de
 Pin a release in your `Puppetfile`, from the [Forge](https://forge.puppet.com/modules/miharp/ovadm):
 
 ```ruby
-mod 'miharp-ovadm', '0.6.0'
+mod 'miharp-ovadm', '0.7.0'
 ```
 
 or straight from git, which is the same code under the same version:
@@ -44,7 +44,7 @@ or straight from git, which is the same code under the same version:
 ```ruby
 mod 'miharp-ovadm',
   git: 'https://github.com/miharp/ovadm',
-  tag: 'v0.6.0'
+  tag: 'v0.7.0'
 ```
 
 Releases are listed on the [releases page](https://github.com/miharp/ovadm/releases), with notes in [CHANGELOG.md](https://github.com/miharp/ovadm/blob/main/CHANGELOG.md). Running from a clone works too — every plan below is run with `--modulepath` pointed at the checkout's parent, or from inside a Bolt project that has it on the modulepath.
