@@ -63,6 +63,12 @@ Data type: `Optional[Integer]`
 
 Seconds to wait for a certificate to be signed (0 = submit CSR and exit immediately)
 
+##### `environment`
+
+Data type: `Optional[String[1]]`
+
+Environment to run against, passed as --environment. Omitted, the agent uses the environment the server assigned on its last run, falling back to puppet.conf; with it, the agent asks for this one and the run fails if the server does not have it
+
 ### <a name="ca_setup"></a>`ca_setup`
 
 Create the CA with `puppetserver ca setup` (root + intermediate, 15-year lifetime) before the first service start. Skipped when a CA already exists.

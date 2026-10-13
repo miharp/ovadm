@@ -35,7 +35,10 @@ bolt plan run ovadm::add_compiler \
 `environment` sets the environment the compiler's agent asks for, from the
 first run inside the plan on; see [Environment](install.md#environment). Pass
 it when the deployment's pins live outside `production`, or that first run
-applies `production`'s pins to the server package the plan just installed:
+applies `production`'s pins to the server package the plan just installed. The
+environment must already be deployed on the server: the plan runs the agent
+with `--environment`, and the run fails if the server does not have it, rather
+than falling back to `production` and leaving the compiler there:
 
 ```bash
 bolt plan run ovadm::add_compiler \

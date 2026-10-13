@@ -13,4 +13,10 @@ RSpec.describe 'ovadm::agent_runonce task' do
     result = run_bolt_task('ovadm::agent_runonce', {})
     expect(result.result['status']).to eq('not_installed')
   end
+
+  it 'accepts an environment parameter' do
+    result = run_bolt_task('ovadm::agent_runonce', { 'environment' => 'demo' })
+    expect(result.exit_code).to eq(0)
+    expect(result.result['status']).to eq('not_installed')
+  end
 end

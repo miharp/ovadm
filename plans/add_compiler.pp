@@ -82,6 +82,7 @@ plan ovadm::add_compiler(
   run_plan('ovadm::subplans::cert_setup', {
     'compiler_hosts' => $compiler_hosts,
     'server_host'    => $server_host,
+    'environment'    => $environment,
   })
 
   run_task('ovadm::configure_compiler_ssl', $compiler_hosts)

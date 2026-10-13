@@ -73,11 +73,13 @@ describe 'ovadm::add_compiler' do
     end
   end
 
-  it 'hands the environment to agent_install' do
+  it 'hands the environment to agent_install and to cert_setup' do
     server_runs('9.0.1-1.el10')
     allow_plan('ovadm::subplans::precheck')
     expect_plan('ovadm::subplans::agent_install').with_params(agent_install_params('9.0.1').merge('environment' => 'openvox9'))
-    allow_plan('ovadm::subplans::cert_setup')
+    expect_plan('ovadm::subplans::cert_setup')
+      .with_params('compiler_hosts' => compiler, 'server_host' => server, 'environment' => 'openvox9')
+      .be_called_times(1)
 
     result = run_plan('ovadm::add_compiler', params.merge('environment' => 'openvox9'))
     expect(result).to be_ok
