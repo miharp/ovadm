@@ -133,6 +133,18 @@ other than `production` (an `openvox9` branch next to a `production` on 8,
 say), a run from `production` applies the other environment's pins and moves
 the packages ovadm just installed.
 
+The environment has to exist on the server by the time the compilers' first
+run asks for it, which happens inside the plan. The plans pass it to those runs
+as `--environment`, so a run against an environment the server does not have
+fails there, with the server's "Could not find a directory environment named"
+message, instead of succeeding against `production`. Without the flag that is
+what the agent would do, and worse: it remembers the environment the server
+assigned and keeps using `production` on every later run, whatever
+`puppet.conf` says, until a run with `--environment` clears it. When the
+environment is deployed by r10k on the server the plan is building, deploy it
+between `ovadm::install` of the server and adding the compilers, or run the
+Standard install first and `ovadm::add_compiler` after the deploy.
+
 ## Internal package mirror
 
 If your nodes cannot reach the public VoxPupuli repositories, point `apt_base_url` and/or `yum_base_url` at an internal mirror of `https://apt.voxpupuli.org` or `https://yum.voxpupuli.org`. The mirror needs the same layout as the public site, such as a full copy or a caching proxy of it: ovadm downloads the release package from it (`openvox8-release-ubuntu24.04.deb`, `openvox8-release-el-9.noarch.rpm`) and points the repository file the package installs at it. That file is `/etc/apt/sources.list.d/openvox8-release.list` or `/etc/yum.repos.d/openvox8-release.repo`, and it names the public site otherwise.

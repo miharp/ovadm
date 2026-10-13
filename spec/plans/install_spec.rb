@@ -73,7 +73,7 @@ describe 'ovadm::install' do
   end
 
   context 'with an environment' do
-    it 'hands it to configure and to agent_install' do
+    it 'hands it to configure, agent_install and cert_setup' do
       expect_plan('ovadm::subplans::precheck').be_called_times(2)
       expect_plan('ovadm::subplans::install').be_called_times(1)
       expect_plan('ovadm::subplans::configure')
@@ -93,7 +93,9 @@ describe 'ovadm::install' do
           'environment'         => 'openvox9',
         )
         .be_called_times(1)
-      expect_plan('ovadm::subplans::cert_setup').be_called_times(1)
+      expect_plan('ovadm::subplans::cert_setup')
+        .with_params('compiler_hosts' => compiler, 'server_host' => server, 'environment' => 'openvox9')
+        .be_called_times(1)
       allow_command('hostname -f').always_return('stdout' => "#{server}\n", 'stderr' => '')
 
       result = run_plan('ovadm::install', {

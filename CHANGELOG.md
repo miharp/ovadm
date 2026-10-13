@@ -7,6 +7,21 @@ Notable changes to ovadm are recorded here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- A compiler enrolled with `environment` before that environment existed on
+  the server stayed on `production`. The compiler's first runs, inside
+  `ovadm::install` and `ovadm::add_compiler`, asked for the environment in
+  `puppet.conf`; the server, not having it, assigned `production`, and the
+  agent then kept the assigned environment over the configured one on every
+  later run, so the plan reported success and the compiler applied the
+  wrong code. The `agent_runonce` task now takes `environment`, and
+  `cert_setup` passes the plan's `environment` to both runs as
+  `--environment`: the agent asks for that environment only, and the run
+  fails if the server does not have it yet. Found on the Hetzner lab, where
+  r10k deployed `demo` a few minutes after the install
+  ([#80](https://github.com/miharp/ovadm/issues/80)).
+
 ## [0.6.0] - 2026-10-12
 
 ### Added

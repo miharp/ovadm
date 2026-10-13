@@ -5,6 +5,10 @@
     "waitforcert": {
       "description": "Seconds to wait for a certificate to be signed (0 = submit CSR and exit immediately)",
       "type": "Optional[Integer]"
+    },
+    "environment": {
+      "description": "Environment to run against, passed as --environment. Omitted, the agent uses the environment the server assigned on its last run, falling back to puppet.conf; with it, the agent asks for this one and the run fails if the server does not have it",
+      "type": "Optional[String[1]]"
     }
   },
   "supports_noop": false
