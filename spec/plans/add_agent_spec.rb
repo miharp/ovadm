@@ -32,8 +32,17 @@ describe 'ovadm::add_agent' do
     allow_plan('ovadm::subplans::precheck')
   end
 
+  let(:read_server) { '/opt/puppetlabs/bin/puppet config print server --section agent' }
+
+  def agents_point_at(by_agent)
+    allow_command(read_server).return_for_targets(
+      by_agent.transform_values { |s| { 'stdout' => "#{s}\n", 'stderr' => '' } },
+    )
+  end
+
   it 'prechecks the agents as agents, packages them, then enrolls them' do
     server_runs('8.17.0-1.el10')
+    agents_point_at(agent01 => server, agent02 => server)
     expect_plan('ovadm::subplans::precheck')
       .with_params('server_host' => [agent01, agent02], 'role' => 'agent')
       .be_called_times(1)
@@ -46,7 +55,42 @@ describe 'ovadm::add_agent' do
 
     result = run_plan('ovadm::add_agent', params)
     expect(result).to be_ok
-    expect(result.value).to eq('ok' => [agent01, agent02])
+    expect(result.value).to eq('ok' => [agent01, agent02], 'servers' => { agent01 => server, agent02 => server })
+  end
+
+  it 'reports where each agent was left when the first catalog repointed one' do
+    server_runs('8.17.0-1.el10')
+    agents_point_at(agent01 => 'compiler01.example.com', agent02 => server)
+    allow_plan('ovadm::subplans::agent_package').always_return('ok' => [agent01, agent02], 'failed' => {})
+    allow_plan('ovadm::subplans::agent_enroll').always_return('ok' => [agent01, agent02], 'failed' => {})
+
+    result = run_plan('ovadm::add_agent', params.merge('agent_server' => 'compiler01.example.com'))
+    expect(result).to be_ok
+    expect(result.value['servers']).to eq(agent01 => 'compiler01.example.com', agent02 => server)
+  end
+
+  it 'still succeeds when an agent\'s server setting cannot be read' do
+    server_runs('8.17.0-1.el10')
+    expect_command(read_server)
+      .with_targets([agent01])
+      .error_with('msg' => 'puppet: command not found', 'kind' => 'puppetlabs.tasks/command-error')
+    allow_plan('ovadm::subplans::agent_package').always_return('ok' => [agent01], 'failed' => {})
+    allow_plan('ovadm::subplans::agent_enroll').always_return('ok' => [agent01], 'failed' => {})
+
+    result = run_plan('ovadm::add_agent', params.merge('agent_hosts' => [agent01]))
+    expect(result).to be_ok
+    expect(result.value['servers']).to eq(agent01 => nil)
+  end
+
+  it 'reads nothing back when no agent was enrolled' do
+    server_runs('8.17.0-1.el10')
+    expect_command(read_server).not_be_called
+    allow_plan('ovadm::subplans::agent_package').always_return('ok' => [], 'failed' => {})
+    allow_plan('ovadm::subplans::agent_enroll').always_return('ok' => [], 'failed' => {})
+
+    result = run_plan('ovadm::add_agent', params)
+    expect(result).to be_ok
+    expect(result.value).to eq('ok' => [], 'servers' => {})
   end
 
   it 'follows the server major when no version is given' do
@@ -80,6 +124,7 @@ describe 'ovadm::add_agent' do
 
   it 'points the agents at agent_server, with the server as CA, and hands the environment on' do
     server_runs('8.17.0-1.el10')
+    agents_point_at(agent01 => 'compiler01.example.com', agent02 => 'compiler01.example.com')
     expect_plan('ovadm::subplans::agent_package')
       .with_params(package_params(
         'server'       => 'compiler01.example.com',
@@ -103,6 +148,7 @@ describe 'ovadm::add_agent' do
 
   it 'hands the pp_role to agent_package' do
     server_runs('8.17.0-1.el10')
+    agents_point_at(agent01 => server, agent02 => server)
     expect_plan('ovadm::subplans::agent_package')
       .with_params(package_params('pp_role' => 'role::webserver'))
       .always_return('ok' => [agent01, agent02], 'failed' => {})
@@ -132,6 +178,7 @@ describe 'ovadm::add_agent' do
 
   it 'enrolls the hosts that got through and fails with the ones that did not' do
     server_runs('8.17.0-1.el10')
+    agents_point_at(agent01 => server)
     expect_plan('ovadm::subplans::agent_package')
       .always_return('ok' => [agent01], 'failed' => { agent02 => 'No package openvox-agent available' })
     expect_plan('ovadm::subplans::agent_enroll')

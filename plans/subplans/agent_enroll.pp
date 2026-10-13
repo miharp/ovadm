@@ -65,7 +65,7 @@ plan ovadm::subplans::agent_enroll(
   $applied    = $apply.ok_set.results.filter |$r| { $r.value['status'] in $applied_statuses }.map |$r| { $r.target.name }
   $run_failed = Hash($apply.ok_set.results.filter |$r| { !($r.value['status'] in $applied_statuses) }.map |$r| {
     $reason = $r.value['status'] ? {
-      'failed' => "puppet agent exited ${r.value['exit_code']} on its first run; its output is above",
+      'failed' => "puppet agent exited ${r.value['exit_code']} on its first run; run `puppet agent -t` on it to see why",
       default  => "agent_runonce reported ${r.value['status']} on the first run",
     }
     [$r.target.name, $reason]

@@ -93,6 +93,20 @@ A load balancer name has to be in the compilers' certificates, which it is
 when `ovadm::install` was given it in `dns_alt_names`; see
 [DNS alt names](install.md#dns-alt-names).
 
+`agent_server` holds until the site's code says otherwise. Agent profiles
+often manage `server` in `puppet.conf` themselves (theforeman-puppet does,
+and so do many sites' own), and the first catalog inside the plan applies
+theirs. The plan reads the setting back afterwards and reports where each
+host was left, with a warning where that is not `agent_server`:
+
+```text
+WARNING agent01.example.com: enrolled, but its first catalog changed server in puppet.conf from ovox-compiler01.example.com to ovox-server.example.com, so it gets catalogs from ovox-server.example.com. The site's code manages that setting; set it there.
+```
+
+The plan's result carries the same thing as `servers`, the setting each
+host's `puppet.conf` names. To keep agents on the compilers, give the site's
+profile the same name as `agent_server`.
+
 ## Versions
 
 The agents get the newest `openvox-agent` of the major the server runs: the

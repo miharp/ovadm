@@ -18,13 +18,29 @@ Notable changes to ovadm are recorded here. The format follows
   work as on `add_compiler`. `pp_role` puts a role in the agents'
   certificates, for sites that classify on
   `$trusted['extensions']['pp_role']`; ovadm's own `openvox_server` and
-  `openvox_compiler` are refused. A host that fails a step is left out of the
-  following ones and reported at the end with the hosts that got through,
-  so one bad host does not stop a batch. Two new subplans,
+  `openvox_compiler` are refused. The plan reports the server each agent's
+  `puppet.conf` names after its first catalog, and warns where the site's
+  code changed it from `agent_server`. A host that fails a step is left out
+  of the following ones and reported at the end with the hosts that got
+  through, so one bad host does not stop a batch. Two new subplans,
   `agent_package` and `agent_enroll`, carry the steps
   ([#79](https://github.com/miharp/ovadm/issues/79)).
 - `precheck` takes `role`: `agent` checks the OS family and time sync only,
   since an agent needs no Java, heap memory or open 8140.
+
+### Changed
+
+- `ovadm::install` and `ovadm::add_compiler` stop when a compiler's first
+  catalog run, inside the plan, applies no catalog, whether the environment
+  is missing, the catalog fails to compile or a resource fails. They used to
+  go on to configure SSL and start puppetserver on a compiler the site's
+  code never configured, and report success; the `agent_runonce` task exits
+  0 whatever the agent did, and the plans never read its status. The other
+  compilers are still enrolled first and the failure names each one that
+  failed; none of them gets SSL configured or puppetserver started, and
+  `ovadm::add_compiler` for the same compilers finishes the job once the
+  cause is fixed. Found on the Hetzner lab, where `add_compiler` with an environment not
+  yet deployed reported "Compiler(s) added to the pool."
 
 ### Fixed
 
