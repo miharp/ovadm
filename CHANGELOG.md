@@ -15,7 +15,10 @@ Notable changes to ovadm are recorded here. The format follows
   agent once, so every host applies its first catalog inside the plan. The
   agents get the newest agent of the major the server runs unless
   `ovox_version` says otherwise; `environment` and the mirror parameters
-  work as on `add_compiler`. A host that fails a step is left out of the
+  work as on `add_compiler`. `pp_role` puts a role in the agents'
+  certificates, for sites that classify on
+  `$trusted['extensions']['pp_role']`; ovadm's own `openvox_server` and
+  `openvox_compiler` are refused. A host that fails a step is left out of the
   following ones and reported at the end with the hosts that got through,
   so one bad host does not stop a batch. Two new subplans,
   `agent_package` and `agent_enroll`, carry the steps

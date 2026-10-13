@@ -48,6 +48,41 @@ describe 'ovadm::subplans::agent_package' do
     expect(result).to be_ok
   end
 
+  it 'leaves csr_attributes.yaml alone without a pp_role' do
+    expect_task('ovadm::set_csr_attributes').not_be_called
+
+    expect(run_plan('ovadm::subplans::agent_package', params)).to be_ok
+  end
+
+  it 'writes the pp_role after puppet.conf, on the hosts that got that far' do
+    expect_task('ovadm::configure_puppet_conf')
+      .with_targets([agent01, agent02])
+      .return_for_targets(agent01 => { 'status' => 'success' })
+      .error_with('msg' => 'Read-only file system', 'kind' => 'puppetlabs.tasks/task-error')
+    expect_task('ovadm::set_csr_attributes')
+      .with_targets([agent01])
+      .with_params('pp_role' => 'webserver', '_catch_errors' => true)
+      .be_called_times(1)
+      .always_return('status' => 'success', 'pp_role' => 'webserver')
+
+    result = run_plan('ovadm::subplans::agent_package', params.merge('pp_role' => 'webserver'))
+    expect(result).to be_ok
+    expect(result.value['ok']).to eq([agent01])
+    expect(result.value['failed']).to eq(agent02 => 'Read-only file system')
+  end
+
+  it 'reports a host whose csr_attributes.yaml could not be written' do
+    expect_task('ovadm::set_csr_attributes')
+      .with_targets([agent01, agent02])
+      .return_for_targets(agent01 => { 'status' => 'success', 'pp_role' => 'webserver' })
+      .error_with('msg' => 'Permission denied', 'kind' => 'puppetlabs.tasks/task-error')
+
+    result = run_plan('ovadm::subplans::agent_package', params.merge('pp_role' => 'webserver'))
+    expect(result).to be_ok
+    expect(result.value['ok']).to eq([agent01])
+    expect(result.value['failed']).to eq(agent02 => 'Permission denied')
+  end
+
   it 'leaves a host that failed a step out of the following ones and reports it' do
     expect_task('ovadm::install_agent')
       .with_targets([agent01, agent02])

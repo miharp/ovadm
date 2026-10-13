@@ -2,7 +2,8 @@
 #
 # @api private
 #
-# Configures the repository, installs `openvox-agent` and writes `puppet.conf`.
+# Configures the repository, installs `openvox-agent`, writes `puppet.conf`
+# and, given a `pp_role`, `csr_attributes.yaml`.
 # A target that fails a step is left out of the following ones, so that one
 # bad host does not stop the rest of the batch; the plan returns the targets
 # that got through and the failures by target name.
@@ -27,6 +28,10 @@
 # @param environment
 #   Puppet environment the agents ask for; omit for the server's default
 #
+# @param pp_role
+#   Role to request in the agents' certificates, through `csr_attributes.yaml`
+#   written before their first agent run. Omitted, the file is left as it is
+#
 # @return [Hash] `ok`, the names of the targets that got through every step,
 #   and `failed`, a hash of target name to error message
 #
@@ -39,6 +44,7 @@ plan ovadm::subplans::agent_package(
   Optional[String[1]] $apt_base_url = undef,
   Optional[String[1]] $yum_base_url = undef,
   Optional[String[1]] $environment  = undef,
+  Optional[String[1]] $pp_role      = undef,
 ) {
   $targets = get_targets($agent_hosts)
 
@@ -69,8 +75,21 @@ plan ovadm::subplans::agent_package(
   }
   $conf = run_task('ovadm::configure_puppet_conf', $install.ok_set.targets, $conf_params + { '_catch_errors' => true })
 
-  $errors = $repo.error_set.results + $install.error_set.results + $conf.error_set.results
+  # The first agent run creates the CSR, so the role has to be in place
+  # before it. Without a role the file is not written, so a site's own
+  # csr_attributes.yaml (a challengePassword for policy-based autosigning,
+  # say) still applies.
+  $csr_steps = $pp_role ? {
+    undef   => [],
+    default => [run_task('ovadm::set_csr_attributes', $conf.ok_set.targets, {
+      'pp_role'       => $pp_role,
+      '_catch_errors' => true,
+    })],
+  }
+
+  $steps  = [$repo, $install, $conf] + $csr_steps
+  $errors = $steps.map |$step| { $step.error_set.results }.flatten
   $failed = Hash($errors.map |$r| { [$r.target.name, $r.error.message] })
 
-  return({ 'ok' => $conf.ok_set.names, 'failed' => $failed })
+  return({ 'ok' => $steps[-1].ok_set.names, 'failed' => $failed })
 }

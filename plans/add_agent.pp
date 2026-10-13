@@ -40,6 +40,16 @@
 #   default, `production`. It must exist on the server already: a run against
 #   an environment the server does not have fails
 #
+# @param pp_role
+#   Role to put in the agents' certificates, as the `pp_role` extension
+#   (`$trusted['extensions']['pp_role']`), for sites that classify on it. The
+#   plan writes it to `csr_attributes.yaml` before the first agent run,
+#   replacing a file already there; omitted, the file is left alone. One role
+#   for every host in the run. It takes effect when the certificate is
+#   signed, so a host that already has one keeps the role it was signed with.
+#   `openvox_server` and `openvox_compiler`, ovadm's roles for the server and
+#   compilers, are refused
+#
 plan ovadm::add_agent(
   TargetSpec          $server_host,
   TargetSpec          $agent_hosts,
@@ -48,7 +58,17 @@ plan ovadm::add_agent(
   Optional[String[1]] $apt_base_url = undef,
   Optional[String[1]] $yum_base_url = undef,
   Optional[String[1]] $environment  = undef,
+  Optional[Pattern[/\A[A-Za-z0-9][A-Za-z0-9_.:-]*\z/]] $pp_role = undef,
 ) {
+  # Sites classify compilers on openvox_compiler (documentation/add_compiler.md
+  # says to), so an agent given it would be turned into one by its first run.
+  if $pp_role in ['openvox_server', 'openvox_compiler'] {
+    fail_plan(@("MSG"/L))
+      pp_role ${pp_role} is the role ovadm gives the server or its compilers. \
+      Give the agents a role of their own.
+      |- MSG
+  }
+
   # With no version given, the agents follow the server's major, so an estate
   # on OpenVox 9 does not get OpenVox 8 agents.
   if $ovox_version {
@@ -86,6 +106,7 @@ plan ovadm::add_agent(
     'apt_base_url' => $apt_base_url,
     'yum_base_url' => $yum_base_url,
     'environment'  => $environment,
+    'pp_role'      => $pp_role,
   })
 
   $enrolled = run_plan('ovadm::subplans::agent_enroll', {

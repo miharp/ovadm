@@ -363,6 +363,7 @@ The following parameters are available in the `ovadm::add_agent` plan:
 * [`apt_base_url`](#-ovadm--add_agent--apt_base_url)
 * [`yum_base_url`](#-ovadm--add_agent--yum_base_url)
 * [`environment`](#-ovadm--add_agent--environment)
+* [`pp_role`](#-ovadm--add_agent--pp_role)
 
 ##### <a name="-ovadm--add_agent--server_host"></a>`server_host`
 
@@ -422,6 +423,21 @@ Puppet environment the agents ask for from their first run on
 `--environment` on the runs inside the plan); omit for the server's
 default, `production`. It must exist on the server already: a run against
 an environment the server does not have fails
+
+Default value: `undef`
+
+##### <a name="-ovadm--add_agent--pp_role"></a>`pp_role`
+
+Data type: `Optional[Pattern[/\A[A-Za-z0-9][A-Za-z0-9_.:-]*\z/]]`
+
+Role to put in the agents' certificates, as the `pp_role` extension
+(`$trusted['extensions']['pp_role']`), for sites that classify on it. The
+plan writes it to `csr_attributes.yaml` before the first agent run,
+replacing a file already there; omitted, the file is left alone. One role
+for every host in the run. It takes effect when the certificate is
+signed, so a host that already has one keeps the role it was signed with.
+`openvox_server` and `openvox_compiler`, ovadm's roles for the server and
+compilers, are refused
 
 Default value: `undef`
 

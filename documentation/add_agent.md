@@ -20,15 +20,55 @@ The plan:
 3. Writes `puppet.conf`, with `server` set to the server (or to
    `agent_server`, below), `ca_server` always the server, and `environment`
    when given
-4. Runs `puppet agent` on every host to submit its CSR, signs each on the
+4. Writes `csr_attributes.yaml` with the `pp_role` extension, when given
+   (see [Classifying by pp_role](#classifying-by-pp_role))
+5. Runs `puppet agent` on every host to submit its CSR, signs each on the
    server, then runs the agent again so every host applies its first catalog
    inside the plan, as compilers do
 
 Each host's first catalog is whatever the site's code does for an unknown
 node. Give the hosts a role before running the plan (a node entry by
-certname, or a rule on a fact) if that first run should do something. The
-plan does not write a `pp_role` into the agents' certificates; only the
-server and compilers carry one.
+certname, a rule on a fact, or a `pp_role` in the certificate, below) if
+that first run should do something.
+
+## Classifying by pp_role
+
+Sites that classify nodes on a trusted certificate extension can have the
+plan put a role in the agents' certificates:
+
+```bash
+bolt plan run ovadm::add_agent \
+  server_host=ovox-server.example.com \
+  agent_hosts=web01.example.com,web02.example.com \
+  pp_role=webserver
+```
+
+The plan writes `csr_attributes.yaml` with that `pp_role` before the first
+agent run, so each host's certificate request asks for it and the signed
+certificate carries it. The site's code sees it as
+`$trusted['extensions']['pp_role']` from the first run inside the plan on,
+for instance with `include "role::${trusted['extensions']['pp_role']}"`.
+The server and compilers carry `pp_role` the same way; see
+[Certificate role extensions](architecture.md#certificate-role-extensions).
+
+- **One role per run.** Every host in the run gets the same role, so hosts
+  with different roles go in separate runs of the plan.
+- **The file is replaced.** The plan writes `csr_attributes.yaml` with
+  `pp_role` alone, replacing a file already on the host. Without `pp_role`
+  the plan does not touch the file, so a site's own (with a
+  `challengePassword` for policy-based autosigning, say) still applies.
+- **The value** is letters, digits and `_`, `.`, `:` or `-`, starting with a
+  letter or digit, so `webserver` and `role::webserver` both work.
+  `openvox_server` and `openvox_compiler` are refused: they are the roles
+  ovadm gives the server and compilers, and a site that classifies compilers
+  on `openvox_compiler` would turn an agent given it into a compiler on its
+  first run.
+- **The role is fixed at signing.** A host that already has a certificate
+  keeps the role it was signed with: rerunning the plan with another
+  `pp_role` rewrites the file and changes nothing in the certificate. To
+  change a host's role, clean its certificate on the server
+  (`puppetserver ca clean --certname <host>`), remove
+  `/etc/puppetlabs/puppet/ssl` on the host, and run the plan again.
 
 The agent service is left as the package leaves it: ovadm does not schedule
 runs, by service, cron or timer. That is the site's choice, like the rest of

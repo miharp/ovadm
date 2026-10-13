@@ -56,12 +56,13 @@ plan reports both and fails if any host did not make it.
 
 ## Certificate role extensions
 
-ovadm embeds a `pp_role` trusted certificate extension in every infrastructure node's certificate at issuance time:
+ovadm embeds a `pp_role` trusted certificate extension in every infrastructure node's certificate at issuance time, and in agents' certificates when asked to:
 
 | Node type | `pp_role` value |
 | --------- | --------------- |
 | OpenVox Server | `openvox_server` |
 | Compiler | `openvox_compiler` |
+| Agent | the `pp_role` given to `ovadm::add_agent`, if any |
 
 This is implemented via `csr_attributes.yaml` written before the node's first agent run (or, on the server, before `ovadm::ca_setup` issues its certificate). After signing, `$trusted['extensions']['pp_role']` is available in Puppet code for role-based classification without a node classifier.
 

@@ -18,6 +18,7 @@ describe 'ovadm::add_agent' do
       'apt_base_url' => nil,
       'yum_base_url' => nil,
       'environment'  => nil,
+      'pp_role'      => nil,
     }.merge(overrides)
   end
 
@@ -98,6 +99,35 @@ describe 'ovadm::add_agent' do
       'environment'  => 'demo',
     ))
     expect(result).to be_ok
+  end
+
+  it 'hands the pp_role to agent_package' do
+    server_runs('8.17.0-1.el10')
+    expect_plan('ovadm::subplans::agent_package')
+      .with_params(package_params('pp_role' => 'role::webserver'))
+      .always_return('ok' => [agent01, agent02], 'failed' => {})
+    allow_plan('ovadm::subplans::agent_enroll').always_return('ok' => [agent01, agent02], 'failed' => {})
+
+    expect(run_plan('ovadm::add_agent', params.merge('pp_role' => 'role::webserver'))).to be_ok
+  end
+
+  ['openvox_server', 'openvox_compiler'].each do |role|
+    it "refuses #{role}, before anything is changed" do
+      expect_task('ovadm::get_version').not_be_called
+      expect_plan('ovadm::subplans::precheck').not_be_called
+      expect_plan('ovadm::subplans::agent_package').not_be_called
+
+      result = run_plan('ovadm::add_agent', params.merge('pp_role' => role))
+      expect(result).not_to be_ok
+      expect(result.value.message).to match(/pp_role #{role} is the role ovadm gives the server or its compilers/)
+    end
+  end
+
+  it 'refuses a pp_role that would not survive as a YAML value' do
+    expect_plan('ovadm::subplans::agent_package').not_be_called
+
+    result = run_plan('ovadm::add_agent', params.merge('pp_role' => 'web: server'))
+    expect(result).not_to be_ok
   end
 
   it 'enrolls the hosts that got through and fails with the ones that did not' do
