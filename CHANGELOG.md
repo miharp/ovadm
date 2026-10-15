@@ -7,6 +7,22 @@ Notable changes to ovadm are recorded here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- `ovadm::set_csr_attributes`, which `ovadm::install`, `ovadm::add_compiler`
+  and `ovadm::add_agent` (given `pp_role`) run before a host's first
+  certificate request, sets `pp_role` in an existing `csr_attributes.yaml`
+  and keeps the rest of the file, owner and mode included. It used to
+  replace the file, dropping a `challengePassword` that a policy-based
+  autosign setup had put there for the CA to check, and any extensions of
+  the site's own. A role the file already has, under `pp_role` or its OID,
+  is replaced and reported as `previous_pp_role`; a file the agent could not
+  read either is left as it is and fails the task. The merge needs the
+  agent's Ruby, which every host has by the time ovadm writes the file. The
+  role is now quoted in the file, so YAML reads one like `1.10` or `on` as a
+  string, and the task takes only the role values `add_agent` does
+  ([#85](https://github.com/miharp/ovadm/issues/85)).
+
 ## [0.7.0] - 2026-10-13
 
 ### Added

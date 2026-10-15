@@ -63,6 +63,21 @@ jobs:
             compiler_hosts=compiler01 \
             --inventoryfile docker/inventory.yaml
 
+      - name: Give agent01 a csr_attributes.yaml of the site's own
+        # What provisioning leaves for policy-based autosigning: a
+        # challengePassword for the CA to check, and an extension of the
+        # site's own, readable by root alone. The plan's pp_role has to join
+        # them, not replace them.
+        run: |
+          docker exec ovadm-agent01 mkdir -p /etc/puppetlabs/puppet
+          docker exec -i ovadm-agent01 tee /etc/puppetlabs/puppet/csr_attributes.yaml <<'EOF'
+          custom_attributes:
+            challengePassword: ci-token
+          extension_requests:
+            pp_datacenter: ci
+          EOF
+          docker exec ovadm-agent01 chmod 0600 /etc/puppetlabs/puppet/csr_attributes.yaml
+
       - name: Add an agent
         # Before autosign is on, so the plan's own signing step is exercised.
         run: |
@@ -95,7 +110,18 @@ jobs:
             abort "agent01 certificate has no pp_role" unless ext
             puts "pp_role extension: #{ext.value.inspect}"
             abort "pp_role is not ci_agent" unless ext.value.include?("ci_agent")
+            # pp_datacenter, the extension the site added, came through too.
+            dc = cert.extensions.find { |e| e.oid == "1.3.6.1.4.1.34380.1.1.19" }
+            abort "agent01 certificate lost pp_datacenter" unless dc&.value&.include?("ci")
           '
+          # The challengePassword, which the CA reads and does not copy into
+          # the certificate, is still in the file, and the file is still
+          # root's alone.
+          docker exec ovadm-agent01 /opt/puppetlabs/puppet/bin/ruby -ryaml -e '
+            attrs = YAML.safe_load(File.read("/etc/puppetlabs/puppet/csr_attributes.yaml"))
+            abort "challengePassword is gone" unless attrs.dig("custom_attributes", "challengePassword") == "ci-token"
+          '
+          docker exec ovadm-agent01 stat -c %a /etc/puppetlabs/puppet/csr_attributes.yaml | grep -qx 600
 
       - name: Enable autosign
         run: |

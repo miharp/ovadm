@@ -1,10 +1,10 @@
 {
-  "description": "Write /etc/puppetlabs/puppet/csr_attributes.yaml so the node's CSR embeds a pp_role extension",
+  "description": "Set pp_role in /etc/puppetlabs/puppet/csr_attributes.yaml so the node's CSR embeds it, keeping the rest of an existing file",
   "input_method": "environment",
   "parameters": {
     "pp_role": {
-      "description": "Value to embed as the pp_role certificate extension (e.g. ovadm_compiler)",
-      "type": "String[1]"
+      "description": "Value to embed as the pp_role certificate extension (e.g. openvox_compiler): letters, digits and _ . : -, starting with a letter or digit",
+      "type": "Pattern[/\\A[A-Za-z0-9][A-Za-z0-9_.:-]*\\z/]"
     }
   },
   "supports_noop": false

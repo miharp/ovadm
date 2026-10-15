@@ -64,7 +64,7 @@ ovadm embeds a `pp_role` trusted certificate extension in every infrastructure n
 | Compiler | `openvox_compiler` |
 | Agent | the `pp_role` given to `ovadm::add_agent`, if any |
 
-This is implemented via `csr_attributes.yaml` written before the node's first agent run (or, on the server, before `ovadm::ca_setup` issues its certificate). After signing, `$trusted['extensions']['pp_role']` is available in Puppet code for role-based classification without a node classifier.
+This is implemented via `csr_attributes.yaml` written before the node's first agent run (or, on the server, before `ovadm::ca_setup` issues its certificate). Where the file already exists, `ovadm::set_csr_attributes` sets `pp_role` in it and keeps the rest, so a `challengePassword` for the CA's autosign policy, or the site's own extensions, still reach the CSR. After signing, `$trusted['extensions']['pp_role']` is available in Puppet code for role-based classification without a node classifier.
 
 ## Certificate authority
 

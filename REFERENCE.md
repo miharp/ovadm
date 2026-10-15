@@ -23,7 +23,7 @@
 * [`service_start`](#service_start): Start the puppetserver service
 * [`service_status`](#service_status): Report running status of OpenVox Server services
 * [`service_stop`](#service_stop): Stop the puppetserver service
-* [`set_csr_attributes`](#set_csr_attributes): Write /etc/puppetlabs/puppet/csr_attributes.yaml so the node's CSR embeds a pp_role extension
+* [`set_csr_attributes`](#set_csr_attributes): Set pp_role in /etc/puppetlabs/puppet/csr_attributes.yaml so the node's CSR embeds it, keeping the rest of an existing file
 * [`sign_csr`](#sign_csr): Sign a pending CSR on the OpenVox CA server
 * [`wait_until_service_ready`](#wait_until_service_ready): Poll until puppetserver responds on port 8140 or a timeout expires. On a timeout, the error says why: the service state and the last error pu
 
@@ -298,7 +298,7 @@ Stop the puppetserver service
 
 ### <a name="set_csr_attributes"></a>`set_csr_attributes`
 
-Write /etc/puppetlabs/puppet/csr_attributes.yaml so the node's CSR embeds a pp_role extension
+Set pp_role in /etc/puppetlabs/puppet/csr_attributes.yaml so the node's CSR embeds it, keeping the rest of an existing file
 
 **Supports noop?** false
 
@@ -306,9 +306,9 @@ Write /etc/puppetlabs/puppet/csr_attributes.yaml so the node's CSR embeds a pp_r
 
 ##### `pp_role`
 
-Data type: `String[1]`
+Data type: `Pattern[/\A[A-Za-z0-9][A-Za-z0-9_.:-]*\z/]`
 
-Value to embed as the pp_role certificate extension (e.g. ovadm_compiler)
+Value to embed as the pp_role certificate extension (e.g. openvox_compiler): letters, digits and _ . : -, starting with a letter or digit
 
 ### <a name="sign_csr"></a>`sign_csr`
 
@@ -432,8 +432,10 @@ Data type: `Optional[Pattern[/\A[A-Za-z0-9][A-Za-z0-9_.:-]*\z/]]`
 
 Role to put in the agents' certificates, as the `pp_role` extension
 (`$trusted['extensions']['pp_role']`), for sites that classify on it. The
-plan writes it to `csr_attributes.yaml` before the first agent run,
-replacing a file already there; omitted, the file is left alone. One role
+plan sets it in `csr_attributes.yaml` before the first agent run,
+keeping whatever else a file already there holds (a `challengePassword`
+for policy-based autosigning, other extensions); omitted, the file is
+left alone. One role
 for every host in the run. It takes effect when the certificate is
 signed, so a host that already has one keeps the role it was signed with.
 `openvox_server` and `openvox_compiler`, ovadm's roles for the server and
