@@ -76,9 +76,9 @@ plan ovadm::subplans::agent_package(
   $conf = run_task('ovadm::configure_puppet_conf', $install.ok_set.targets, $conf_params + { '_catch_errors' => true })
 
   # The first agent run creates the CSR, so the role has to be in place
-  # before it. Without a role the file is not written, so a site's own
+  # before it. The task merges the role into a site's own
   # csr_attributes.yaml (a challengePassword for policy-based autosigning,
-  # say) still applies.
+  # say) rather than replacing it; without a role the file is not touched.
   $csr_steps = $pp_role ? {
     undef   => [],
     default => [run_task('ovadm::set_csr_attributes', $conf.ok_set.targets, {

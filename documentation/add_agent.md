@@ -20,7 +20,7 @@ The plan:
 3. Writes `puppet.conf`, with `server` set to the server (or to
    `agent_server`, below), `ca_server` always the server, and `environment`
    when given
-4. Writes `csr_attributes.yaml` with the `pp_role` extension, when given
+4. Sets the `pp_role` extension in `csr_attributes.yaml`, when given
    (see [Classifying by pp_role](#classifying-by-pp_role))
 5. Runs `puppet agent` on every host to submit its CSR, signs each on the
    server, then runs the agent again so every host applies its first catalog
@@ -53,10 +53,16 @@ The server and compilers carry `pp_role` the same way; see
 
 - **One role per run.** Every host in the run gets the same role, so hosts
   with different roles go in separate runs of the plan.
-- **The file is replaced.** The plan writes `csr_attributes.yaml` with
-  `pp_role` alone, replacing a file already on the host. Without `pp_role`
-  the plan does not touch the file, so a site's own (with a
-  `challengePassword` for policy-based autosigning, say) still applies.
+- **The rest of the file is kept.** Where a host already has a
+  `csr_attributes.yaml` (with a `challengePassword` for policy-based
+  autosigning, say, or extensions of the site's own), the plan sets
+  `pp_role` in it and keeps everything else. A role already in the file,
+  under `pp_role` or its OID, is replaced. The merge reads the file as YAML,
+  so comments in it do not survive a change; a file that already has the
+  role is not rewritten. A file the agent could not read either (not YAML,
+  or with top-level keys other than `custom_attributes` and
+  `extension_requests`) fails the host and is left as it is. Without
+  `pp_role` the plan does not touch the file.
 - **The value** is letters, digits and `_`, `.`, `:` or `-`, starting with a
   letter or digit, so `webserver` and `role::webserver` both work.
   `openvox_server` and `openvox_compiler` are refused: they are the roles

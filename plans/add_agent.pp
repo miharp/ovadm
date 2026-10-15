@@ -43,8 +43,10 @@
 # @param pp_role
 #   Role to put in the agents' certificates, as the `pp_role` extension
 #   (`$trusted['extensions']['pp_role']`), for sites that classify on it. The
-#   plan writes it to `csr_attributes.yaml` before the first agent run,
-#   replacing a file already there; omitted, the file is left alone. One role
+#   plan sets it in `csr_attributes.yaml` before the first agent run,
+#   keeping whatever else a file already there holds (a `challengePassword`
+#   for policy-based autosigning, other extensions); omitted, the file is
+#   left alone. One role
 #   for every host in the run. It takes effect when the certificate is
 #   signed, so a host that already has one keeps the role it was signed with.
 #   `openvox_server` and `openvox_compiler`, ovadm's roles for the server and
