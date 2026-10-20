@@ -27,7 +27,7 @@ ovadm is an [OpenBolt](https://github.com/OpenVoxProject/openbolt) module for de
 | ---- | ----------- |
 | `ovadm::install` | Install OpenVox Server (Standard or Large topology) |
 | `ovadm::upgrade` | Upgrade an existing deployment in-place |
-| `ovadm::status` | Report health: prechecks, service state, and installed version |
+| `ovadm::status` | Report health and topology: prechecks, service state, installed version, compilers, and where OpenVoxDB and PostgreSQL are |
 | `ovadm::add_compiler` | Add a compiler node to an existing deployment |
 | `ovadm::add_agent` | Install and enroll agent nodes from the workstation |
 
