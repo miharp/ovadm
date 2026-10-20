@@ -63,6 +63,7 @@ Copy `inventory.yaml.example` to `inventory.yaml` and fill in your target detail
 - [Upgrading](https://github.com/miharp/ovadm/blob/main/documentation/upgrade.md) - Minor/patch and major version upgrades
 - [Managing compilers](https://github.com/miharp/ovadm/blob/main/documentation/add_compiler.md) - Adding and removing compiler nodes
 - [Adding agents](https://github.com/miharp/ovadm/blob/main/documentation/add_agent.md) - Enrolling stock hosts as agents, pointed at the server, a compiler or a load balancer
+- [Backup and restore](https://github.com/miharp/ovadm/blob/main/documentation/backup_restore.md) - What a primary server holds, in three tiers, and how to back it up by hand
 - [Reference](https://github.com/miharp/ovadm/blob/main/REFERENCE.md) - Every plan and task with its parameters, generated from the code
 - [Architecture](https://github.com/miharp/ovadm/blob/main/documentation/architecture.md) - Topologies, plan structure, cert extensions, peadm comparison
 - [Docker testing](https://github.com/miharp/ovadm/blob/main/documentation/docker_testing.md) - Local three-node dev environment
