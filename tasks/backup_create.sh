@@ -138,7 +138,13 @@ fi
 
 # --- services ---------------------------------------------------------------------
 stopped=()
-service_active() { command -v systemctl >/dev/null 2>&1 && systemctl is-active --quiet "$1" 2>/dev/null; }
+service_active() {
+  command -v systemctl >/dev/null 2>&1 || return 1
+  case "$(systemctl is-active "$1" 2>/dev/null)" in
+    active|activating|reloading|deactivating) return 0 ;;
+  esac
+  return 1
+}
 start_services() {
   local svc
   for svc in "${stopped[@]}"; do

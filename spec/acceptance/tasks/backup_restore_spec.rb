@@ -108,6 +108,26 @@ RSpec.describe 'ovadm::backup_restore task' do
       expect(cat('/etc/puppetlabs/puppetserver/conf.d/webserver.conf')).to eq("webserver: { good: true }\n")
     end
 
+    it 'stops a service that is still starting, restores, and starts it again' do
+      archive = backup
+      run_shell(<<~SH)
+        cat > /usr/local/sbin/systemctl <<'FAKE'
+        #!/bin/bash
+        echo "$*" >> /tmp/systemctl.log
+        case "$1 $2" in "is-active puppetserver") echo activating; exit 3 ;; "is-active puppetdb") echo inactive; exit 3 ;; esac
+        exit 0
+        FAKE
+        chmod 0755 /usr/local/sbin/systemctl; rm -f /tmp/systemctl.log
+      SH
+      data = restore('archive' => archive, 'scope' => 'ca').result
+      run_shell('rm -f /usr/local/sbin/systemctl')
+      expect(data['status']).to eq('restored')
+      expect(data['services_stopped']).to eq(['puppetserver'])
+      expect(run_shell('cat /tmp/systemctl.log')['stdout'].lines.map(&:strip)).to eq(
+        ['is-active puppetserver', 'stop puppetserver', 'is-active puppetdb', 'start puppetserver']
+      )
+    end
+
     it 'refuses a scope item the archive does not hold' do
       archive = backup('ca' => false)
       result = restore('archive' => archive, 'scope' => 'ca')

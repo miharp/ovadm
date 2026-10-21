@@ -211,7 +211,7 @@ RSpec.describe 'ovadm::backup_create task' do
       cat > /usr/local/sbin/systemctl <<'FAKE'
       #!/bin/bash
       echo "$*" >> /tmp/systemctl.log
-      case "$1 $3" in "is-active puppetserver") exit 0 ;; "is-active puppetdb") exit 3 ;; esac
+      case "$1 $2" in "is-active puppetserver") echo active; exit 0 ;; "is-active puppetdb") echo inactive; exit 3 ;; esac
       exit 0
       FAKE
       chmod 0755 /usr/local/sbin/systemctl; rm -f /tmp/systemctl.log
@@ -223,7 +223,7 @@ RSpec.describe 'ovadm::backup_create task' do
     manifest = JSON.parse(read_from(result.result['archive'], "#{File.basename(result.result['archive'], '.tar.gz')}/ovadm/manifest.json"))
     expect(manifest['backup']['services_stopped']).to eq(['puppetserver'])
     expect(run_shell('cat /tmp/systemctl.log')['stdout'].lines.map(&:strip)).to eq(
-      ['is-active --quiet puppetserver', 'stop puppetserver', 'is-active --quiet puppetdb', 'start puppetserver']
+      ['is-active puppetserver', 'stop puppetserver', 'is-active puppetdb', 'start puppetserver']
     )
   end
 

@@ -245,8 +245,18 @@ if [ "$dry_run" = true ]; then
 fi
 
 # --- restore ---------------------------------------------------------------------------------
+# A service that is starting counts as running: puppetserver crashes when
+# its CA directory disappears under it, systemd starts it again, and the
+# restart takes a while, during which the files must not change under it.
+service_running() {
+  command -v systemctl >/dev/null 2>&1 || return 1
+  case "$(systemctl is-active "$1" 2>/dev/null)" in
+    active|activating|reloading|deactivating) return 0 ;;
+  esac
+  return 1
+}
 for svc in puppetserver puppetdb; do
-  if command -v systemctl >/dev/null 2>&1 && systemctl is-active --quiet "$svc" 2>/dev/null; then
+  if service_running "$svc"; then
     systemctl stop "$svc" >&2 || fail "could not stop $svc"
     stopped+=("$svc")
   fi

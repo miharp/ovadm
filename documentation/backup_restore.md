@@ -277,11 +277,14 @@ This puts back the CA directory, the server's own certificate and key, and
 OpenVoxDB's copy of them, and restarts the services. Agents never notice: the
 CA certificate they hold is the one restored.
 
-Do it before the next agent run on the server, or with `puppet.service`
-stopped there. The openvox_server module recreates a CA when `ca_crt.pem` is
-missing, and a fresh CA breaks every agent's TLS until the restore. The
-restore handles that case too, replacing the fresh CA with the archived one
-and warning that it did, but the agents fail in between.
+Expect to find a different CA on the host, not none. A running puppetserver
+crashes within a minute of its CA directory disappearing (it rewrites
+`infra_serials` there regularly), systemd starts it again, and a puppetserver
+that starts without a CA creates a new one. The openvox_server module does
+the same on the next agent run. Either way every agent's TLS fails from then
+until the restore, which replaces the fresh CA with the archived one and
+warns that it did. Restore as soon as the loss is known; stopping
+`puppet.service` on the server first changes nothing about the crash.
 
 A CA restored from a backup does not know the certificates signed after it
 was taken. The plan compares the live `inventory.txt` with the archive's and
