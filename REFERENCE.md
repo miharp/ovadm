@@ -10,7 +10,7 @@
 * [`ca_setup`](#ca_setup): Create the CA with `puppetserver ca setup` (root + intermediate, 15-year lifetime) before the first service start. Skipped when a CA already
 * [`configure_ca_renewal`](#configure_ca_renewal): Set certificate auto-renewal settings in ca.conf on the CA. Takes effect on the next puppetserver (re)start and only affects certificates sig
 * [`configure_compiler_ssl`](#configure_compiler_ssl): Configure puppetserver SSL on a compiler to use the puppet-CA-signed node certificate
-* [`configure_puppet_conf`](#configure_puppet_conf): Write /etc/puppetlabs/puppet/puppet.conf with server identity and optional DNS alt names
+* [`configure_puppet_conf`](#configure_puppet_conf): Write /etc/puppetlabs/puppet/puppet.conf with server identity and optional DNS alt names, keeping the directory settings (vardir, ssldir, ...
 * [`configure_repo`](#configure_repo): Configure the OpenVox package repository for this OS, removing the release packages of other OpenVox and Puppet major versions. With apt_base
 * [`get_version`](#get_version): Return the installed openvox-server version, or puppetserver's on a host not yet upgraded to OpenVox, and which package it is; version is 'no
 * [`infrastatus`](#infrastatus): Return a concise status summary: installed version, service state, and port 8140
@@ -23,7 +23,7 @@
 * [`service_start`](#service_start): Start the puppetserver service
 * [`service_status`](#service_status): Report running status of OpenVox Server services
 * [`service_stop`](#service_stop): Stop the puppetserver service
-* [`set_csr_attributes`](#set_csr_attributes): Set pp_role in /etc/puppetlabs/puppet/csr_attributes.yaml so the node's CSR embeds it, keeping the rest of an existing file
+* [`set_csr_attributes`](#set_csr_attributes): Set pp_role in csr_attributes.yaml (the agent's csr_attributes setting, by default /etc/puppetlabs/puppet/csr_attributes.yaml) so the node's
 * [`sign_csr`](#sign_csr): Sign a pending CSR on the OpenVox CA server
 * [`wait_until_service_ready`](#wait_until_service_ready): Poll until puppetserver responds on port 8140 or a timeout expires. On a timeout, the error says why: the service state and the last error pu
 
@@ -126,7 +126,7 @@ Configure puppetserver SSL on a compiler to use the puppet-CA-signed node certif
 
 ### <a name="configure_puppet_conf"></a>`configure_puppet_conf`
 
-Write /etc/puppetlabs/puppet/puppet.conf with server identity and optional DNS alt names
+Write /etc/puppetlabs/puppet/puppet.conf with server identity and optional DNS alt names, keeping the directory settings (vardir, ssldir, ...) an existing [main] section sets
 
 **Supports noop?** false
 
@@ -298,7 +298,7 @@ Stop the puppetserver service
 
 ### <a name="set_csr_attributes"></a>`set_csr_attributes`
 
-Set pp_role in /etc/puppetlabs/puppet/csr_attributes.yaml so the node's CSR embeds it, keeping the rest of an existing file
+Set pp_role in csr_attributes.yaml (the agent's csr_attributes setting, by default /etc/puppetlabs/puppet/csr_attributes.yaml) so the node's CSR embeds it, keeping the rest of an existing file
 
 **Supports noop?** false
 
