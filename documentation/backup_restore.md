@@ -277,14 +277,15 @@ This puts back the CA directory, the server's own certificate and key, and
 OpenVoxDB's copy of them, and restarts the services. Agents never notice: the
 CA certificate they hold is the one restored.
 
-Expect to find a different CA on the host, not none. A running puppetserver
+What the loss looks like, on OpenVox Server 8.17: a running puppetserver
 crashes within a minute of its CA directory disappearing (it rewrites
-`infra_serials` there regularly), systemd starts it again, and a puppetserver
-that starts without a CA creates a new one. The openvox_server module does
-the same on the next agent run. Either way every agent's TLS fails from then
-until the restore, which replaces the fresh CA with the archived one and
-warns that it did. Restore as soon as the loss is known; stopping
-`puppet.service` on the server first changes nothing about the crash.
+`infra_serials` there regularly), systemd starts it again, and it goes on
+serving catalogs with its own certificate, with signing and revocation
+broken. On a host the openvox_server module manages, the next agent run
+then creates a new CA, and from that moment every agent's TLS fails. The
+restore handles both states, replacing a fresh CA with the archived one and
+warning that it did; restore before that agent run when you can, which on
+such a host means stopping `puppet.service` there first.
 
 A CA restored from a backup does not know the certificates signed after it
 was taken. The plan compares the live `inventory.txt` with the archive's and
@@ -292,8 +293,9 @@ refuses to go on if the live CA has signed certificates the archive lacks,
 naming them. With `force=true` it restores anyway; afterwards, remove those
 hosts' certificates (`puppetserver ca clean --certname <host>` will not know
 them, so delete `signed/<host>.pem` by hand, and `ssldir` on the host) and
-enrol them again with `ovadm::add_agent`. The smaller that set, the simpler
-the recovery, which is why backups follow signings.
+enrol them again with `ovadm::add_agent`. Their serial numbers are reused by
+the restored CA, which is why their files must go. The smaller that set, the
+simpler the recovery, which is why backups follow signings.
 
 ## Backing up by hand
 
