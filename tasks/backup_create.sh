@@ -183,17 +183,25 @@ fi
 
 # The record of what r10k deployed, in place, when the tree itself is not
 # taken. The environment's own hiera.yaml names the eyaml keys, so it comes
-# too.
+# too. Through tar without recursion, naming the directories as well as the
+# files, so the archive holds the directories with their real owners and
+# modes: a restore applies directory metadata from the archive, and a chain
+# made up on the fly here would come back root-only, unreadable to the
+# server.
 if [ "$want_code" = true ] && [ "$take_tree" != true ] && [ -d "$codedir/environments" ]; then
+  record=("${codedir#/}" "${codedir#/}/environments")
   for envdir in "$codedir"/environments/*/; do
     [ -d "$envdir" ] || continue
+    env_rel=${envdir#/}; env_rel=${env_rel%/}
+    env_files=()
     for f in .r10k-deploy.json hiera.yaml; do
-      if [ -f "$envdir$f" ]; then
-        mkdir -p "$stage/files${envdir}"
-        cp -p "$envdir$f" "$stage/files${envdir}$f"
-      fi
+      [ -f "$envdir$f" ] && env_files+=("$env_rel/$f")
     done
+    [ "${#env_files[@]}" -gt 0 ] && record+=("$env_rel" "${env_files[@]}")
   done
+  if [ "${#record[@]}" -gt 2 ] && ! tar -C / --no-recursion -cf - "${record[@]}" | tar -C "$stage/files" -xpf -; then
+    fail 'copying the code record failed'
+  fi
 fi
 
 serial_after=''

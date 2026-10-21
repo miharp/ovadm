@@ -76,6 +76,8 @@ RSpec.describe 'ovadm::backup_restore task' do
       expect(cat('/etc/puppetlabs/puppet/autosign.conf')).to eq("autosign\n")
       expect(cat('/etc/puppetlabs/puppetserver/conf.d/added.conf')).to eq("added\n")
       expect(run_shell("stat -c '%a %u' #{cadir}/ca_key.pem")['stdout'].strip).to eq('640 65534')
+      # Directories the archive holds only for their record files keep their modes.
+      expect(run_shell("stat -c '%a' /etc/puppetlabs/code /etc/puppetlabs/code/environments /etc/puppetlabs/code/environments/production")['stdout'].split).to eq(%w[755 755 755])
       expect(run_shell("stat -c '%a' /root/.ssh/deploy_key")['stdout'].strip).to eq('600')
       expect(run_shell("ls -A #{destination}")['stdout'].split).to eq([File.basename(archive)])
     end

@@ -119,7 +119,12 @@ plan ovadm::restore(
     $r10k = run_command('test -x /opt/puppetlabs/puppet/bin/r10k', $target, '_catch_errors' => true)
     if $r10k.ok {
       $deploy = run_command('/opt/puppetlabs/puppet/bin/r10k deploy environment --modules', $target, '_catch_errors' => true)
-      if $deploy.ok { out::message("${name}: code redeployed with r10k") } else { out::message("WARNING ${name}: r10k deploy failed: ${deploy.first.error.message}") }
+      if $deploy.ok {
+        out::message("${name}: code redeployed with r10k")
+      } else {
+        $r10k_errors = $deploy.first.value['stderr'].split("\n").filter |$l| { $l =~ /ERROR/ }.join("\n  ")
+        out::message("WARNING ${name}: r10k deploy exited ${deploy.first.value['exit_code']}; the environments are as r10k left them:\n  ${r10k_errors}")
+      }
     } else {
       out::message("${name}: r10k is not installed; the code directory is as the archive holds it")
     }

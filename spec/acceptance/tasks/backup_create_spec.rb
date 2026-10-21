@@ -110,13 +110,21 @@ RSpec.describe 'ovadm::backup_create task' do
       expect(check['stdout']).to include('SUMS_OK')
     end
 
-    it 'keeps owners and modes' do
-      run_shell('chown 65534:65534 /etc/puppetlabs/puppetserver/ca/ca_key.pem')
+    it 'keeps owners and modes, of the code record directories too' do
+      run_shell('chown 65534:65534 /etc/puppetlabs/puppetserver/ca/ca_key.pem; chmod 0755 /etc/puppetlabs/code /etc/puppetlabs/code/environments /etc/puppetlabs/code/environments/production; chown 65534 /etc/puppetlabs/code/environments/production')
       result = run_bolt_task('ovadm::backup_create')
       expect(result.exit_code).to eq(0)
-      line = verbose_listing(result.result['archive']).lines.find { |l| l.end_with?("ca/ca_key.pem\n") }
+      listing = verbose_listing(result.result['archive']).lines
+      line = listing.find { |l| l.end_with?("ca/ca_key.pem\n") }
       expect(line).to match(/^-rw-r-----/)
       expect(line).to match(%r{ (nobody|nogroup|65534)/})
+      # The server reads the code as its own user: the directories the record
+      # files sit in must come back as they are on the host, not root-only.
+      %w[code code/environments code/environments/production].each do |d|
+        line = listing.find { |l| l.end_with?("/files/etc/puppetlabs/#{d}/\n") }
+        expect(line).to match(/^drwxr-xr-x/), "#{d}: #{line.inspect}"
+      end
+      expect(listing.find { |l| l.end_with?("/files/etc/puppetlabs/code/environments/production/\n") }).to match(%r{ (nobody|65534)/})
     end
 
     it 'warns about an eyaml key on the host that the archive does not hold, and not once it does' do
