@@ -281,11 +281,13 @@ What the loss looks like, on OpenVox Server 8.17: a running puppetserver
 crashes within a minute of its CA directory disappearing (it rewrites
 `infra_serials` there regularly), systemd starts it again, and it goes on
 serving catalogs with its own certificate, with signing and revocation
-broken. On a host the openvox_server module manages, the next agent run
-then creates a new CA, and from that moment every agent's TLS fails. The
+broken. The openvox_server module's next agent run tries `puppetserver ca
+setup`, which refuses while the server's own certificate exists, so that
+run fails and changes nothing. Lose `ssldir` as well and the restarted
+puppetserver does what it does on a first start: it makes itself a new,
+self-signed CA and certificate, and from then every agent's TLS fails. The
 restore handles both states, replacing a fresh CA with the archived one and
-warning that it did; restore before that agent run when you can, which on
-such a host means stopping `puppet.service` there first.
+warning that it did.
 
 A CA restored from a backup does not know the certificates signed after it
 was taken. The plan compares the live `inventory.txt` with the archive's and
