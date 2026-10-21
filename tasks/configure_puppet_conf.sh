@@ -11,9 +11,9 @@ environment="${PT_environment:-}"
 
 # Settings in [main] that move Puppet's directories are carried over from an
 # existing file. Foreman's puppet.conf snippet, for one, falls back to the
-# Puppet 3 layout (vardir /var/lib/puppet, ssldir $vardir/ssl) for a host whose
-# repository parameter it does not know as an AIO install, and it knows no
-# OpenVox parameter. Dropped, they would send the agent to the default ssldir,
+# layout of Debian's own puppet packages (vardir /var/lib/puppet, ssldir
+# $vardir/ssl) for a host whose repository parameter it does not know as an AIO
+# install, and it knows no OpenVox parameter. Dropped, they would send the agent to the default ssldir,
 # where it finds no certificate and requests a new one under a certname the CA
 # already holds. Values are kept as written, so `ssldir = $vardir/ssl` still
 # follows vardir.

@@ -5,9 +5,9 @@ require 'spec_helper'
 RSpec.describe 'ovadm::configure_puppet_conf task' do
   let(:path) { '/etc/puppetlabs/puppet/puppet.conf' }
 
-  # What Foreman's puppet.conf snippet leaves on an OpenVox host: its Puppet 3
-  # fallback layout, the directories under /var/lib/puppet, ssldir following
-  # vardir.
+  # What Foreman's puppet.conf snippet leaves on an OpenVox host: its fallback,
+  # the layout of Debian's own puppet packages, directories under
+  # /var/lib/puppet and ssldir following vardir.
   let(:foreman_conf) do
     <<~CONF
       [main]
