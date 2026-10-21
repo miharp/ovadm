@@ -1,0 +1,44 @@
+{
+  "description": "Back up an OpenVox primary server into one archive under destination: the selected items' files as they are on the host, a manifest of the host (versions, gems, deployed code, CA serial, OpenVoxDB schema) and the topology the server sees, with checksums of every file. Returns the archive path and size",
+  "input_method": "environment",
+  "files": ["ovadm/tasks/topology.sh"],
+  "parameters": {
+    "destination": {
+      "description": "Directory for the archive, created 0700 if missing. Default /var/backups/openvox",
+      "type": "Optional[String[1]]"
+    },
+    "ca": {
+      "description": "Include the CA directory, the server's own certificate and key, and OpenVoxDB's copy of them. Default true",
+      "type": "Optional[Boolean]"
+    },
+    "config": {
+      "description": "Include the rest of /etc/puppetlabs (without code/) and the services' environment files. Default true",
+      "type": "Optional[Boolean]"
+    },
+    "code": {
+      "description": "Include each environment's .r10k-deploy.json and hiera.yaml, the record of what r10k deployed. Default true",
+      "type": "Optional[Boolean]"
+    },
+    "include_code_tree": {
+      "description": "With code, take /etc/puppetlabs/code itself. Default false",
+      "type": "Optional[Boolean]"
+    },
+    "extra_paths": {
+      "description": "Comma-separated absolute paths outside /etc/puppetlabs to include, such as the r10k deploy key. Each must exist",
+      "type": "Optional[String[1]]"
+    },
+    "stop_services": {
+      "description": "Stop puppetserver and puppetdb while the files are copied, and start them again afterwards. Default false",
+      "type": "Optional[Boolean]"
+    },
+    "age_recipient": {
+      "description": "An age public key; the archive is encrypted to it and named .tar.gz.age. age must be installed",
+      "type": "Optional[String[1]]"
+    },
+    "ovadm_version": {
+      "description": "Recorded in the manifest; the plan passes its own version",
+      "type": "Optional[String[1]]"
+    }
+  },
+  "supports_noop": false
+}

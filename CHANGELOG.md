@@ -7,6 +7,45 @@ Notable changes to ovadm are recorded here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `ovadm::backup` backs up a primary server into one archive under
+  `/var/backups/openvox`: the CA directory and the server's certificates,
+  the rest of `/etc/puppetlabs/` without `code/` and the services'
+  environment files, and each environment's `.r10k-deploy.json` and
+  `hiera.yaml`, with owners and modes kept. Each item can be switched off
+  with `backup`, `include_code_tree` takes the code directory too, and
+  `extra_paths` adds paths outside the tree such as the r10k deploy key.
+  The archive carries a manifest (versions, gems, deployed commits, CA
+  serial before and after the copy, OpenVoxDB schema version, whether the
+  openvox_server module manages the host), the topology `ovadm::status`
+  reports, and a checksum of every file; the plan runs
+  `ovadm::backup_verify` on it afterwards and warns when an environment's
+  eyaml key is not in the archive, or the CA changed during the copy.
+  `stop_services` gives a cold backup and `age_recipient` an encrypted one.
+  OpenVoxDB's data is not an item: the page carries the `pg_dump` recipe
+  ([#89](https://github.com/miharp/ovadm/issues/89)).
+- `ovadm::status` reports the topology the server's own files describe:
+  whether it holds the CA, the compilers (signed certificates carrying
+  `pp_role=openvox_compiler`), where it sends OpenVoxDB traffic, and the
+  OpenVoxDB database and PostgreSQL on the host, through the new
+  `ovadm::topology` task.
+- `documentation/backup_restore.md`: what a primary server holds, in three
+  tiers, with owners and modes; how to back it up with `ovadm::backup` and
+  by hand with `tar` and `pg_dump`.
+
+### Changed
+
+- `ovadm::configure_puppet_conf` keeps the directory settings of an existing
+  `[main]` section (`vardir`, `ssldir`, `logdir`, `rundir`, `codedir` and
+  the SSL subdirectories) when it rewrites `puppet.conf`, and reports them as
+  `kept`. It used to replace the file, so a host Foreman had provisioned with
+  its fallback layout (certificates under `/var/lib/puppet/ssl`) lost the
+  relocation and requested a new certificate under a certname the CA already
+  held. `ovadm::set_csr_attributes` finds `csr_attributes.yaml` through the
+  agent's `csr_attributes` setting instead of assuming the default path
+  ([#92](https://github.com/miharp/ovadm/pull/92)).
+
 ## [0.7.1] - 2026-10-15
 
 ### Fixed

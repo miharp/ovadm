@@ -4,11 +4,10 @@ An OpenVox primary server holds the one thing nothing else in your
 infrastructure can replace, the certificate authority, next to configuration
 that is cheap to keep and data that the agents rebuild on their own. A good
 backup copies the first two every time and the third when you need it. This
-page lists what lives on a primary server, why each item matters, and how to
-back it up by hand with `tar` and `pg_dump`. The `ovadm::backup` and
-`ovadm::restore` plans, in progress, automate the first two tiers; the tables
-below are their specification. OpenVoxDB's data stays a hand step, because
-ovadm installs OpenVox Server only and your own Puppet code owns the database.
+page lists what lives on a primary server and why each item matters, how
+`ovadm::backup` takes it, and how to do the same by hand with `tar` and
+`pg_dump`. OpenVoxDB's data stays a hand step either way, because ovadm
+installs OpenVox Server only and your own Puppet code owns the database.
 
 Two things to know before you start:
 
@@ -101,6 +100,103 @@ they imply, not by default.
 - **Puppet Enterprise's other databases** (classifier, RBAC, orchestrator,
   activity) do not exist on OpenVox. If you are migrating from PE, there is
   nothing to carry over for them.
+
+## Backing up with ovadm
+
+`ovadm::backup` takes tiers 0 and 1, and the record of what r10k deployed,
+into one archive on the server, checks the archive against its own checksums,
+and prints where it is:
+
+```console
+bolt plan run ovadm::backup server_host=ovox-server.example.com
+```
+
+```text
+ovox-server.example.com: /var/backups/openvox/openvox-backup-ovox-server.example.com-20261021T181530Z.tar.gz (0.1 MB, 41 files)
+ovox-server.example.com: 44 checksums checked, ok
+Copy the archive off the host: it holds the CA private key.
+```
+
+The archive is owned by root with mode `0600`, in a directory created `0700`.
+Nothing copies it anywhere: that is your backup system's job, and the first
+thing to do after the plan returns.
+
+### What goes in
+
+Everything is on unless you switch it off with `backup`:
+
+| Item | What it takes | Switch off with |
+| ---- | ------------- | --------------- |
+| `ca` | `cadir`, `ssldir` and OpenVoxDB's `ssl/`: tier 0 | `backup='{"ca": false}'` |
+| `config` | the rest of `/etc/puppetlabs/` without `code/`, plus the services' environment files under `/etc/sysconfig/` or `/etc/default/`: tier 1 | `backup='{"config": false}'` |
+| `code` | each environment's `.r10k-deploy.json` and `hiera.yaml`: enough to redeploy the same commits with r10k, and to find the eyaml keys | `backup='{"code": false}'` |
+
+`include_code_tree=true` takes `/etc/puppetlabs/code/` itself as well, for a
+site whose git server could be lost together with the primary.
+
+`extra_paths` adds paths outside the tree, as a list. The r10k deploy key and
+the units that run r10k are the usual ones:
+
+```console
+bolt plan run ovadm::backup server_host=ovox-server.example.com \
+  extra_paths='["/root/.ssh", "/etc/systemd/system/r10k-deploy.service", "/etc/systemd/system/r10k-deploy.timer"]'
+```
+
+The plan warns when an environment's `hiera.yaml` names an eyaml private key
+that the archive does not hold, with the path to add.
+
+### What the archive holds
+
+One directory, named like the archive, with:
+
+- `files/`: the paths above as they are on the host, owners and modes
+  included
+- `ovadm/manifest.json`: when and where the backup was taken; the package
+  versions of the agent, server, OpenVoxDB and PostgreSQL; the gems added to
+  the server's JRuby and the agent's Ruby; each environment's deployed commit;
+  the CA serial before and after the copy; the OpenVoxDB schema version, read
+  over the connection in `database.ini`; whether the openvox_server module
+  manages the host
+- `ovadm/topology.json`: what `ovadm::status` reports as the topology, so a
+  restore knows the compilers and the database when the server that knew them
+  is gone
+- `ovadm/SHA256SUMS`: a checksum for every file above
+
+`ovadm::backup_verify` checks an archive on its own: it unpacks, checks every
+checksum and the manifest, and confirms the archive is from the host it runs
+on, with the same package versions. The plan runs it after every backup; run
+it yourself before a restore, or on a copy you moved somewhere else:
+
+```console
+bolt task run ovadm::backup_verify --targets ovox-server.example.com \
+  archive=/var/backups/openvox/openvox-backup-ovox-server.example.com-20261021T181530Z.tar.gz
+```
+
+### Consistency
+
+The services keep running. The CA directory changes only when a certificate
+is signed or revoked, so the plan reads the CA serial before and after the
+copy and warns if it moved, in which case take the backup again.
+`stop_services=true` stops puppetserver and puppetdb for the copy and starts
+them afterwards, for a cold backup.
+
+### Encryption
+
+`age_recipient=<age public key>` encrypts the archive to that key with
+[age](https://github.com/FiloSottile/age), which must be installed on the
+server, and names it `.tar.gz.age`. `backup_verify` then needs
+`age_identity`, the path of the matching identity file. Without it the
+archive is plain, and it holds the CA private key: keep it on encrypted
+storage.
+
+### Scheduling
+
+ovadm does not schedule backups. `backup_create`, the task behind the plan,
+is a self-contained script with a default for every input, so a timer or your
+backup system can run it: copy `tasks/backup_create.sh` and
+`tasks/topology.sh` from the module to the server, side by side, and run the
+first as root. A class in the openvox_server module is the planned home for
+that timer.
 
 ## Backing up by hand
 

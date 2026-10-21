@@ -41,6 +41,7 @@ A server plus one or more compilers to distribute compilation load across large 
 | `ovadm::status` | Report health of a running deployment | P0 |
 | `ovadm::add_compiler` | Add a node to the `compiler_hosts` pool | P1 |
 | `ovadm::add_agent` | Install and enroll agent nodes from the workstation | P2 |
+| `ovadm::backup` | Back up the server into one checked archive | P1 |
 
 ### Subplans (internal)
 
@@ -127,6 +128,13 @@ Tasks are the atomic operations that plans compose. The following are implemente
 |------|-------------|-------|
 | `ovadm::infrastatus` | Return full deployment status as JSON | Summary view for operators |
 | `ovadm::topology` | Report the server's certname and CA, its compilers (`pp_role=openvox_compiler` certificates), and where OpenVoxDB and PostgreSQL are, from files and packages only | Status output; the `topology.json` that `ovadm::backup` stores in the archive |
+
+### Backup
+
+| Task | Description | Notes |
+|------|-------------|-------|
+| `ovadm::backup_create` | Write one archive of the selected items with a manifest, the topology and a checksum of every file | Self-contained bash with a default for every `PT_*` input, so a timer can run it; needs `topology.sh` beside it |
+| `ovadm::backup_verify` | Unpack an archive, check every checksum and the manifest, and compare its certname and package versions with the host | Run by `ovadm::backup` after every backup; usable alone before a restore |
 
 ---
 
