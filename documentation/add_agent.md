@@ -19,7 +19,10 @@ The plan:
 2. Configures the OpenVox package repository and installs `openvox-agent`
 3. Writes `puppet.conf`, with `server` set to the server (or to
    `agent_server`, below), `ca_server` always the server, and `environment`
-   when given
+   when given. Directory settings an existing `[main]` section carries
+   (`vardir`, `ssldir`, `logdir`, `rundir`, `codedir` and the SSL
+   subdirectories) are kept, so a host that Foreman provisioned, with its
+   certificates under `/var/lib/puppet/ssl`, goes on finding them
 4. Sets the `pp_role` extension in `csr_attributes.yaml`, when given
    (see [Classifying by pp_role](#classifying-by-pp_role))
 5. Runs `puppet agent` on every host to submit its CSR, signs each on the
@@ -73,8 +76,9 @@ The server and compilers carry `pp_role` the same way; see
   keeps the role it was signed with: rerunning the plan with another
   `pp_role` rewrites the file and changes nothing in the certificate. To
   change a host's role, clean its certificate on the server
-  (`puppetserver ca clean --certname <host>`), remove
-  `/etc/puppetlabs/puppet/ssl` on the host, and run the plan again.
+  (`puppetserver ca clean --certname <host>`), remove the host's `ssldir`
+  (`puppet config print ssldir` names it; `/etc/puppetlabs/puppet/ssl` unless
+  the site moved it), and run the plan again.
 
 The agent service is left as the package leaves it: ovadm does not schedule
 runs, by service, cron or timer. That is the site's choice, like the rest of

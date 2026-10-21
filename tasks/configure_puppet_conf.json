@@ -1,5 +1,5 @@
 {
-  "description": "Write /etc/puppetlabs/puppet/puppet.conf with server identity and optional DNS alt names",
+  "description": "Write /etc/puppetlabs/puppet/puppet.conf with server identity and optional DNS alt names, keeping the directory settings (vardir, ssldir, ...) an existing [main] section sets",
   "input_method": "environment",
   "parameters": {
     "certname": {
