@@ -42,6 +42,7 @@ A server plus one or more compilers to distribute compilation load across large 
 | `ovadm::add_compiler` | Add a node to the `compiler_hosts` pool | P1 |
 | `ovadm::add_agent` | Install and enroll agent nodes from the workstation | P2 |
 | `ovadm::backup` | Back up the server into one checked archive | P1 |
+| `ovadm::restore` | Put an archive back on the server it came from, by scope | P1 |
 
 ### Subplans (internal)
 
@@ -135,6 +136,7 @@ Tasks are the atomic operations that plans compose. The following are implemente
 |------|-------------|-------|
 | `ovadm::backup_create` | Write one archive of the selected items with a manifest, the topology and a checksum of every file | Self-contained bash with a default for every `PT_*` input, so a timer can run it; needs `topology.sh` beside it |
 | `ovadm::backup_verify` | Unpack an archive, check every checksum and the manifest, and compare its certname and package versions with the host | Run by `ovadm::backup` after every backup; usable alone before a restore |
+| `ovadm::backup_restore` | Check an archive against the host (checksums, certname, server version, a CA that signed nothing since the backup), stop the services, extract the items in scope with owners and modes, start the services; `dry_run` reports only | Run by `ovadm::restore`; never puts `*.rpmnew` and the like back |
 
 ---
 

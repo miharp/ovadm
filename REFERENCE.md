@@ -16,6 +16,7 @@
 
 * [`agent_runonce`](#agent_runonce): Run the Puppet agent once and return the exit status
 * [`backup_create`](#backup_create): Back up an OpenVox primary server into one archive under destination: the selected items' files as they are on the host, a manifest of the ho
+* [`backup_restore`](#backup_restore): Put the files of an ovadm::backup_create archive back on the host it came from: checks every checksum, the certname, the openvox-server versi
 * [`backup_verify`](#backup_verify): Check an archive that ovadm::backup_create wrote: it unpacks, every file matches its checksum, the manifest is present, and (with check_host)
 * [`ca_setup`](#ca_setup): Create the CA with `puppetserver ca setup` (root + intermediate, 15-year lifetime) before the first service start. Skipped when a CA already
 * [`configure_ca_renewal`](#configure_ca_renewal): Set certificate auto-renewal settings in ca.conf on the CA. Takes effect on the next puppetserver (re)start and only affects certificates sig
@@ -46,6 +47,7 @@
 * [`ovadm::add_compiler`](#ovadm--add_compiler): Add one or more compiler nodes to an existing OpenVox Server deployment
 * [`ovadm::backup`](#ovadm--backup): Back up an OpenVox primary server to one archive
 * [`ovadm::install`](#ovadm--install): Install a new OpenVox Server deployment
+* [`ovadm::restore`](#ovadm--restore): Restore an OpenVox primary server from an `ovadm::backup` archive
 * [`ovadm::status`](#ovadm--status): Check the status of an OpenVox Server deployment
 * [`ovadm::upgrade`](#ovadm--upgrade): Upgrade an existing OpenVox Server deployment
 
@@ -185,6 +187,44 @@ An age public key; the archive is encrypted to it and named .tar.gz.age. age mus
 Data type: `Optional[String[1]]`
 
 Recorded in the manifest; the plan passes its own version
+
+### <a name="backup_restore"></a>`backup_restore`
+
+Put the files of an ovadm::backup_create archive back on the host it came from: checks every checksum, the certname, the openvox-server version and that the host's CA has signed nothing the archive does not know, stops the running services, extracts the items in scope with owners and modes as archived, skipping *.rpmnew and the like, and starts the services again. Reports which files changed, which were missing, and which gems from the manifest are not installed
+
+**Supports noop?** false
+
+#### Parameters
+
+##### `archive`
+
+Data type: `String[1]`
+
+Path of the archive on this host
+
+##### `scope`
+
+Data type: `Optional[Pattern[/\A(ca|config|code|extra)(,(ca|config|code|extra))*\z/]]`
+
+Comma-separated items to put back: ca, config, code, extra. Default: everything the archive holds
+
+##### `force`
+
+Data type: `Optional[Boolean]`
+
+Restore even when the certname or the openvox-server version differ, or the host's CA has signed certificates since the backup. Default false
+
+##### `dry_run`
+
+Data type: `Optional[Boolean]`
+
+Report what would change and touch nothing. Default false
+
+##### `age_identity`
+
+Data type: `Optional[String[1]]`
+
+Path of an age identity file, needed to read a .tar.gz.age archive
 
 ### <a name="backup_verify"></a>`backup_verify`
 
@@ -891,6 +931,99 @@ deployment live in another environment would otherwise be applied from
 `production`, moving the packages ovadm just installed.
 
 Default value: `undef`
+
+### <a name="ovadm--restore"></a>`ovadm::restore`
+
+Puts the files of the archive back on the host they came from, with the
+services stopped for the copy, then starts puppetserver, redeploys the code
+when it is in scope, runs the agent once so the site's own code converges,
+and reports the status. The archive is checked first: its checksums, that
+it is from this host, that the openvox-server version matches, and, when
+the CA is in scope, that the CA on the host has signed nothing since the
+backup. Each check stops the plan unless `force` is set.
+
+Files added since the backup stay. On a host the openvox_server module
+manages, the files it owns come back on the next agent run: roll those
+back in Hiera, and use this plan for the rest.
+
+#### Parameters
+
+The following parameters are available in the `ovadm::restore` plan:
+
+* [`server_host`](#-ovadm--restore--server_host)
+* [`archive`](#-ovadm--restore--archive)
+* [`scope`](#-ovadm--restore--scope)
+* [`force`](#-ovadm--restore--force)
+* [`dry_run`](#-ovadm--restore--dry_run)
+* [`age_identity`](#-ovadm--restore--age_identity)
+* [`deploy_code`](#-ovadm--restore--deploy_code)
+* [`agent_run`](#-ovadm--restore--agent_run)
+
+##### <a name="-ovadm--restore--server_host"></a>`server_host`
+
+Data type: `TargetSpec`
+
+The OpenVox Server node
+
+##### <a name="-ovadm--restore--archive"></a>`archive`
+
+Data type: `String[1]`
+
+Path of the archive on the server
+
+##### <a name="-ovadm--restore--scope"></a>`scope`
+
+Data type: `Optional[Array[Enum['ca', 'config', 'code', 'extra'], 1]]`
+
+What to put back: `ca`, `config`, `code`, `extra` (the paths given as
+`extra_paths` at backup time). Default: everything the archive holds.
+
+Default value: `undef`
+
+##### <a name="-ovadm--restore--force"></a>`force`
+
+Data type: `Boolean`
+
+Restore even when the archive is from another certname or
+openvox-server version, or the host's CA has signed certificates since
+the backup; those certificates must then be cleaned and re-signed.
+
+Default value: `false`
+
+##### <a name="-ovadm--restore--dry_run"></a>`dry_run`
+
+Data type: `Boolean`
+
+Report which files would change and stop; nothing is written and no
+service is touched.
+
+Default value: `false`
+
+##### <a name="-ovadm--restore--age_identity"></a>`age_identity`
+
+Data type: `Optional[String[1]]`
+
+Path of the age identity file on the server, for a `.tar.gz.age` archive.
+
+Default value: `undef`
+
+##### <a name="-ovadm--restore--deploy_code"></a>`deploy_code`
+
+Data type: `Boolean`
+
+With `code` in scope, run `r10k deploy environment --modules` after the
+files are back, when r10k is installed.
+
+Default value: `true`
+
+##### <a name="-ovadm--restore--agent_run"></a>`agent_run`
+
+Data type: `Boolean`
+
+Run the agent once on the server after the restore, so the site's code
+brings back what it owns.
+
+Default value: `true`
 
 ### <a name="ovadm--status"></a>`ovadm::status`
 

@@ -25,6 +25,18 @@ Notable changes to ovadm are recorded here. The format follows
   `stop_services` gives a cold backup and `age_recipient` an encrypted one.
   OpenVoxDB's data is not an item: the page carries the `pg_dump` recipe
   ([#89](https://github.com/miharp/ovadm/issues/89)).
+- `ovadm::restore` puts an archive back on the host it came from, all of it
+  or by `scope` (`ca`, `config`, `code`, `extra`): it verifies the archive,
+  refuses one from another certname or openvox-server version, and, with
+  the CA in scope, one the host's CA has outgrown by signing certificates
+  since the backup, naming them (`force` goes past the host checks, never a
+  bad checksum); stops puppetserver and puppetdb, extracts with owners and
+  modes as archived and leaves package manager leftovers and files added
+  since the backup alone, starts the services, reinstalls gems the manifest
+  lists, redeploys the code with r10k when in scope, runs the agent once and
+  reports the status. `dry_run` lists what would change. The new
+  `ovadm::backup_restore` task does the host side and reports changed and
+  missing files ([#89](https://github.com/miharp/ovadm/issues/89)).
 - `ovadm::status` reports the topology the server's own files describe:
   whether it holds the CA, the compilers (signed certificates carrying
   `pp_role=openvox_compiler`), where it sends OpenVoxDB traffic, and the
