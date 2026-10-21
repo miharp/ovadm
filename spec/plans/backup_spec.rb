@@ -62,6 +62,16 @@ describe 'ovadm::backup' do
     expect(result).to be_ok
   end
 
+  it 'skips verification for an encrypted archive, and says so' do
+    allow_task('ovadm::backup_create').always_return(created.merge('archive' => "#{archive}.age"))
+    expect_task('ovadm::backup_verify').not_be_called
+    expect_out_message.with_params('Not verified: the archive is encrypted to age1example. Run ovadm::backup_verify with age_identity where the identity is.')
+
+    result = run_plan('ovadm::backup', { 'server_host' => server, 'age_recipient' => 'age1example' })
+    expect(result).to be_ok
+    expect(result.value['verify']).to eq({})
+  end
+
   it 'skips verification when asked' do
     allow_task('ovadm::backup_create').always_return(created)
     expect_task('ovadm::backup_verify').not_be_called

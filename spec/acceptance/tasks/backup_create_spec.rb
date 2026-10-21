@@ -119,11 +119,15 @@ RSpec.describe 'ovadm::backup_create task' do
       expect(line).to match(%r{ (nobody|nogroup|65534)/})
     end
 
-    it 'warns about an eyaml key the archive does not hold, and not once it does' do
+    it 'warns about an eyaml key on the host that the archive does not hold, and not once it does' do
+      # A key the host does not have (a feature branch's hiera.yaml) is no gap.
+      result = run_bolt_task('ovadm::backup_create')
+      expect(result.result['warnings']).to eq([])
+
+      run_shell('install -d -m 0750 /etc/puppetlabs-eyaml && echo EYAML > /etc/puppetlabs-eyaml/private_key.pkcs7.pem')
       result = run_bolt_task('ovadm::backup_create')
       expect(result.result['warnings']).to eq(['eyaml private key /etc/puppetlabs-eyaml/private_key.pkcs7.pem (named in /etc/puppetlabs/code/environments/production/hiera.yaml) is not in the archive; add it to extra_paths'])
 
-      run_shell('install -d -m 0750 /etc/puppetlabs-eyaml && echo EYAML > /etc/puppetlabs-eyaml/private_key.pkcs7.pem')
       result = run_bolt_task('ovadm::backup_create', { 'extra_paths' => '/etc/puppetlabs-eyaml' })
       expect(result.result['warnings']).to eq([])
       expect(listing(result.result['archive'])).to include(a_string_ending_with('/files/etc/puppetlabs-eyaml/private_key.pkcs7.pem'))
@@ -191,6 +195,28 @@ RSpec.describe 'ovadm::backup_create task' do
     result = run_bolt_task('ovadm::backup_create', { 'stop_services' => true })
     expect(result.exit_code).to eq(0)
     expect(result.result['services_stopped']).to eq([])
+  end
+
+  it 'stops the running services for the copy, starts them again, and records which' do
+    # A stand-in systemctl: puppetserver is active, puppetdb is not; calls are logged.
+    run_shell(<<~SH)
+      cat > /usr/local/sbin/systemctl <<'FAKE'
+      #!/bin/bash
+      echo "$*" >> /tmp/systemctl.log
+      case "$1 $3" in "is-active puppetserver") exit 0 ;; "is-active puppetdb") exit 3 ;; esac
+      exit 0
+      FAKE
+      chmod 0755 /usr/local/sbin/systemctl; rm -f /tmp/systemctl.log
+    SH
+    result = run_bolt_task('ovadm::backup_create', { 'stop_services' => true })
+    run_shell('rm -f /usr/local/sbin/systemctl')
+    expect(result.exit_code).to eq(0)
+    expect(result.result['services_stopped']).to eq(['puppetserver'])
+    manifest = JSON.parse(read_from(result.result['archive'], "#{File.basename(result.result['archive'], '.tar.gz')}/ovadm/manifest.json"))
+    expect(manifest['backup']['services_stopped']).to eq(['puppetserver'])
+    expect(run_shell('cat /tmp/systemctl.log')['stdout'].lines.map(&:strip)).to eq(
+      ['is-active --quiet puppetserver', 'stop puppetserver', 'is-active --quiet puppetdb', 'start puppetserver']
+    )
   end
 
   it 'fails on age_recipient when age is not installed' do

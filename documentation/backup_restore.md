@@ -184,10 +184,11 @@ them afterwards, for a cold backup.
 
 `age_recipient=<age public key>` encrypts the archive to that key with
 [age](https://github.com/FiloSottile/age), which must be installed on the
-server, and names it `.tar.gz.age`. `backup_verify` then needs
-`age_identity`, the path of the matching identity file. Without it the
-archive is plain, and it holds the CA private key: keep it on encrypted
-storage.
+server, and names it `.tar.gz.age`. The server holds no identity for it,
+so the plan does not verify an encrypted archive; run `backup_verify` with
+`age_identity`, the path of the identity file, wherever that is. Without
+encryption the archive is plain, and it holds the CA private key: keep it on
+encrypted storage.
 
 ### Scheduling
 

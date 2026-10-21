@@ -36,7 +36,9 @@
 #   the suffix `.age`; `age` must be installed on the server.
 #
 # @param verify
-#   Check the archive's checksums and manifest after writing it.
+#   Check the archive's checksums and manifest after writing it. Skipped
+#   for an encrypted archive, which the server cannot read back: run
+#   `ovadm::backup_verify` with `age_identity` where the identity is.
 #
 # @return
 #   The `backup_create` result: `archive`, `size_bytes`, `files`,
@@ -93,7 +95,10 @@ plan ovadm::backup(
   # One verify per target, since each has its own archive path. The task
   # reports structural problems in its result rather than failing, so the
   # plan can print them before stopping.
-  $verified = $verify ? {
+  if $verify and $age_recipient {
+    out::message("Not verified: the archive is encrypted to ${age_recipient}. Run ovadm::backup_verify with age_identity where the identity is.")
+  }
+  $verified = ($verify and !$age_recipient) ? {
     true    => $created.reduce({}) |$memo, $result| {
       $v = run_task('ovadm::backup_verify', $result.target, { 'archive' => $result.value['archive'] }).first.value
       $v['problems'].each |$p| {

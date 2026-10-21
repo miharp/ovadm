@@ -201,10 +201,14 @@ serial_after=''
 serial_moved=false
 [ "$serial_before" != "$serial_after" ] && serial_moved=true
 
+# Recorded before they are started again, which empties the list.
+stopped_json=$(printf '%s\n' "${stopped[@]}" | json_lines)
 start_services
 
 # eyaml keys live where each environment's hiera.yaml says, usually outside
-# the tree. Warn for any that the archive does not hold.
+# the tree. Warn for any that exists on the host and the archive does not
+# hold; a hiera.yaml naming a key the host never had (a feature branch, a
+# template) is not a gap in the backup.
 if [ -d "$codedir/environments" ]; then
   for hiera in "$codedir"/environments/*/hiera.yaml; do
     [ -f "$hiera" ] || continue
@@ -215,6 +219,7 @@ if [ -d "$codedir/environments" ]; then
         /*) ;;
         *) key="$envdir/$key" ;;
       esac
+      [ -e "$key" ] || continue
       [ -e "$stage/files$key" ] || warn "eyaml private key $key (named in $hiera) is not in the archive; add it to extra_paths"
     done < <(sed -n 's/^[[:space:]]*pkcs7_private_key:[[:space:]]*["'"'"']\{0,1\}\([^"'"'"']*\)["'"'"']\{0,1\}[[:space:]]*$/\1/p' "$hiera" | sort -u)
   done
@@ -299,7 +304,6 @@ module_meta="$codedir/environments/$agent_environment/modules/openvox_server/met
 
 file_count=$(find "$stage/files" -type f | wc -l | tr -d ' ')
 extra_json=$(printf '%s\n' "${extra_list[@]}" | json_lines)
-stopped_json=$(printf '%s\n' "${stopped[@]}" | json_lines)
 
 # One key per line at the top level and inside packages, which is what
 # backup_verify reads it with.
@@ -328,7 +332,7 @@ $environments
 }
 MANIFEST
 
-(cd "$stage" && find files ovadm -type f ! -path ovadm/SHA256SUMS -print0 | LC_ALL=C sort -z | xargs -0 sha256sum > ovadm/SHA256SUMS)
+(cd "$stage" && find files ovadm -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum > "$work/SHA256SUMS" && mv "$work/SHA256SUMS" ovadm/SHA256SUMS)
 
 # --- archive -------------------------------------------------------------------------------
 if [ -n "$age_recipient" ]; then
