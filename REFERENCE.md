@@ -760,7 +760,9 @@ Default value: `undef`
 
 Data type: `Boolean`
 
-Check the archive's checksums and manifest after writing it.
+Check the archive's checksums and manifest after writing it. Skipped
+for an encrypted archive, which the server cannot read back: run
+`ovadm::backup_verify` with `age_identity` where the identity is.
 
 Default value: `true`
 
