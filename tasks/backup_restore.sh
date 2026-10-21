@@ -191,7 +191,8 @@ ca_json='null'
 if [ "$want_ca" = true ]; then
   live_differs=false; signed_after=()
   if [ -f "$cadir/ca_crt.pem" ] && [ -f "$top/files${cadir}/ca_crt.pem" ]; then
-    if ! cmp -s "$cadir/ca_crt.pem" "$top/files${cadir}/ca_crt.pem"; then
+    # sha256sum rather than cmp: diffutils is not in every base image.
+    if [ "$(sha256sum < "$cadir/ca_crt.pem")" != "$(sha256sum < "$top/files${cadir}/ca_crt.pem")" ]; then
       live_differs=true
       warn "the CA on this host is not the one in the archive; it is replaced by the restore"
     elif [ -f "$cadir/inventory.txt" ] && [ -f "$top/files${cadir}/inventory.txt" ]; then
