@@ -9,10 +9,28 @@ ca_server="${PT_ca_server:-}"
 dns_alt_names="${PT_dns_alt_names:-}"
 environment="${PT_environment:-}"
 
+# Settings in [main] that move Puppet's directories are carried over from an
+# existing file. Foreman's puppet.conf snippet, for one, falls back to the
+# layout of Debian's own puppet packages (vardir /var/lib/puppet, ssldir
+# $vardir/ssl) for a host whose repository parameter it does not know as an AIO
+# install, and it knows no OpenVox parameter. Dropped, they would send the agent to the default ssldir,
+# where it finds no certificate and requests a new one under a certname the CA
+# already holds. Values are kept as written, so `ssldir = $vardir/ssl` still
+# follows vardir.
+path_settings='vardir|ssldir|privatekeydir|publickeydir|certdir|requestdir|logdir|rundir|codedir'
+kept=''
+if [ -f "$PUPPET_CONF" ]; then
+  kept=$(awk -v re="^[ \t]*(${path_settings})[ \t]*=" '
+    /^[ \t]*\[/ { in_main = ($0 ~ /^[ \t]*\[main\][ \t]*$/); next }
+    in_main && $0 ~ re { sub(/^[ \t]+/, ""); print }
+  ' "$PUPPET_CONF")
+fi
+
 mkdir -p "$(dirname "$PUPPET_CONF")"
 
 {
   printf '[main]\n'
+  [ -n "$kept" ] && printf '%s\n' "$kept"
   printf 'certname = %s\n' "$certname"
   printf 'server = %s\n' "$server"
   [ -n "$ca_server" ] && printf 'ca_server = %s\n' "$ca_server"
@@ -28,5 +46,9 @@ mkdir -p "$(dirname "$PUPPET_CONF")"
   fi
 } > "$PUPPET_CONF"
 
-printf '{"status":"success","path":"%s","certname":"%s","server":"%s","environment":"%s"}\n' \
-  "$PUPPET_CONF" "$certname" "$server" "$environment"
+# The names of the settings carried over, as a JSON array. They come from the
+# fixed list above, so they need no escaping.
+kept_json=$(printf '%s\n' "$kept" | sed -n 's/^\([a-z]*\)[ \t]*=.*/"\1"/p' | paste -sd, -)
+
+printf '{"status":"success","path":"%s","certname":"%s","server":"%s","environment":"%s","kept":[%s]}\n' \
+  "$PUPPET_CONF" "$certname" "$server" "$environment" "$kept_json"

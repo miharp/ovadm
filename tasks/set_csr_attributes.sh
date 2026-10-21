@@ -1,8 +1,14 @@
 #!/bin/bash
 set -euo pipefail
 
-CSR_ATTRS='/etc/puppetlabs/puppet/csr_attributes.yaml'
+export PATH="/opt/puppetlabs/bin:$PATH"
+
 RUBY='/opt/puppetlabs/puppet/bin/ruby'
+
+# The agent reads the file from its csr_attributes setting, which follows
+# confdir. Before the agent is installed the package default applies.
+CSR_ATTRS=$(puppet config print csr_attributes --section agent 2>/dev/null || true)
+CSR_ATTRS=${CSR_ATTRS:-/etc/puppetlabs/puppet/csr_attributes.yaml}
 
 pp_role="${PT_pp_role}"
 

@@ -1,5 +1,5 @@
 {
-  "description": "Set pp_role in /etc/puppetlabs/puppet/csr_attributes.yaml so the node's CSR embeds it, keeping the rest of an existing file",
+  "description": "Set pp_role in csr_attributes.yaml (the agent's csr_attributes setting, by default /etc/puppetlabs/puppet/csr_attributes.yaml) so the node's CSR embeds it, keeping the rest of an existing file",
   "input_method": "environment",
   "parameters": {
     "pp_role": {
