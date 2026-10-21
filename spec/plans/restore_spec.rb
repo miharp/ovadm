@@ -41,7 +41,7 @@ describe 'ovadm::restore' do
     expect_task('ovadm::backup_verify').with_params('archive' => archive).always_return(verified)
     expect_task('ovadm::backup_restore').with_params('archive' => archive, 'force' => false, 'dry_run' => false).always_return(restored)
     expect_command('systemctl start puppetserver').always_return('stdout' => '', 'stderr' => '')
-    expect_task('ovadm::wait_until_service_ready').be_called_times(1).always_return('status' => 'ready', 'elapsed_seconds' => 5)
+    expect_task('ovadm::wait_until_service_ready').be_called_times(2).always_return('status' => 'ready', 'elapsed_seconds' => 5)
     expect_command('/opt/puppetlabs/puppet/bin/r10k deploy environment --modules').be_called_times(1).always_return('stdout' => '', 'stderr' => '')
     allow_command('test -x /opt/puppetlabs/puppet/bin/r10k').always_return('stdout' => '', 'stderr' => '')
     expect_task('ovadm::agent_runonce').with_params('waitforcert' => 0).always_return(agent_ok)
@@ -118,16 +118,18 @@ describe 'ovadm::restore' do
     expect(run_plan('ovadm::restore', { 'server_host' => server, 'archive' => archive })).to be_ok
   end
 
-  it 'fails when the agent run after the restore fails' do
+  it 'warns when the agent run after the restore fails, and still reports status' do
     allow_task('ovadm::backup_verify').always_return(verified)
     allow_task('ovadm::backup_restore').always_return(restored)
     allow_rest
     allow_task('ovadm::agent_runonce').always_return('status' => 'failed', 'exit_code' => 1, 'environment' => '')
-    expect_plan('ovadm::status').not_be_called
+    expect_task('ovadm::wait_until_service_ready').be_called_times(2).always_return('status' => 'ready', 'elapsed_seconds' => 0)
+    expect_plan('ovadm::status').be_called_times(1).always_return({})
+    expect_out_message.with_params("WARNING #{server}: the agent run after the restore failed (exit 1); the files are back and the services are up. Run puppet agent -t on the server to see why")
 
     result = run_plan('ovadm::restore', { 'server_host' => server, 'archive' => archive })
-    expect(result).not_to be_ok
-    expect(result.value.msg).to include('the agent run after the restore failed (exit 1)')
+    expect(result).to be_ok
+    expect(result.value['agent']['status']).to eq('failed')
   end
 
   it 'skips the agent run and the code deploy when told, and when r10k is absent' do

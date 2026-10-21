@@ -257,14 +257,25 @@ for pkg in openvox-agent openvox-server openvoxdb openvoxdb-termini postgresql-s
 }    $(json_str "$pkg"): $(json_str "$(installed_version "$pkg")")"
 done
 
-# Gems the operator added to the server's JRuby (the package's own are
-# vendored elsewhere), and everything the agent Ruby has, r10k and
-# hiera-eyaml among them. Read from the specification files, so no JVM starts.
+# Gems the operator added: to the server's JRuby (the package's own are
+# vendored elsewhere) and to the agent Ruby, r10k and hiera-eyaml among them.
+# Only gems no package owns are recorded, so an agent upgrade between the
+# backup and a restore does not turn the package's own gems into "missing"
+# ones. Read from the specification files, so no JVM starts.
 gem_names() {
-  local d
+  local d specs=()
   for d in "$@"; do
-    [ -d "$d" ] && find "$d" -maxdepth 1 -name '*.gemspec' -printf '%f\n'
-  done | sed 's/\.gemspec$//' | sort -u
+    [ -d "$d" ] || continue
+    while IFS= read -r f; do specs+=("$f"); done < <(find "$d" -maxdepth 1 -name '*.gemspec' | sort)
+  done
+  [ "${#specs[@]}" -gt 0 ] || return 0
+  if command -v rpm >/dev/null 2>&1 && rpm -q rpm >/dev/null 2>&1; then
+    rpm -qf "${specs[@]}" 2>&1 | sed -n 's/^file \(.*\.gemspec\) is not owned by any package$/\1/p'
+  elif command -v dpkg-query >/dev/null 2>&1; then
+    dpkg-query -S "${specs[@]}" 2>&1 | sed -n 's/^dpkg-query: no path found matching pattern \(.*\.gemspec\)$/\1/p'
+  else
+    printf '%s\n' "${specs[@]}"
+  fi | sed 's|.*/||; s/\.gemspec$//' | sort -u
   return 0
 }
 server_gems=$(gem_names /opt/puppetlabs/server/data/puppetserver/jruby-gems/specifications | json_lines)

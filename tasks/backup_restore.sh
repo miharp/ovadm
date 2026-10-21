@@ -215,17 +215,21 @@ if [ "$want_ca" = true ]; then
 fi
 
 # --- missing gems ------------------------------------------------------------------------
+# missing_gems LISTKEY DIR...: gems the manifest lists under LISTKEY that no
+# specification directory given has.
 missing_gems() {
-  local listkey="$1" dir="$2" names
-  names=$(find "$dir" -maxdepth 1 -name '*.gemspec' -printf '%f\n' 2>/dev/null | sed 's/\.gemspec$//' || true)
+  local listkey="$1" d names=''
+  shift
+  for d in "$@"; do
+    [ -d "$d" ] && names="$names
+$(find "$d" -maxdepth 1 -name '*.gemspec' -printf '%f\n' 2>/dev/null | sed 's/\.gemspec$//')"
+  done
   manifest_list gems "$listkey" | while IFS= read -r g; do
     grep -qxF "$g" <<< "$names" || printf '%s\n' "$g"
   done
 }
 gems_server=$(missing_gems puppetserver /opt/puppetlabs/server/data/puppetserver/jruby-gems/specifications | json_lines)
-agent_specs=''
-for d in /opt/puppetlabs/puppet/lib/ruby/gems/*/specifications; do [ -d "$d" ] && agent_specs="$d" && break; done
-gems_agent=$(missing_gems agent "${agent_specs:-/nonexistent}" | json_lines)
+gems_agent=$(missing_gems agent /opt/puppetlabs/puppet/lib/ruby/gems/*/specifications | json_lines)
 
 scope_json=$(printf '%s\n' "${scope_items[@]}" | json_lines)
 report() {

@@ -226,7 +226,9 @@ Three things to know before the first restore:
   same name, below.
 - **Files added since the backup stay.** A restore writes what the archive
   holds; it does not remove a `conf.d` file, a signed certificate or an
-  environment that appeared afterwards. Package manager leftovers
+  environment that appeared afterwards. The agent run at the end is a
+  convenience: if it fails, the plan says so and carries on, since the files
+  are back and the services are up by then. Package manager leftovers
   (`*.rpmnew`, `*.rpmsave`, `*.dpkg-dist`, `*.dpkg-old`) in the archive are
   not put back.
 - **On a host the openvox_server module manages**, the files it owns

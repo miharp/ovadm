@@ -1021,7 +1021,8 @@ Default value: `true`
 Data type: `Boolean`
 
 Run the agent once on the server after the restore, so the site's code
-brings back what it owns.
+brings back what it owns. A failed run is reported, not fatal: the files
+are back and the services are up by then.
 
 Default value: `true`
 

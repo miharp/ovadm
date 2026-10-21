@@ -40,7 +40,8 @@
 #
 # @param agent_run
 #   Run the agent once on the server after the restore, so the site's code
-#   brings back what it owns.
+#   brings back what it owns. A failed run is reported, not fatal: the files
+#   are back and the services are up by then.
 #
 # @return
 #   `verify`, `restore` and `agent` results from the tasks, and `status`
@@ -135,7 +136,11 @@ plan ovadm::restore(
     default => undef,
   }
   if $agent and $agent['status'] == 'failed' {
-    fail_plan("${name}: the agent run after the restore failed (exit ${agent['exit_code']}); the files are back, the services are up, see the agent's output", 'ovadm/restore')
+    out::message("WARNING ${name}: the agent run after the restore failed (exit ${agent['exit_code']}); the files are back and the services are up. Run puppet agent -t on the server to see why")
+  }
+  # The site's code may have restarted puppetserver during that run.
+  if $agent {
+    run_task('ovadm::wait_until_service_ready', $target)
   }
 
   $status = run_plan('ovadm::status', { 'server_host' => $target })
