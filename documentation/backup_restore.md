@@ -28,9 +28,9 @@ Print them before you back up rather than trusting the table. Foreman's
 `puppet.conf` snippet, for one, falls back to the Puppet 3 layout,
 `vardir = /var/lib/puppet` and `ssldir = $vardir/ssl`, for a host whose
 repository parameter it does not recognise as an AIO install, and it knows no
-OpenVox parameter. The tables were checked against OpenVox Server 8.17.0 and 9.0.1 on
-AlmaLinux 10; on Debian and Ubuntu only the service environment files differ,
-as noted.
+OpenVox parameter. The tables were checked against OpenVox Server 8.17.0 and
+9.0.1 on AlmaLinux 10; on Debian and Ubuntu only the service environment files
+differ, as noted.
 
 ### Tier 0: irreplaceable
 
