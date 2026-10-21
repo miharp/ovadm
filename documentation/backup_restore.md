@@ -25,8 +25,9 @@ Two things to know before you start:
 The paths below are the package defaults, which `puppet config print
 --section server` reports as `cadir`, `ssldir`, `confdir`, and `codedir`.
 Print them before you back up rather than trusting the table. Foreman's
-`puppet.conf` snippet, for one, falls back to the Puppet 3 layout,
-`vardir = /var/lib/puppet` and `ssldir = $vardir/ssl`, for a host whose
+`puppet.conf` snippet, for one, falls back to the layout of Debian's own
+puppet packages, `vardir = /var/lib/puppet` and `ssldir = $vardir/ssl`, for a
+host whose
 repository parameter it does not recognise as an AIO install, and it knows no
 OpenVox parameter. The tables were checked against OpenVox Server 8.17.0 and
 9.0.1 on AlmaLinux 10; on Debian and Ubuntu only the service environment files
