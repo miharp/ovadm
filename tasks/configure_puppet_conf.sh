@@ -10,11 +10,13 @@ dns_alt_names="${PT_dns_alt_names:-}"
 environment="${PT_environment:-}"
 
 # Settings in [main] that move Puppet's directories are carried over from an
-# existing file. Foreman's puppet.conf template, for one, puts vardir and
-# ssldir under /var/lib/puppet on every OS. Dropped, they would send the agent
-# to the default ssldir, where it finds no certificate and requests a new one
-# under a certname the CA already holds. Values are kept as written, so
-# `ssldir = $vardir/ssl` still follows vardir.
+# existing file. Foreman's puppet.conf snippet, for one, falls back to the
+# Puppet 3 layout (vardir /var/lib/puppet, ssldir $vardir/ssl) for a host whose
+# repository parameter it does not know as an AIO install, and it knows no
+# OpenVox parameter. Dropped, they would send the agent to the default ssldir,
+# where it finds no certificate and requests a new one under a certname the CA
+# already holds. Values are kept as written, so `ssldir = $vardir/ssl` still
+# follows vardir.
 path_settings='vardir|ssldir|privatekeydir|publickeydir|certdir|requestdir|logdir|rundir|codedir'
 kept=''
 if [ -f "$PUPPET_CONF" ]; then

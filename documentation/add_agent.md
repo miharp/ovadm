@@ -21,8 +21,9 @@ The plan:
    `agent_server`, below), `ca_server` always the server, and `environment`
    when given. Directory settings an existing `[main]` section carries
    (`vardir`, `ssldir`, `logdir`, `rundir`, `codedir` and the SSL
-   subdirectories) are kept, so a host that Foreman provisioned, with its
-   certificates under `/var/lib/puppet/ssl`, goes on finding them
+   subdirectories) are kept, so a host that Foreman provisioned with its
+   Puppet 3 fallback layout, certificates under `/var/lib/puppet/ssl`, goes
+   on finding them
 4. Sets the `pp_role` extension in `csr_attributes.yaml`, when given
    (see [Classifying by pp_role](#classifying-by-pp_role))
 5. Runs `puppet agent` on every host to submit its CSR, signs each on the
