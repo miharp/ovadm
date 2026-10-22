@@ -391,6 +391,44 @@ that archive:
    code settle. Downgrade OpenVoxDB with the server when the upgrade moved
    it, by hand, as the upgrade page says.
 
+### A CA lost with no backup
+
+Not restorable. Without the CA's private key the server can sign nothing
+and revoke nothing, and no copy of the key exists anywhere else. The
+certificates it issued go on working between the agents and the server
+until they expire, which buys time, not a way back. The way forward is a
+new CA and a re-enrolled fleet: the upstream page on
+[regenerating certificates](https://docs.openvoxproject.org/openvox/latest/ssl_regenerate_certificates.html)
+covers the server; `ovadm::add_compiler` re-enrols a compiler and
+`ovadm::add_agent` an agent, after each host's `ssldir` is removed. This is
+the one loss a backup turns from a fleet-wide re-enrolment into a restore
+measured in minutes, and the reason the backup follows every signing.
+
+### OpenVoxDB lost
+
+OpenVoxDB's data is not in the archive, by design: ovadm installs OpenVox
+Server only, and your own Puppet code owns the database. An empty OpenVoxDB
+comes back the way it first arrived, from the site's code on the next agent
+run; the facts and catalogs of every node return on that node's next run.
+Reports, resource events and exported resources do not. For those, restore a
+`pg_dump` taken with the recipe under [Backing up by hand](#backing-up-by-hand)
+into the empty database, with the recipe under
+[Restoring by hand](#restoring-by-hand). The rebuild test in ovadm's lab does
+exactly that, and the reports it counted before the loss are back afterwards.
+
+### What is not covered
+
+- **Compilers** hold nothing unique: a lost compiler is re-enrolled with
+  `ovadm::add_compiler`, and the CA on the server knows it again as soon as
+  it signs its new certificate.
+- **Agents** likewise: `ovadm::add_agent`.
+- **Add-ons** such as the OpenVox GUI, Puppetboard or Foreman own their own
+  data and have their own backup story. Their keys under `/etc/puppetlabs/`
+  (the GUI's Bolt key, say) do travel with the archive.
+- **Changing the server's certname or address** is not a restore. An archive
+  restores onto the host whose certname it records; a server that must
+  change name is a new server, with a new certificate from the same CA.
+
 ## Backing up by hand
 
 The commands below run as root on the primary server and produce a timestamped
@@ -468,6 +506,50 @@ du -sh "$backup"
 
 If `cmp` reports a difference, a certificate was signed during the backup;
 run it again.
+
+## Restoring by hand
+
+The tiers 0 and 1 archive from the recipe above goes back as it came, with
+the services stopped:
+
+```console
+systemctl stop puppetserver puppetdb
+tar -C / -xzpf "$backup/etc-puppetlabs.tar.gz"
+systemctl start puppetserver puppetdb
+```
+
+Owners and modes come back with the files, since the archive was made as
+root. Leave out any `*.rpmnew` or `*.dpkg-dist` the archive holds.
+
+### Restoring OpenVoxDB
+
+Verified on PostgreSQL 16, and run as written by ovadm's rebuild test. The
+`puppetdb` role owns every object in the database, so it can restore without
+superuser rights; the one privileged step is resetting the schema, which the
+`postgres` user does. `pg_restore --clean` is not an alternative: it fails on
+the partitioned `resource_events_*` tables. The database must exist, with
+the `puppetdb` role as OpenVoxDB's configuration names it: on a rebuilt
+server, that means after the site's code has brought OpenVoxDB back.
+
+```console
+systemctl stop puppetdb
+sudo -u postgres psql -q -d puppetdb -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public; ALTER SCHEMA public OWNER TO pg_database_owner; GRANT USAGE ON SCHEMA public TO PUBLIC; GRANT CREATE ON SCHEMA public TO puppetdb;"
+ini=/etc/puppetlabs/puppetdb/conf.d/database.ini
+subname=$(awk -F= '/^subname/ {gsub(/ /,"",$2); print $2}' "$ini")
+export PGPASSWORD=$(awk -F= '/^password/ {gsub(/ /,"",$2); print $2}' "$ini")
+host=${subname#//}; host=${host%%[:/]*}
+port=$(echo "$subname" | sed -n 's#//[^:/]*:\([0-9]*\)/.*#\1#p'); port=${port:-5432}
+db=${subname##*/}
+pg_restore -h "$host" -p "$port" -U puppetdb -d "$db" -j4 "$backup/openvoxdb"
+unset PGPASSWORD
+systemctl start puppetdb
+```
+
+On PostgreSQL 14 and earlier `public` is owned by `postgres`, so leave the
+`ALTER SCHEMA ... OWNER` clause out. With PostgreSQL on another host, run the
+schema reset through an administrative connection there; `pg_restore` needs
+no shell on the database host. OpenVoxDB starts, finds the schema it expects,
+and the reports are there.
 
 ### How often
 

@@ -14,15 +14,8 @@
 plan ovadm::status(
   TargetSpec $server_host,
 ) {
-  # ovadm's own version, so a deployment can say which ovadm built it. Read
-  # from metadata.json rather than hardcoded: the release workflow already
-  # refuses a tag that disagrees with metadata.json, so the tag is the source.
-  $metadata = file::read("${module_directory('ovadm')}/metadata.json")
-  $version_match = $metadata.match(/"version"\s*:\s*"([^"]+)"/)
-  $ovadm_version = $version_match ? {
-    undef   => 'unknown',
-    default => $version_match[1],
-  }
+  # ovadm's own version, so a deployment can say which ovadm built it.
+  $ovadm_version = ovadm::version()
 
   $precheck = run_task('ovadm::precheck', $server_host)
   $services = run_task('ovadm::service_status', $server_host)
