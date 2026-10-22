@@ -47,6 +47,8 @@ manifest_get() {
 
 [ -n "$archive" ] || fail 'archive is required'
 [ -f "$archive" ] || fail "$archive does not exist"
+# A rebuilt host may lack tar: removing the agent package can take it along.
+command -v tar >/dev/null 2>&1 || fail 'tar is not installed on this host; install it first'
 
 work=$(mktemp -d "$(dirname "$archive")/.verify.XXXXXX" 2>/dev/null) || work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT

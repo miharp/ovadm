@@ -60,6 +60,7 @@ regex_escape() { printf '%s' "$1" | sed 's/[.[\*^$|?+(){}]/\\&/g'; }
 
 [ -n "$archive" ] || fail 'archive is required'
 [ -f "$archive" ] || fail "$archive does not exist"
+command -v tar >/dev/null 2>&1 || fail 'tar is not installed on this host; install it first'
 [ "$(id -u)" -eq 0 ] || fail 'must run as root'
 
 work=$(mktemp -d "$(dirname "$archive")/.restore.XXXXXX" 2>/dev/null) || work=$(mktemp -d)
