@@ -25,6 +25,7 @@
 * [`service_stop`](#service_stop): Stop the puppetserver service
 * [`set_csr_attributes`](#set_csr_attributes): Set pp_role in csr_attributes.yaml (the agent's csr_attributes setting, by default /etc/puppetlabs/puppet/csr_attributes.yaml) so the node's
 * [`sign_csr`](#sign_csr): Sign a pending CSR on the OpenVox CA server
+* [`topology`](#topology): Report the deployment topology from the primary server: certname and whether it is the CA, the compilers (signed certificates carrying pp_rol
 * [`wait_until_service_ready`](#wait_until_service_ready): Poll until puppetserver responds on port 8140 or a timeout expires. On a timeout, the error says why: the service state and the last error pu
 
 ### Plans
@@ -323,6 +324,12 @@ Sign a pending CSR on the OpenVox CA server
 Data type: `String[1]`
 
 The certificate name to sign
+
+### <a name="topology"></a>`topology`
+
+Report the deployment topology from the primary server: certname and whether it is the CA, the compilers (signed certificates carrying pp_role=openvox_compiler), where puppetdb.conf sends OpenVoxDB traffic, the OpenVoxDB package and database connection on this host, and the local PostgreSQL. Reads files and packages only, so it works with the services stopped
+
+**Supports noop?** false
 
 ### <a name="wait_until_service_ready"></a>`wait_until_service_ready`
 

@@ -126,6 +126,7 @@ Tasks are the atomic operations that plans compose. The following are implemente
 | Task | Description | Notes |
 |------|-------------|-------|
 | `ovadm::infrastatus` | Return full deployment status as JSON | Summary view for operators |
+| `ovadm::topology` | Report the server's certname and CA, its compilers (`pp_role=openvox_compiler` certificates), and where OpenVoxDB and PostgreSQL are, from files and packages only | Status output; the `topology.json` that `ovadm::backup` stores in the archive |
 
 ---
 

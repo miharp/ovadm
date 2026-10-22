@@ -5,7 +5,11 @@
 #
 # @return
 #   A hash of `ovadm_version` (the version of ovadm doing the reporting) plus
-#   the raw `precheck`, `services`, and `versions` results.
+#   the raw `precheck`, `services`, `versions` and `topology` results. The
+#   topology is what the server knows about the deployment from its own
+#   files: its certname and whether it is the CA, the compilers (signed
+#   certificates carrying `pp_role=openvox_compiler`), where it sends
+#   OpenVoxDB traffic, and the OpenVoxDB database and PostgreSQL on the host.
 #
 plan ovadm::status(
   TargetSpec $server_host,
@@ -23,6 +27,7 @@ plan ovadm::status(
   $precheck = run_task('ovadm::precheck', $server_host)
   $services = run_task('ovadm::service_status', $server_host)
   $versions = run_task('ovadm::get_version', $server_host)
+  $topology = run_task('ovadm::topology', $server_host)
 
   out::message("ovadm ${ovadm_version}")
 
@@ -31,6 +36,7 @@ plan ovadm::status(
     $checks  = $result.value['checks']
     $svc_val = $services.find($target).value
     $ver_val = $versions.find($target).value
+    $topo    = $topology.find($target).value
 
     out::message("=== ${target} ===")
 
@@ -56,6 +62,42 @@ plan ovadm::status(
       default        => 'OpenVox Server',
     }
     out::message("  ${server_label}: ${ver_val['version']}")
+
+    # Topology, as the server's own files describe it.
+    $ca_label = $topo['ca'] ? {
+      true    => 'CA',
+      default => 'no CA directory',
+    }
+    $compilers = $topo['compilers']
+    $compiler_label = $compilers.length ? {
+      0       => 'no compilers',
+      1       => "1 compiler: ${compilers[0]}",
+      default => "${compilers.length} compilers: ${compilers.join(', ')}",
+    }
+    out::message("  Topology: server ${topo['certname']} (${$ca_label}), ${compiler_label}")
+
+    $db = $topo['openvoxdb']
+    $urls = $db['server_urls']
+    if $urls.empty {
+      out::message('  OpenVoxDB: the server sends nothing to OpenVoxDB (no puppetdb.conf)')
+    } else {
+      out::message("  OpenVoxDB: the server reports to ${urls.join(', ')}")
+    }
+    if $db['version'] {
+      $database = $db['database']
+      $db_label = $database ? {
+        undef   => 'database connection not readable',
+        default => $database['local'] ? {
+          true    => "database ${database['name']} on this host (port ${database['port']})",
+          default => "database ${database['name']} on ${database['host']}:${database['port']}",
+        },
+      }
+      out::message("  OpenVoxDB ${db['version']} on this host, ${db_label}")
+    }
+    $pg = $topo['postgresql']
+    if $pg['version'] {
+      out::message("  PostgreSQL ${pg['version']} on this host")
+    }
   }
 
   return({
@@ -63,5 +105,6 @@ plan ovadm::status(
     'precheck'      => $precheck,
     'services'      => $services,
     'versions'      => $versions,
+    'topology'      => $topology,
   })
 }
