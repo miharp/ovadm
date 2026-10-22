@@ -137,6 +137,8 @@ Tasks are the atomic operations that plans compose. The following are implemente
 | `ovadm::backup_create` | Write one archive of the selected items with a manifest, the topology and a checksum of every file | Self-contained bash with a default for every `PT_*` input, so a timer can run it; needs `topology.sh` beside it |
 | `ovadm::backup_verify` | Unpack an archive, check every checksum and the manifest, and compare its certname and package versions with the host | Run by `ovadm::backup` after every backup; usable alone before a restore |
 | `ovadm::backup_restore` | Check an archive against the host (checksums, certname, server version, a CA that signed nothing since the backup), stop the services, extract the items in scope with owners and modes, start the services; `dry_run` reports only | Run by `ovadm::restore`; never puts `*.rpmnew` and the like back |
+| `ovadm::install_package` | Install one package at a given version with dnf or apt-get | `ovadm::restore` uses it for `openvoxdb-termini` on a rebuilt host |
+| `ovadm::puppetdb_soft_writes` | Set `soft_write_failure = true` in `puppetdb.conf`, keeping a copy, or put the copy back | Around the agent run of `ovadm::restore` when OpenVoxDB does not answer |
 
 ---
 

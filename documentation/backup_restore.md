@@ -135,13 +135,18 @@ Everything is on unless you switch it off with `backup`:
 `include_code_tree=true` takes `/etc/puppetlabs/code/` itself as well, for a
 site whose git server could be lost together with the primary.
 
-`extra_paths` adds paths outside the tree, as a list. The r10k deploy key and
-the units that run r10k are the usual ones:
+`extra_paths` adds paths outside the tree, as a list. The r10k deploy key,
+the units that run r10k, and the static-catalog scripts under
+`/opt/puppetlabs/server/data/puppetserver/scripts/` when `puppetserver.conf`
+names them are the usual ones:
 
 ```console
 bolt plan run ovadm::backup server_host=ovox-server.example.com \
-  extra_paths='["/root/.ssh", "/etc/systemd/system/r10k-deploy.service", "/etc/systemd/system/r10k-deploy.timer"]'
+  extra_paths='["/root/.ssh", "/etc/systemd/system/r10k-deploy.service", "/etc/systemd/system/r10k-deploy.timer", "/opt/puppetlabs/server/data/puppetserver/scripts"]'
 ```
+
+A rebuild from the archive needs every path the server reads before the
+site's own code has run again; a backup that misses one is found out then.
 
 The plan warns when an environment's `hiera.yaml` names an eyaml private key
 that the archive does not hold, with the path to add.
@@ -327,10 +332,15 @@ address the agents use, then:
    The plan warns that the CA on the host is not the archived one and
    replaces it, puts the configuration and the code record back, installs
    the gems the manifest lists (r10k among them, when the site installed
-   it by hand), redeploys the code, and runs the agent once. That run is
-   where the site's own code brings back what it owns: OpenVoxDB and
-   PostgreSQL, the r10k timer, the firewall. Expect it to take a while and
-   to report changes; a second run should be clean.
+   it by hand), and installs `openvoxdb-termini` at the manifest's version,
+   without which the restored `routes.yaml` stops the server from starting.
+   It redeploys the code, and runs the agent once. OpenVoxDB is not back
+   yet at that point, and the restored configuration sends facts and
+   catalogs there, so for that one run the plan makes those writes
+   non-fatal (`soft_write_failure` in `puppetdb.conf`, put back as archived
+   afterwards). That run is where the site's own code brings back what it
+   owns: OpenVoxDB and PostgreSQL, the r10k timer, the firewall. Expect it
+   to take a while and to report changes; a second run should be clean.
 3. **Files of users that did not exist yet** are put back under their old
    numeric ids and the plan says which: on a host without OpenVoxDB that is
    everything under `/etc/puppetlabs/puppetdb/`. The package creates the

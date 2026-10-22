@@ -35,7 +35,41 @@ describe 'ovadm::restore' do
     allow_command('test -x /opt/puppetlabs/puppet/bin/r10k').always_return('stdout' => '', 'stderr' => '')
     allow_command('/opt/puppetlabs/puppet/bin/r10k deploy environment --modules').always_return('stdout' => '', 'stderr' => '')
     allow_task('ovadm::agent_runonce').always_return(agent_ok)
+    allow_task('ovadm::puppetdb_soft_writes').with_params('mode' => 'enable_if_unreachable').always_return('status' => 'not_needed', 'path' => '/etc/puppetlabs/puppet/puppetdb.conf', 'url' => 'https://ovox.example.com:8081/')
+    allow_task('ovadm::puppetdb_soft_writes').with_params('mode' => 'restore').always_return('status' => 'nothing_to_restore', 'path' => '/etc/puppetlabs/puppet/puppetdb.conf')
     allow_plan('ovadm::status').always_return({})
+  end
+
+  it 'on a rebuilt host, installs the termini package and makes PuppetDB writes non-fatal for the agent run' do
+    allow_task('ovadm::backup_verify').always_return(verified.merge('host' => verified['host'].merge(
+      'packages' => { 'openvoxdb-termini' => { 'archive' => '8.17.0-1.el10', 'host' => nil } }
+    )))
+    allow_task('ovadm::backup_restore').always_return(restored)
+    allow_rest
+    expect_task('ovadm::install_package').with_params('name' => 'openvoxdb-termini', 'version' => '8.17.0-1.el10')
+                                         .always_return('status' => 'installed', 'package' => 'openvoxdb-termini', 'version' => '8.17.0-1.el10', 'previous' => nil)
+    expect_task('ovadm::puppetdb_soft_writes').with_params('mode' => 'enable_if_unreachable')
+                                              .always_return('status' => 'enabled', 'path' => '/etc/puppetlabs/puppet/puppetdb.conf', 'copy' => '/etc/puppetlabs/puppet/puppetdb.conf.ovadm-restore', 'url' => 'https://ovox.example.com:8081/')
+    expect_task('ovadm::puppetdb_soft_writes').with_params('mode' => 'restore').always_return('status' => 'restored', 'path' => '/etc/puppetlabs/puppet/puppetdb.conf')
+    expect_task('ovadm::service_restart').be_called_times(2).always_return('status' => 'restarted', 'service' => 'puppetserver')
+    expect_task('ovadm::wait_until_service_ready').be_called_times(3).always_return('status' => 'ready', 'elapsed_seconds' => 0)
+    expect_out_message.with_params("#{server}: installed openvoxdb-termini 8.17.0-1.el10, which the manifest lists and the host lacked")
+    expect_out_message.with_params("#{server}: OpenVoxDB at https://ovox.example.com:8081/ does not answer; PuppetDB writes made non-fatal in puppetdb.conf for the agent run")
+    expect_out_message.with_params("#{server}: puppetdb.conf put back as archived")
+
+    expect(run_plan('ovadm::restore', { 'server_host' => server, 'archive' => archive })).to be_ok
+  end
+
+  it 'leaves the termini package alone when the host has it, and puppetdb.conf alone when OpenVoxDB answers' do
+    allow_task('ovadm::backup_verify').always_return(verified.merge('host' => verified['host'].merge(
+      'packages' => { 'openvoxdb-termini' => { 'archive' => '8.17.0-1.el10', 'host' => '8.17.0-1.el10' } }
+    )))
+    allow_task('ovadm::backup_restore').always_return(restored)
+    allow_rest
+    expect_task('ovadm::install_package').not_be_called
+    expect_task('ovadm::service_restart').not_be_called
+
+    expect(run_plan('ovadm::restore', { 'server_host' => server, 'archive' => archive })).to be_ok
   end
 
   it 'verifies, restores everything, starts the server, redeploys code, runs the agent and reports status' do
@@ -46,6 +80,8 @@ describe 'ovadm::restore' do
     expect_command('/opt/puppetlabs/puppet/bin/r10k deploy environment --modules').be_called_times(1).always_return('stdout' => '', 'stderr' => '')
     allow_command('test -x /opt/puppetlabs/puppet/bin/r10k').always_return('stdout' => '', 'stderr' => '')
     expect_task('ovadm::agent_runonce').with_params('waitforcert' => 0).always_return(agent_ok)
+    allow_task('ovadm::puppetdb_soft_writes').with_params('mode' => 'enable_if_unreachable').always_return('status' => 'not_needed', 'path' => '/etc/puppetlabs/puppet/puppetdb.conf', 'url' => 'https://ovox.example.com:8081/')
+    allow_task('ovadm::puppetdb_soft_writes').with_params('mode' => 'restore').always_return('status' => 'nothing_to_restore', 'path' => '/etc/puppetlabs/puppet/puppetdb.conf')
     expect_plan('ovadm::status').be_called_times(1).always_return({})
     expect_out_message.with_params("#{server}: scope ca, config, code: 1 file(s) changed, 0 missing on the host, 11 unchanged")
     expect_out_message.with_params("#{server}: puppetserver and puppetdb stopped for the copy and started again")

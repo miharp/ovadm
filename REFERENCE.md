@@ -26,9 +26,11 @@
 * [`get_version`](#get_version): Return the installed openvox-server version, or puppetserver's on a host not yet upgraded to OpenVox, and which package it is; version is 'no
 * [`infrastatus`](#infrastatus): Return a concise status summary: installed version, service state, and port 8140
 * [`install_agent`](#install_agent): Install the openvox-agent package from the configured repository
+* [`install_package`](#install_package): Install one package at a given version from the host's repositories, with dnf or apt-get. Reports already_installed when the host has it at t
 * [`install_server`](#install_server): Install or upgrade the openvox-server package from the configured repository, replacing puppetserver if it is installed; edited configuration
 * [`os_identification`](#os_identification): Detect OS family, name, version, and architecture
 * [`precheck`](#precheck): Validate target readiness: OS family, Java version, port 8140, host firewall, NTP sync, and enough memory for OpenVox Server's heap; for an a
+* [`puppetdb_soft_writes`](#puppetdb_soft_writes): Set soft_write_failure = true in puppetdb.conf so the server compiles catalogs while OpenVoxDB is unreachable, keeping a copy of the file; or
 * [`select_java`](#select_java): Make sure the installed openvox-server has a supported Java: on 8, point the java alternative at Java 17 or 21 when the default is neither; o
 * [`service_restart`](#service_restart): Restart the puppetserver service
 * [`service_start`](#service_start): Start the puppetserver service
@@ -394,6 +396,26 @@ Data type: `Optional[String[1]]`
 
 Version to install (e.g. '8.3.1'); omit for latest
 
+### <a name="install_package"></a>`install_package`
+
+Install one package at a given version from the host's repositories, with dnf or apt-get. Reports already_installed when the host has it at that version
+
+**Supports noop?** false
+
+#### Parameters
+
+##### `name`
+
+Data type: `String[1]`
+
+Package name
+
+##### `version`
+
+Data type: `Optional[String[1]]`
+
+Exact version as the package manager reports it (e.g. 8.17.0-1.el10 or 8.17.0-1+ubuntu24.04); omit for the repository's newest
+
 ### <a name="install_server"></a>`install_server`
 
 Install or upgrade the openvox-server package from the configured repository, replacing puppetserver if it is installed; edited configuration files and, when replacing puppetserver, puppet.conf are kept
@@ -445,6 +467,20 @@ Check a host ovadm::upgrade is about to upgrade. A Java below the supported vers
 Data type: `Optional[Integer[8]]`
 
 The OpenVox major version about to be installed or upgraded to, when known. On 9 and later the server picks its own Java through a launcher, so the system java is not checked. A host where the launcher is already installed is checked against the Java it runs, whatever this says.
+
+### <a name="puppetdb_soft_writes"></a>`puppetdb_soft_writes`
+
+Set soft_write_failure = true in puppetdb.conf so the server compiles catalogs while OpenVoxDB is unreachable, keeping a copy of the file; or put the copy back. For the agent run that brings OpenVoxDB back on a rebuilt host
+
+**Supports noop?** false
+
+#### Parameters
+
+##### `mode`
+
+Data type: `Optional[Enum['enable_if_unreachable', 'enable', 'restore']]`
+
+enable_if_unreachable (default: only when the first server_url does not answer), enable, or restore (put the kept copy back)
 
 ### <a name="select_java"></a>`select_java`
 
@@ -948,7 +984,11 @@ back in Hiera, and use this plan for the rest.
 
 On a rebuilt host, run `ovadm::install` first with the versions the
 manifest names (the plan prints the exact command when the server is not
-installed), then this plan over the throwaway CA.
+installed), then this plan over the throwaway CA. It installs
+openvoxdb-termini at the manifest's version when the host lacks it, since
+the restored routes.yaml needs it, and makes PuppetDB writes non-fatal for
+the agent run when OpenVoxDB does not answer, so the site's code can bring
+OpenVoxDB back.
 
 #### Parameters
 

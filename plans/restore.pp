@@ -14,7 +14,11 @@
 #
 # On a rebuilt host, run `ovadm::install` first with the versions the
 # manifest names (the plan prints the exact command when the server is not
-# installed), then this plan over the throwaway CA.
+# installed), then this plan over the throwaway CA. It installs
+# openvoxdb-termini at the manifest's version when the host lacks it, since
+# the restored routes.yaml needs it, and makes PuppetDB writes non-fatal for
+# the agent run when OpenVoxDB does not answer, so the site's code can bring
+# OpenVoxDB back.
 #
 # @param server_host
 #   The OpenVox Server node
@@ -130,6 +134,18 @@ plan ovadm::restore(
     if $r.ok { out::message("${name}: installed agent gem ${gem}") } else { out::message("WARNING ${name}: agent gem ${gem} could not be installed: ${r.first.error.message}") }
   }
 
+  # A rebuilt host: the restored routes.yaml names the puppetdb terminus, so
+  # the server cannot start until the termini package is back. The manifest
+  # has its version; the repository ovadm::install set up has the package.
+  $termini = $verify['host'] ? {
+    undef   => undef,
+    default => $verify['host']['packages']['openvoxdb-termini'],
+  }
+  if $termini and $termini['archive'] and !$termini['host'] {
+    $pkg = run_task('ovadm::install_package', $target, { 'name' => 'openvoxdb-termini', 'version' => $termini['archive'] }).first.value
+    out::message("${name}: installed openvoxdb-termini ${pkg['version']}, which the manifest lists and the host lacked")
+  }
+
   # Up, whatever state the host was in: a restore means the server should run.
   run_command('systemctl start puppetserver', $target)
   run_task('ovadm::wait_until_service_ready', $target)
@@ -149,6 +165,19 @@ plan ovadm::restore(
     }
   }
 
+  # On a rebuilt host OpenVoxDB is not back yet, and the restored
+  # configuration sends facts and catalogs there. For the agent run that
+  # lets the site's code bring it back, those writes are made non-fatal;
+  # the archived puppetdb.conf is put back afterwards.
+  if $agent_run {
+    $soft = run_task('ovadm::puppetdb_soft_writes', $target, { 'mode' => 'enable_if_unreachable' }).first.value
+    if $soft['status'] == 'enabled' {
+      out::message("${name}: OpenVoxDB at ${soft['url']} does not answer; PuppetDB writes made non-fatal in puppetdb.conf for the agent run")
+      run_task('ovadm::service_restart', $target)
+      run_task('ovadm::wait_until_service_ready', $target)
+    }
+  }
+
   $agent = $agent_run ? {
     true    => run_task('ovadm::agent_runonce', $target, { 'waitforcert' => 0 }).first.value,
     default => undef,
@@ -156,8 +185,13 @@ plan ovadm::restore(
   if $agent and $agent['status'] == 'failed' {
     out::message("WARNING ${name}: the agent run after the restore failed (exit ${agent['exit_code']}); the files are back and the services are up. Run puppet agent -t on the server to see why")
   }
-  # The site's code may have restarted puppetserver during that run.
   if $agent {
+    $unsoft = run_task('ovadm::puppetdb_soft_writes', $target, { 'mode' => 'restore' }).first.value
+    if $unsoft['status'] == 'restored' {
+      out::message("${name}: puppetdb.conf put back as archived")
+      run_task('ovadm::service_restart', $target)
+    }
+    # The site's code may have restarted puppetserver during that run.
     run_task('ovadm::wait_until_service_ready', $target)
   }
 

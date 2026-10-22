@@ -1,0 +1,15 @@
+{
+  "description": "Install one package at a given version from the host's repositories, with dnf or apt-get. Reports already_installed when the host has it at that version",
+  "input_method": "environment",
+  "parameters": {
+    "name": {
+      "description": "Package name",
+      "type": "String[1]"
+    },
+    "version": {
+      "description": "Exact version as the package manager reports it (e.g. 8.17.0-1.el10 or 8.17.0-1+ubuntu24.04); omit for the repository's newest",
+      "type": "Optional[String[1]]"
+    }
+  },
+  "supports_noop": false
+}
