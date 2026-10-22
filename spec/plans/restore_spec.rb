@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative 'spec_helper'
+require 'tempfile'
 
 describe 'ovadm::restore' do
   let(:server) { 'ovox.example.com' }
@@ -66,6 +67,20 @@ describe 'ovadm::restore' do
       'server_host' => server, 'archive' => "#{archive}.age", 'scope' => %w[ca extra], 'force' => true, 'age_identity' => '/root/k'
     })
     expect(result).to be_ok
+  end
+
+  it 'uploads the archive from the workstation first when given a source' do
+    source = Tempfile.new(['openvox-backup', '.tar.gz'])
+    expect_upload(source.path).with_destination(archive).with_targets(server)
+    expect_task('ovadm::backup_verify').with_params('archive' => archive).always_return(verified)
+    allow_task('ovadm::backup_restore').always_return(restored)
+    allow_rest
+    expect_out_message.with_params("#{server}: uploaded #{source.path} to #{archive}")
+
+    result = run_plan('ovadm::restore', { 'server_host' => server, 'archive' => archive, 'source' => source.path })
+    expect(result).to be_ok
+  ensure
+    source&.close!
   end
 
   it 'stops after reporting with dry_run' do

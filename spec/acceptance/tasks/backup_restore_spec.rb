@@ -182,6 +182,18 @@ RSpec.describe 'ovadm::backup_restore task' do
     end
   end
 
+  context 'with files of a user the host does not have' do
+    it 'puts them back by number and says so' do
+      run_shell('chown 4242:4242 /etc/puppetlabs/puppetdb/conf.d/database.ini')
+      archive = backup
+      run_shell('chown 0:0 /etc/puppetlabs/puppetdb/conf.d/database.ini')
+      data = restore('archive' => archive, 'scope' => 'config').result
+      expect(data['status']).to eq('restored')
+      expect(data['warnings']).to eq(['1 file(s) belong to uid:gid 4242:4242, which no user on this host has (for example /etc/puppetlabs/puppetdb/conf.d/database.ini); they are put back under those numbers. Install the package that creates the user, then chown them, or let the site\'s code do it'])
+      expect(run_shell("stat -c '%u:%g' /etc/puppetlabs/puppetdb/conf.d/database.ini")['stdout'].strip).to eq('4242:4242')
+    end
+  end
+
   context 'against the wrong host or archive' do
     def repack(archive, shell)
       name = File.basename(archive, '.tar.gz')

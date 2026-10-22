@@ -301,6 +301,49 @@ enrol them again with `ovadm::add_agent`. Their serial numbers are reused by
 the restored CA, which is why their files must go. The smaller that set, the
 simpler the recovery, which is why backups follow signings.
 
+### Rebuilding the server on a new host
+
+The server is gone. Build a replacement with the same certname and the
+address the agents use, then:
+
+1. **Install OpenVox Server with the versions the archive records.** Run
+   `ovadm::restore` against the bare host and it stops with the exact
+   command, read from the manifest:
+
+   ```text
+   openvox-server is not installed; install it first, then restore: bolt plan run ovadm::install server_host=<this host> ovox_server_version=8.17.0 ovox_version=8.30.0
+   ```
+
+   That install makes a throwaway CA and certificate; the restore replaces
+   them.
+2. **Restore the archive**, uploading it from wherever the backups are kept:
+
+   ```console
+   bolt plan run ovadm::restore server_host=ovox-server.example.com \
+     source=/backups/openvox-backup-ovox-server.example.com-20261021T181530Z.tar.gz \
+     archive=/var/backups/openvox/openvox-backup-ovox-server.example.com-20261021T181530Z.tar.gz
+   ```
+
+   The plan warns that the CA on the host is not the archived one and
+   replaces it, puts the configuration and the code record back, installs
+   the gems the manifest lists (r10k among them, when the site installed
+   it by hand), redeploys the code, and runs the agent once. That run is
+   where the site's own code brings back what it owns: OpenVoxDB and
+   PostgreSQL, the r10k timer, the firewall. Expect it to take a while and
+   to report changes; a second run should be clean.
+3. **Files of users that did not exist yet** are put back under their old
+   numeric ids and the plan says which: on a host without OpenVoxDB that is
+   everything under `/etc/puppetlabs/puppetdb/`. The package creates the
+   user on install, and the module that manages OpenVoxDB sets the owners
+   when it runs; if nothing does, `chown -R puppetdb:puppetdb` them.
+4. **The agents' next run exits 0** with the certificates they had: the CA
+   is the same, the server's certificate is the same, nothing was
+   re-issued.
+5. **OpenVoxDB's data** is not in the archive. Facts and catalogs come back
+   on each agent's next run; for reports and exported resources, restore a
+   `pg_dump` taken with the recipe below, after the site's code has created
+   the empty database.
+
 ## Backing up by hand
 
 The commands below run as root on the primary server and produce a timestamped

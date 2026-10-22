@@ -34,7 +34,9 @@ Notable changes to ovadm are recorded here. The format follows
   modes as archived and leaves package manager leftovers and files added
   since the backup alone, starts the services, reinstalls gems the manifest
   lists, redeploys the code with r10k when in scope, runs the agent once and
-  reports the status. `dry_run` lists what would change. The new
+  reports the status. `dry_run` lists what would change; `source` uploads
+  the archive from the workstation first, for a rebuilt host, where the
+  plan also names the exact `ovadm::install` command to run first. The new
   `ovadm::backup_restore` task does the host side and reports changed and
   missing files ([#89](https://github.com/miharp/ovadm/issues/89)).
 - `ovadm::status` reports the topology the server's own files describe:

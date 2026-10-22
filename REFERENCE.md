@@ -946,12 +946,17 @@ Files added since the backup stay. On a host the openvox_server module
 manages, the files it owns come back on the next agent run: roll those
 back in Hiera, and use this plan for the rest.
 
+On a rebuilt host, run `ovadm::install` first with the versions the
+manifest names (the plan prints the exact command when the server is not
+installed), then this plan over the throwaway CA.
+
 #### Parameters
 
 The following parameters are available in the `ovadm::restore` plan:
 
 * [`server_host`](#-ovadm--restore--server_host)
 * [`archive`](#-ovadm--restore--archive)
+* [`source`](#-ovadm--restore--source)
 * [`scope`](#-ovadm--restore--scope)
 * [`force`](#-ovadm--restore--force)
 * [`dry_run`](#-ovadm--restore--dry_run)
@@ -970,6 +975,16 @@ The OpenVox Server node
 Data type: `String[1]`
 
 Path of the archive on the server
+
+##### <a name="-ovadm--restore--source"></a>`source`
+
+Data type: `Optional[String[1]]`
+
+Path of the archive on the workstation running Bolt. It is uploaded to
+`archive` on the server before anything else: the rebuilt-server path,
+where the archive is wherever the backups were kept.
+
+Default value: `undef`
 
 ##### <a name="-ovadm--restore--scope"></a>`scope`
 

@@ -186,6 +186,24 @@ if [ "$in_scope" -gt 0 ]; then
   done < <(sha256sum -c "$work/scope.sums" 2>/dev/null || true)
 fi
 
+# --- owners this host does not have ---------------------------------------------------
+# tar put the archive's user and group names back by name where the host
+# has them and by number where it does not: a rebuilt host before the
+# package that creates the user (puppetdb, until the site's code installs
+# OpenVoxDB) gets the files under the old uid.
+unknown=''
+for inc in "${includes[@]}"; do
+  unknown="$unknown
+$(find "$top/files/$inc" -printf '%u:%g %p\n' 2>/dev/null | awk '$1 ~ /^[0-9]+:/ || $1 ~ /:[0-9]+$/' | sed "s| $top/files| |")"
+done
+unknown=$(printf '%s\n' "$unknown" | grep . || true)
+if [ -n "$unknown" ]; then
+  ids=$(printf '%s\n' "$unknown" | awk '{print $1}' | sort -u | tr '\n' ' ' | sed 's/ $//')
+  count=$(printf '%s\n' "$unknown" | wc -l | tr -d ' ')
+  examples=$(printf '%s\n' "$unknown" | awk '{print $2}' | head -n 3 | tr '\n' ' ' | sed 's/ $//')
+  warn "$count file(s) belong to uid:gid $ids, which no user on this host has (for example $examples); they are put back under those numbers. Install the package that creates the user, then chown them, or let the site's code do it"
+fi
+
 # --- the CA on the host against the one in the archive -------------------------------------
 ca_json='null'
 if [ "$want_ca" = true ]; then

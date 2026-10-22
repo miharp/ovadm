@@ -12,11 +12,20 @@
 # manages, the files it owns come back on the next agent run: roll those
 # back in Hiera, and use this plan for the rest.
 #
+# On a rebuilt host, run `ovadm::install` first with the versions the
+# manifest names (the plan prints the exact command when the server is not
+# installed), then this plan over the throwaway CA.
+#
 # @param server_host
 #   The OpenVox Server node
 #
 # @param archive
 #   Path of the archive on the server
+#
+# @param source
+#   Path of the archive on the workstation running Bolt. It is uploaded to
+#   `archive` on the server before anything else: the rebuilt-server path,
+#   where the archive is wherever the backups were kept.
 #
 # @param scope
 #   What to put back: `ca`, `config`, `code`, `extra` (the paths given as
@@ -50,6 +59,7 @@
 plan ovadm::restore(
   TargetSpec                                         $server_host,
   String[1]                                          $archive,
+  Optional[String[1]]                                $source       = undef,
   Optional[Array[Enum['ca', 'config', 'code', 'extra'], 1]] $scope = undef,
   Boolean                                            $force        = false,
   Boolean                                            $dry_run      = false,
@@ -59,6 +69,11 @@ plan ovadm::restore(
 ) {
   $target = get_targets($server_host)[0]
   $name   = $target.name
+
+  if $source {
+    upload_file($source, $archive, $target)
+    out::message("${name}: uploaded ${source} to ${archive}")
+  }
 
   $age = $age_identity ? {
     undef   => {},
