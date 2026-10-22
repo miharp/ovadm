@@ -1121,6 +1121,9 @@ The following parameters are available in the `ovadm::upgrade` plan:
 * [`ovox_major`](#-ovadm--upgrade--ovox_major)
 * [`apt_base_url`](#-ovadm--upgrade--apt_base_url)
 * [`yum_base_url`](#-ovadm--upgrade--yum_base_url)
+* [`skip_backup`](#-ovadm--upgrade--skip_backup)
+* [`backup_destination`](#-ovadm--upgrade--backup_destination)
+* [`backup_extra_paths`](#-ovadm--upgrade--backup_extra_paths)
 
 ##### <a name="-ovadm--upgrade--server_host"></a>`server_host`
 
@@ -1181,3 +1184,31 @@ Base URL of a yum/dnf mirror to use instead of https://yum.voxpupuli.org,
 for nodes that move to a new major version's repository
 
 Default value: `undef`
+
+##### <a name="-ovadm--upgrade--skip_backup"></a>`skip_backup`
+
+Data type: `Boolean`
+
+Do not take a backup of the server before touching packages. The
+backup is `ovadm::backup` with its defaults: the CA, the certificates,
+the configuration and the code record, verified, under
+`backup_destination`. It is the way back if the upgrade goes wrong.
+
+Default value: `false`
+
+##### <a name="-ovadm--upgrade--backup_destination"></a>`backup_destination`
+
+Data type: `String[1]`
+
+Directory on the server for the pre-upgrade archive
+
+Default value: `'/var/backups/openvox'`
+
+##### <a name="-ovadm--upgrade--backup_extra_paths"></a>`backup_extra_paths`
+
+Data type: `Array[String[1]]`
+
+Paths outside `/etc/puppetlabs/` to include in the pre-upgrade archive,
+as `extra_paths` on `ovadm::backup`
+
+Default value: `[]`

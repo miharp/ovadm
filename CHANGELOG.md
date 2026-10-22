@@ -43,6 +43,11 @@ Notable changes to ovadm are recorded here. The format follows
   `openvoxdb-termini` when the host still lacks it. The `code` item carries `/etc/puppetlabs/r10k/` with it. The new
   `ovadm::backup_restore` task does the host side and reports changed and
   missing files ([#89](https://github.com/miharp/ovadm/issues/89)).
+- `ovadm::upgrade` takes a backup of the server before it touches a
+  package, `ovadm::backup` with its defaults under `/var/backups/openvox`,
+  and prints the archive's path; `backup_destination` and
+  `backup_extra_paths` shape it, `skip_backup` skips it. The plan returns
+  the path per server as `backup`.
 - `ovadm::status` reports the topology the server's own files describe:
   whether it holds the CA, the compilers (signed certificates carrying
   `pp_role=openvox_compiler`), where it sends OpenVoxDB traffic, and the

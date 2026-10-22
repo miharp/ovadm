@@ -1,5 +1,22 @@
 # Upgrading OpenVox Server with ovadm
 
+## Before anything changes: the backup
+
+The plan takes a backup of the server before it touches a package:
+`ovadm::backup` with its defaults, so the CA, the certificates, the
+configuration and the record of the deployed code, verified, under
+`/var/backups/openvox`. The archive's path is printed:
+
+```text
+Pre-upgrade backup of ovox-server.example.com: /var/backups/openvox/openvox-backup-ovox-server.example.com-20261022T120000Z.tar.gz. Copy it off the host; it is the way back if this upgrade goes wrong.
+```
+
+`backup_destination` moves it, `backup_extra_paths` adds paths outside
+`/etc/puppetlabs/` (the r10k deploy key, say), and `skip_backup=true` skips
+it. Compilers hold nothing unique and are not backed up. What the archive
+holds, and how to use it when the upgrade goes wrong, is on the
+[backup and restore](backup_restore.md#an-upgrade-gone-wrong) page.
+
 ## Standard topology
 
 ```bash

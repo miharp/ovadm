@@ -42,9 +42,9 @@
 #
 # @return
 #   The `backup_create` result: `archive`, `size_bytes`, `files`,
-#   `certname`, `created`, `ca_serial_moved`, `warnings`, as `backup`; and
-#   `verify`, the `backup_verify` result per target name (empty when
-#   `verify` is off).
+#   `certname`, `created`, `ca_serial_moved`, `warnings`, as `backup`;
+#   `archives`, the archive path per target name; and `verify`, the
+#   `backup_verify` result per target name (empty when `verify` is off).
 #
 plan ovadm::backup(
   TargetSpec          $server_host,
@@ -116,5 +116,7 @@ plan ovadm::backup(
 
   out::message('Copy the archive off the host: it holds the CA private key.')
 
-  return({ 'backup' => $created, 'verify' => $verified })
+  $archives = $created.reduce({}) |$memo, $result| { $memo + { $result.target.name => $result.value['archive'] } }
+
+  return({ 'backup' => $created, 'archives' => $archives, 'verify' => $verified })
 }

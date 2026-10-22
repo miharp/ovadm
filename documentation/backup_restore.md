@@ -358,6 +358,39 @@ address the agents use, then:
    `pg_dump` taken with the recipe below, after the site's code has created
    the empty database.
 
+### An upgrade gone wrong
+
+`ovadm::upgrade` takes a backup of the server before it touches a package
+and prints the archive's path. The way back is the previous packages, then
+that archive:
+
+1. **Put the previous packages back.** ovadm does not downgrade. On the
+   server, with the previous major's repository in place again when the
+   upgrade crossed one:
+
+   ```console
+   dnf downgrade openvox-server-8.17.0 openvox-agent-8.31.0        # EL
+   apt-get install openvox-server=8.17.0-1+ubuntu24.04 ...          # Debian, Ubuntu
+   ```
+
+   The versions are in the archive's manifest, and `ovadm::backup_verify`
+   prints them next to the host's. `ovadm::restore` refuses the archive
+   while the installed `openvox-server` is not the version in the manifest,
+   which is the check that keeps you from restoring 8's configuration onto
+   a 9 server; `dry_run=true force=true` still shows what it would change.
+2. **Restore the archive**:
+
+   ```console
+   bolt plan run ovadm::restore server_host=ovox-server.example.com \
+     archive=/var/backups/openvox/openvox-backup-ovox-server.example.com-20261022T120000Z.tar.gz
+   ```
+
+   Configuration the upgrade rewrote comes back, the CA and certificates
+   are as they were (an upgrade does not change them, so the restore
+   reports them unchanged), and the agent run at the end lets the site's
+   code settle. Downgrade OpenVoxDB with the server when the upgrade moved
+   it, by hand, as the upgrade page says.
+
 ## Backing up by hand
 
 The commands below run as root on the primary server and produce a timestamped

@@ -43,6 +43,7 @@ describe 'ovadm::backup' do
     result = run_plan('ovadm::backup', { 'server_host' => server })
     expect(result).to be_ok
     expect(result.value['backup'].first.value).to eq(created)
+    expect(result.value['archives']).to eq(server => archive)
     expect(result.value['verify']).to eq(server => verified)
   end
 

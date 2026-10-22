@@ -9,22 +9,55 @@ describe 'ovadm::upgrade' do
 
   before(:each) { execute_no_plan }
 
+  let(:archive) { "/var/backups/openvox/openvox-backup-#{server}-20261022T120000Z.tar.gz" }
+  let(:backup_result) { { 'backup' => [], 'archives' => { server => archive }, 'verify' => {} } }
+
   context 'Standard topology (no compiler_hosts)' do
-    it 'runs precheck and upgrade_server only' do
+    it 'runs precheck, takes a backup of the server, then upgrade_server' do
       expect_plan('ovadm::subplans::precheck').be_called_times(1)
+      expect_plan('ovadm::backup')
+        .with_params('server_host' => server, 'destination' => '/var/backups/openvox', 'extra_paths' => [])
+        .be_called_times(1).always_return(backup_result)
       expect_plan('ovadm::subplans::upgrade_server').be_called_times(1)
       allow_plan('ovadm::subplans::upgrade_compilers').not_be_called
+      expect_out_message.with_params("Pre-upgrade backup of #{server}: #{archive}. Copy it off the host; it is the way back if this upgrade goes wrong.")
 
       result = run_plan('ovadm::upgrade', {
         'server_host'         => server,
         'ovox_server_version' => server_version
       })
       expect(result).to be_ok
+      expect(result.value['backup']).to eq(server => archive)
+    end
+
+    it 'passes the backup destination and extra paths through' do
+      allow_plan('ovadm::subplans::precheck')
+      expect_plan('ovadm::backup')
+        .with_params('server_host' => server, 'destination' => '/srv/backup', 'extra_paths' => ['/root/.ssh'])
+        .be_called_times(1).always_return(backup_result)
+      allow_plan('ovadm::subplans::upgrade_server')
+
+      result = run_plan('ovadm::upgrade', {
+        'server_host' => server, 'ovox_server_version' => server_version,
+        'backup_destination' => '/srv/backup', 'backup_extra_paths' => ['/root/.ssh']
+      })
+      expect(result).to be_ok
+    end
+
+    it 'takes no backup with skip_backup' do
+      allow_plan('ovadm::subplans::precheck')
+      expect_plan('ovadm::backup').not_be_called
+      allow_plan('ovadm::subplans::upgrade_server')
+
+      result = run_plan('ovadm::upgrade', { 'server_host' => server, 'ovox_server_version' => server_version, 'skip_backup' => true })
+      expect(result).to be_ok
+      expect(result.value['backup']).to eq({})
     end
   end
 
   context 'Large topology (with compiler_hosts)' do
     it 'also runs upgrade_compilers' do
+      allow_plan('ovadm::backup').always_return(backup_result)
       expect_plan('ovadm::subplans::precheck').be_called_times(1)
       expect_plan('ovadm::subplans::upgrade_server').be_called_times(1)
       expect_plan('ovadm::subplans::upgrade_compilers').be_called_times(1)
@@ -39,6 +72,8 @@ describe 'ovadm::upgrade' do
   end
 
   context 'target major version' do
+    before(:each) { allow_plan('ovadm::backup').always_return(backup_result) }
+
     it 'prechecks in upgrade mode for the target major, so the Java check fits it' do
       expect_plan('ovadm::subplans::precheck')
         .with_params('server_host' => server, 'upgrade' => true, 'ovox_major' => 9)
