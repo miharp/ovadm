@@ -7,6 +7,8 @@ Notable changes to ovadm are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-10-22
+
 ### Added
 
 - `ovadm::backup` backs up a primary server into one archive under
@@ -373,7 +375,8 @@ covers the module as it stands.
 - CI: plan unit tests, acceptance tests on Rocky 9, Ubuntu 22.04, Ubuntu 24.04 and
   Debian 12, and an end-to-end install test covering both topologies.
 
-[Unreleased]: https://github.com/miharp/ovadm/compare/v0.7.1...HEAD
+[Unreleased]: https://github.com/miharp/ovadm/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/miharp/ovadm/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/miharp/ovadm/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/miharp/ovadm/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/miharp/ovadm/compare/v0.5.1...v0.6.0
