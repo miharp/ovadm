@@ -71,6 +71,7 @@ describe 'ovadm::restore' do
 
   it 'uploads the archive from the workstation first when given a source' do
     source = Tempfile.new(['openvox-backup', '.tar.gz'])
+    expect_command("install -d -m 0700 '/var/backups/openvox'").with_targets(server).always_return('stdout' => '', 'stderr' => '')
     expect_upload(source.path).with_destination(archive).with_targets(server)
     expect_task('ovadm::backup_verify').with_params('archive' => archive).always_return(verified)
     allow_task('ovadm::backup_restore').always_return(restored)

@@ -71,6 +71,9 @@ plan ovadm::restore(
   $name   = $target.name
 
   if $source {
+    # A rebuilt host has no backup directory yet.
+    $archive_dir = $archive.regsubst('/[^/]+$', '')
+    run_command("install -d -m 0700 '${archive_dir}'", $target)
     upload_file($source, $archive, $target)
     out::message("${name}: uploaded ${source} to ${archive}")
   }
