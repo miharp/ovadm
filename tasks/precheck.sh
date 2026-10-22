@@ -83,6 +83,11 @@ java_version=''
 java_status='warn'
 java_detail='java not found; will be installed as a dependency of openvox-server'
 launcher=/opt/puppetlabs/server/apps/puppetserver/bin/java
+# On an Enterprise Linux host in FIPS mode the redhatfips packages are
+# installed; those of OpenVox Server 9 run on Java 21 only, and the launcher
+# would still prefer an installed Java 25.
+fips_enabled=false
+[ "$(cat /proc/sys/crypto/fips_enabled 2>/dev/null)" = '1' ] && fips_enabled=true
 
 java_major() {
   "$1" -version 2>&1 | awk -F'"' '/version/{print $2; exit}' | cut -d. -f1
@@ -94,7 +99,11 @@ if [ -x "$launcher" ]; then
   # shellcheck source=/dev/null
   if launcher_java=$(set +eu -a; [ -r "$java_defaults" ] && . "$java_defaults"; set +a; "$launcher" 2>/dev/null); then
     launcher_major=$(java_major "$launcher_java" || true)
-    if [ "${launcher_major:-0}" -ge 21 ] 2>/dev/null; then
+    if [ "$fips_enabled" = 'true' ] && [ "${launcher_major:-0}" -ne 21 ] 2>/dev/null; then
+      java_status='fail'
+      java_detail="openvox-server runs Java ${launcher_major:-unknown} (${launcher_java}) through its launcher, but the FIPS packages run on Java 21 only; remove the other Java or set JAVA_BIN in ${java_defaults} to a Java 21"
+      pass=false
+    elif [ "${launcher_major:-0}" -ge 21 ] 2>/dev/null; then
       java_status='pass'
       java_detail="openvox-server runs Java ${launcher_major} (${launcher_java}) through its launcher"
     else
@@ -107,6 +116,10 @@ if [ -x "$launcher" ]; then
     java_detail="openvox-server picks its Java through ${launcher}, which found no Java 21 or 25 installed"
     pass=false
   fi
+elif [ "${PT_ovox_major:-0}" -ge 9 ] && [ "$fips_enabled" = 'true' ] && command -v java >/dev/null 2>&1 && [ "$(java_major java)" -gt 21 ] 2>/dev/null; then
+  java_status='fail'
+  java_detail="java $(java_major java) is installed, but on this FIPS host the redhatfips OpenVox Server ${PT_ovox_major} package runs on Java 21 only and its launcher would pick the newer Java; remove it first"
+  pass=false
 elif [ "${PT_ovox_major:-0}" -ge 9 ]; then
   java_status='pass'
   java_detail="OpenVox Server ${PT_ovox_major} installs Java 21 as a dependency and picks its Java through a launcher, not the system java"

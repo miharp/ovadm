@@ -2,6 +2,7 @@
 set -euo pipefail
 
 OVOX_MAJOR="${PT_ovox_major:-8}"
+FIPS="${PT_fips:-}"
 APT_BASE_URL="${PT_apt_base_url:-https://apt.voxpupuli.org}"
 YUM_BASE_URL="${PT_yum_base_url:-https://yum.voxpupuli.org}"
 APT_BASE_URL="${APT_BASE_URL%/}"
@@ -73,7 +74,16 @@ if [ "$os_family" = 'Debian' ]; then
   apt-get update -qq >&2
 elif [ "$os_family" = 'RedHat' ]; then
   el_major="${os_version%%.*}"
-  pkg_name="openvox${OVOX_MAJOR}-release-el-${el_major}.noarch.rpm"
+  # OpenVox publishes separate packages for Enterprise Linux hosts running
+  # in FIPS mode, under redhatfips instead of el: their bundled OpenSSL runs
+  # with its FIPS provider, the el builds' does not. Detected from the
+  # kernel unless the fips parameter says otherwise.
+  if [ -z "$FIPS" ]; then
+    [ "$(cat /proc/sys/crypto/fips_enabled 2>/dev/null)" = '1' ] && FIPS=true || FIPS=false
+  fi
+  platform='el'
+  [ "$FIPS" = 'true' ] && platform='redhatfips'
+  pkg_name="openvox${OVOX_MAJOR}-release-${platform}-${el_major}.noarch.rpm"
   url="${YUM_BASE_URL}/${pkg_name}"
   rpm -Uvh --replacepkgs "$url" >&2
   # The package does not mark the .repo as a config file, so reinstalling it
@@ -105,5 +115,5 @@ if [ -f "$repository_file" ]; then
   repository=$(grep -m1 -o -E 'https?://[^ ]+' "$repository_file" || true)
 fi
 
-printf '{"status":"success","repo_url":"%s","repository_file":"%s","repository":"%s","removed":[%s]}\n' \
-  "$url" "$repository_file" "$repository" "$removed"
+printf '{"status":"success","repo_url":"%s","repository_file":"%s","repository":"%s","removed":[%s]%s}\n' \
+  "$url" "$repository_file" "$repository" "$removed" "${platform:+,\"platform\":\"$platform\"}"

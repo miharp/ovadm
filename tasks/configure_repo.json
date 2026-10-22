@@ -13,6 +13,10 @@
     "yum_base_url": {
       "description": "Base URL of a mirror of yum.voxpupuli.org, with the same layout: the release package is downloaded from it, and the repository file points at it. Defaults to https://yum.voxpupuli.org",
       "type": "Optional[String[1]]"
+    },
+    "fips": {
+      "description": "On Enterprise Linux, use the redhatfips repository (the packages OpenVox builds for hosts in FIPS mode) instead of el. Defaults to whether the kernel reports FIPS mode",
+      "type": "Optional[Boolean]"
     }
   },
   "supports_noop": false
