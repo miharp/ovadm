@@ -7,6 +7,68 @@ Notable changes to ovadm are recorded here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `ovadm::backup` backs up a primary server into one archive under
+  `/var/backups/openvox`: the CA directory and the server's certificates,
+  the rest of `/etc/puppetlabs/` without `code/` and the services'
+  environment files, and each environment's `.r10k-deploy.json` and
+  `hiera.yaml`, with owners and modes kept. Each item can be switched off
+  with `backup`, `include_code_tree` takes the code directory too, and
+  `extra_paths` adds paths outside the tree such as the r10k deploy key.
+  The archive carries a manifest (versions, gems, deployed commits, CA
+  serial before and after the copy, OpenVoxDB schema version, whether the
+  openvox_server module manages the host), the topology `ovadm::status`
+  reports, and a checksum of every file; the plan runs
+  `ovadm::backup_verify` on it afterwards and warns when an environment's
+  eyaml key is not in the archive, or the CA changed during the copy.
+  `stop_services` gives a cold backup and `age_recipient` an encrypted one.
+  OpenVoxDB's data is not an item: the page carries the `pg_dump` recipe
+  ([#89](https://github.com/miharp/ovadm/issues/89)).
+- `ovadm::restore` puts an archive back on the host it came from, all of it
+  or by `scope` (`ca`, `config`, `code`, `extra`): it verifies the archive,
+  refuses one from another certname or openvox-server version, and, with
+  the CA in scope, one the host's CA has outgrown by signing certificates
+  since the backup, naming them (`force` goes past the host checks, never a
+  bad checksum); stops puppetserver and puppetdb, extracts with owners and
+  modes as archived and leaves package manager leftovers and files added
+  since the backup alone, starts the services, reinstalls gems the manifest
+  lists, redeploys the code with r10k when in scope, runs the agent once and
+  reports the status. `dry_run` lists what would change; `source` uploads
+  the archive from the workstation first, for a rebuilt host, where the
+  plan also names the exact `ovadm::install` command to run first, and
+  `rebuild=true` restores everything but `puppet.conf`, `puppetdb.conf`
+  and `routes.yaml` first, runs the agent so the site's code brings
+  OpenVoxDB back, and only then the configuration whole, installing
+  `openvoxdb-termini` when the host still lacks it. The `code` item carries `/etc/puppetlabs/r10k/` with it. The new
+  `ovadm::backup_restore` task does the host side and reports changed and
+  missing files ([#89](https://github.com/miharp/ovadm/issues/89)).
+- `ovadm::upgrade` takes a backup of the server before it touches a
+  package, `ovadm::backup` with its defaults under `/var/backups/openvox`,
+  and prints the archive's path; `backup_destination` and
+  `backup_extra_paths` shape it, `skip_backup` skips it. The plan returns
+  the path per server as `backup`.
+- `ovadm::status` reports the topology the server's own files describe:
+  whether it holds the CA, the compilers (signed certificates carrying
+  `pp_role=openvox_compiler`), where it sends OpenVoxDB traffic, and the
+  OpenVoxDB database and PostgreSQL on the host, through the new
+  `ovadm::topology` task.
+- `documentation/backup_restore.md`: what a primary server holds, in three
+  tiers, with owners and modes; how to back it up with `ovadm::backup` and
+  by hand with `tar` and `pg_dump`.
+
+### Changed
+
+- `ovadm::configure_puppet_conf` keeps the directory settings of an existing
+  `[main]` section (`vardir`, `ssldir`, `logdir`, `rundir`, `codedir` and
+  the SSL subdirectories) when it rewrites `puppet.conf`, and reports them as
+  `kept`. It used to replace the file, so a host Foreman had provisioned with
+  its fallback layout (certificates under `/var/lib/puppet/ssl`) lost the
+  relocation and requested a new certificate under a certname the CA already
+  held. `ovadm::set_csr_attributes` finds `csr_attributes.yaml` through the
+  agent's `csr_attributes` setting instead of assuming the default path
+  ([#92](https://github.com/miharp/ovadm/pull/92)).
+
 ## [0.7.1] - 2026-10-15
 
 ### Fixed

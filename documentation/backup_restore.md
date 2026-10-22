@@ -4,11 +4,11 @@ An OpenVox primary server holds the one thing nothing else in your
 infrastructure can replace, the certificate authority, next to configuration
 that is cheap to keep and data that the agents rebuild on their own. A good
 backup copies the first two every time and the third when you need it. This
-page lists what lives on a primary server, why each item matters, and how to
-back it up by hand with `tar` and `pg_dump`. The `ovadm::backup` and
-`ovadm::restore` plans, in progress, automate the first two tiers; the tables
-below are their specification. OpenVoxDB's data stays a hand step, because
-ovadm installs OpenVox Server only and your own Puppet code owns the database.
+page lists what lives on a primary server and why each item matters, how
+`ovadm::backup` takes it and `ovadm::restore` puts it back, and how to do the
+same by hand with `tar` and `pg_dump`. OpenVoxDB's data stays a hand step
+either way, because ovadm installs OpenVox Server only and your own Puppet
+code owns the database.
 
 Two things to know before you start:
 
@@ -102,6 +102,333 @@ they imply, not by default.
   activity) do not exist on OpenVox. If you are migrating from PE, there is
   nothing to carry over for them.
 
+## Backing up with ovadm
+
+`ovadm::backup` takes tiers 0 and 1, and the record of what r10k deployed,
+into one archive on the server, checks the archive against its own checksums,
+and prints where it is:
+
+```console
+bolt plan run ovadm::backup server_host=ovox-server.example.com
+```
+
+```text
+ovox-server.example.com: /var/backups/openvox/openvox-backup-ovox-server.example.com-20261021T181530Z.tar.gz (0.1 MB, 41 files)
+ovox-server.example.com: 44 checksums checked, ok
+Copy the archive off the host: it holds the CA private key.
+```
+
+The archive is owned by root with mode `0600`, in a directory created `0700`.
+Nothing copies it anywhere: that is your backup system's job, and the first
+thing to do after the plan returns.
+
+### What goes in
+
+Everything is on unless you switch it off with `backup`:
+
+| Item | What it takes | Switch off with |
+| ---- | ------------- | --------------- |
+| `ca` | `cadir`, `ssldir` and OpenVoxDB's `ssl/`: tier 0 | `backup='{"ca": false}'` |
+| `config` | the rest of `/etc/puppetlabs/` without `code/`, plus the services' environment files under `/etc/sysconfig/` or `/etc/default/`: tier 1 | `backup='{"config": false}'` |
+| `code` | each environment's `.r10k-deploy.json` and `hiera.yaml`: enough to redeploy the same commits with r10k, and to find the eyaml keys | `backup='{"code": false}'` |
+
+`include_code_tree=true` takes `/etc/puppetlabs/code/` itself as well, for a
+site whose git server could be lost together with the primary.
+
+`extra_paths` adds paths outside the tree, as a list. The r10k deploy key,
+the units that run r10k, and the static-catalog scripts under
+`/opt/puppetlabs/server/data/puppetserver/scripts/` when `puppetserver.conf`
+names them are the usual ones:
+
+```console
+bolt plan run ovadm::backup server_host=ovox-server.example.com \
+  extra_paths='["/root/.ssh", "/etc/systemd/system/r10k-deploy.service", "/etc/systemd/system/r10k-deploy.timer", "/opt/puppetlabs/server/data/puppetserver/scripts"]'
+```
+
+A rebuild from the archive needs every path the server reads before the
+site's own code has run again; a backup that misses one is found out then.
+
+The plan warns when an environment's `hiera.yaml` names an eyaml private key
+that the archive does not hold, with the path to add.
+
+### What the archive holds
+
+One directory, named like the archive, with:
+
+- `files/`: the paths above as they are on the host, owners and modes
+  included
+- `ovadm/manifest.json`: when and where the backup was taken; the package
+  versions of the agent, server, OpenVoxDB and PostgreSQL; the gems added to
+  the server's JRuby and the agent's Ruby; each environment's deployed commit;
+  the CA serial before and after the copy; the OpenVoxDB schema version, read
+  over the connection in `database.ini`; whether the openvox_server module
+  manages the host
+- `ovadm/topology.json`: what `ovadm::status` reports as the topology, so a
+  restore knows the compilers and the database when the server that knew them
+  is gone
+- `ovadm/SHA256SUMS`: a checksum for every file above
+
+`ovadm::backup_verify` checks an archive on its own: it unpacks, checks every
+checksum and the manifest, and confirms the archive is from the host it runs
+on, with the same package versions. The plan runs it after every backup; run
+it yourself before a restore, or on a copy you moved somewhere else:
+
+```console
+bolt task run ovadm::backup_verify --targets ovox-server.example.com \
+  archive=/var/backups/openvox/openvox-backup-ovox-server.example.com-20261021T181530Z.tar.gz
+```
+
+### Consistency
+
+The services keep running. The CA directory changes only when a certificate
+is signed or revoked, so the plan reads the CA serial before and after the
+copy and warns if it moved, in which case take the backup again.
+`stop_services=true` stops puppetserver and puppetdb for the copy and starts
+them afterwards, for a cold backup.
+
+### Encryption
+
+`age_recipient=<age public key>` encrypts the archive to that key with
+[age](https://github.com/FiloSottile/age), which must be installed on the
+server, and names it `.tar.gz.age`. The server holds no identity for it,
+so the plan does not verify an encrypted archive; run `backup_verify` with
+`age_identity`, the path of the identity file, wherever that is. Without
+encryption the archive is plain, and it holds the CA private key: keep it on
+encrypted storage.
+
+### Scheduling
+
+ovadm does not schedule backups. `backup_create`, the task behind the plan,
+is a self-contained script with a default for every input, so a timer or your
+backup system can run it: copy `tasks/backup_create.sh` and
+`tasks/topology.sh` from the module to the server, side by side, and run the
+first as root. A class in the openvox_server module is the planned home for
+that timer.
+
+## Restoring with ovadm
+
+`ovadm::restore` puts an archive back on the host it came from:
+
+```console
+bolt plan run ovadm::restore server_host=ovox-server.example.com \
+  archive=/var/backups/openvox/openvox-backup-ovox-server.example.com-20261021T181530Z.tar.gz
+```
+
+In order, it checks the archive (every checksum, that it is from this host,
+that the installed `openvox-server` is the version in the manifest), stops
+puppetserver and puppetdb, extracts the items in scope with owners and modes
+as archived, starts the services, reinstalls gems the manifest lists that the
+host lacks, redeploys the code with r10k when `code` is in scope, runs the
+agent once so the site's own code converges, and finishes with
+`ovadm::status`. Every check stops the plan; `force=true` goes past the ones
+about the host (certname, version, and the CA check below), never past a bad
+checksum.
+
+Three things to know before the first restore:
+
+- **The certname must match.** An archive restores onto the host whose
+  certname it records. Restoring elsewhere is for a rebuilt server with the
+  same name, below.
+- **Files added since the backup stay.** A restore writes what the archive
+  holds; it does not remove a `conf.d` file, a signed certificate or an
+  environment that appeared afterwards. The agent run at the end is a
+  convenience: if it fails, the plan says so and carries on, since the files
+  are back and the services are up by then. Package manager leftovers
+  (`*.rpmnew`, `*.rpmsave`, `*.dpkg-dist`, `*.dpkg-old`) in the archive are
+  not put back.
+- **On a host the openvox_server module manages**, the files it owns
+  (`webserver.conf`, `services.d/ca.cfg`, the `puppet.conf` and `ca.conf`
+  settings it is given, the JVM sizing) come back on the next agent run,
+  which the plan itself triggers. To roll those back, revert the Hiera data
+  and let the run do it; the restore is for everything else. The manifest
+  says whether the module was in the host's last catalog.
+
+`dry_run=true` lists the files that differ from the archive, and those the
+archive has that the host has not, and touches nothing:
+
+```console
+bolt plan run ovadm::restore server_host=ovox-server.example.com archive=... dry_run=true
+```
+
+`scope` limits the restore to some of what the archive holds: `ca`,
+`config`, `code` (the files under `/etc/puppetlabs/code/` the archive has,
+followed by an r10k deploy), and `extra` (the `extra_paths` given at backup
+time). The default is everything the archive holds.
+
+### Rolling back configuration
+
+A bad change under `conf.d`, a JVM setting that stops the service, an
+`auth.conf` rule that locked the compilers out:
+
+```console
+bolt plan run ovadm::restore server_host=ovox-server.example.com archive=... scope='["config"]'
+```
+
+A minute or two, most of it puppetserver starting. Check the dry run first
+when you are not sure which files changed since the backup. The agent run at
+the end reapplies the site's code, so a change the site's code makes comes
+straight back: that is where it has to be reverted.
+
+### Restoring a lost CA
+
+The CA directory gone, the fleet still up and trusting the same CA
+certificate:
+
+```console
+bolt plan run ovadm::restore server_host=ovox-server.example.com archive=... scope='["ca"]'
+```
+
+This puts back the CA directory, the server's own certificate and key, and
+OpenVoxDB's copy of them, and restarts the services. Agents never notice: the
+CA certificate they hold is the one restored.
+
+What the loss looks like, on OpenVox Server 8.17: a running puppetserver
+crashes within a minute of its CA directory disappearing (it rewrites
+`infra_serials` there regularly), systemd starts it again, and it goes on
+serving catalogs with its own certificate, with signing and revocation
+broken. The openvox_server module's next agent run tries `puppetserver ca
+setup`, which refuses while the server's own certificate exists, so that
+run fails and changes nothing. Lose `ssldir` as well and puppetserver
+cannot start at all: as the `puppet` user it cannot recreate `ssldir` under
+the root-owned `confdir`, so systemd restarts it in a loop until the restore
+puts the files back. In neither state does the server make itself a new CA.
+Should a new one appear anyway, from a hand-run `puppetserver ca setup` or
+a first-start elsewhere, the restore replaces it with the archived one and
+warns that it did.
+
+A CA restored from a backup does not know the certificates signed after it
+was taken. The plan compares the live `inventory.txt` with the archive's and
+refuses to go on if the live CA has signed certificates the archive lacks,
+naming them. With `force=true` it restores anyway; afterwards, remove those
+hosts' certificates (`puppetserver ca clean --certname <host>` will not know
+them, so delete `signed/<host>.pem` by hand, and `ssldir` on the host) and
+enrol them again with `ovadm::add_agent`. Their serial numbers are reused by
+the restored CA, which is why their files must go. The smaller that set, the
+simpler the recovery, which is why backups follow signings.
+
+### Rebuilding the server on a new host
+
+The server is gone. Build a replacement with the same certname and the
+address the agents use, then:
+
+1. **Install OpenVox Server with the versions the archive records.** Run
+   `ovadm::restore` against the bare host and it stops with the exact
+   command, read from the manifest:
+
+   ```text
+   openvox-server is not installed; install it first, then restore: bolt plan run ovadm::install server_host=<this host> ovox_server_version=8.17.0 ovox_version=8.30.0
+   ```
+
+   That install makes a throwaway CA and certificate; the restore replaces
+   them.
+2. **Restore the archive with `rebuild=true`**, uploading it from wherever
+   the backups are kept:
+
+   ```console
+   bolt plan run ovadm::restore server_host=ovox-server.example.com rebuild=true \
+     source=/backups/openvox-backup-ovox-server.example.com-20261021T181530Z.tar.gz \
+     archive=/var/backups/openvox/openvox-backup-ovox-server.example.com-20261021T181530Z.tar.gz
+   ```
+
+   `rebuild` orders the restore the way the server was first built. The
+   first pass puts back everything but `puppet.conf`, `puppetdb.conf` and
+   `routes.yaml`, the three files that wire the server to OpenVoxDB (the
+   plan warns that the throwaway CA is replaced); installs the gems the
+   manifest lists (r10k among them, when the site installed it by hand);
+   redeploys the code; and runs the agent on a server still wired as
+   `ovadm::install` left it. That run is where the site's own code brings
+   back what it owns: OpenVoxDB and PostgreSQL, the r10k timer, the
+   firewall. A site whose code queries PuppetDB at compile time would fail
+   that run with the terminus in place, which is why those files wait. The
+   second pass then puts the configuration back whole, installs
+   `openvoxdb-termini` if the site's code did not (the restored
+   `routes.yaml` needs it), restarts, and runs the agent again. Expect the
+   first run to take a while and to report changes; the second should be
+   clean.
+3. **Files of users that did not exist yet** are put back under their old
+   numeric ids and the plan says which: on a host without OpenVoxDB that is
+   everything under `/etc/puppetlabs/puppetdb/`. The package creates the
+   user on install, and the module that manages OpenVoxDB sets the owners
+   when it runs; if nothing does, `chown -R puppetdb:puppetdb` them.
+4. **The agents' next run exits 0** with the certificates they had: the CA
+   is the same, the server's certificate is the same, nothing was
+   re-issued.
+5. **OpenVoxDB's data** is not in the archive. Facts and catalogs come back
+   on each agent's next run; for reports and exported resources, restore a
+   `pg_dump` taken with the recipe below, after the site's code has created
+   the empty database.
+
+### An upgrade gone wrong
+
+`ovadm::upgrade` takes a backup of the server before it touches a package
+and prints the archive's path. The way back is the previous packages, then
+that archive:
+
+1. **Put the previous packages back.** ovadm does not downgrade. On the
+   server, with the previous major's repository in place again when the
+   upgrade crossed one:
+
+   ```console
+   dnf downgrade openvox-server-8.17.0 openvox-agent-8.31.0        # EL
+   apt-get install openvox-server=8.17.0-1+ubuntu24.04 ...          # Debian, Ubuntu
+   ```
+
+   The versions are in the archive's manifest, and `ovadm::backup_verify`
+   prints them next to the host's. `ovadm::restore` refuses the archive
+   while the installed `openvox-server` is not the version in the manifest,
+   which is the check that keeps you from restoring 8's configuration onto
+   a 9 server; `dry_run=true force=true` still shows what it would change.
+2. **Restore the archive**:
+
+   ```console
+   bolt plan run ovadm::restore server_host=ovox-server.example.com \
+     archive=/var/backups/openvox/openvox-backup-ovox-server.example.com-20261022T120000Z.tar.gz
+   ```
+
+   Configuration the upgrade rewrote comes back, the CA and certificates
+   are as they were (an upgrade does not change them, so the restore
+   reports them unchanged), and the agent run at the end lets the site's
+   code settle. Downgrade OpenVoxDB with the server when the upgrade moved
+   it, by hand, as the upgrade page says.
+
+### A CA lost with no backup
+
+Not restorable. Without the CA's private key the server can sign nothing
+and revoke nothing, and no copy of the key exists anywhere else. The
+certificates it issued go on working between the agents and the server
+until they expire, which buys time, not a way back. The way forward is a
+new CA and a re-enrolled fleet: the upstream page on
+[regenerating certificates](https://docs.openvoxproject.org/openvox/latest/ssl_regenerate_certificates.html)
+covers the server; `ovadm::add_compiler` re-enrols a compiler and
+`ovadm::add_agent` an agent, after each host's `ssldir` is removed. This is
+the one loss a backup turns from a fleet-wide re-enrolment into a restore
+measured in minutes, and the reason the backup follows every signing.
+
+### OpenVoxDB lost
+
+OpenVoxDB's data is not in the archive, by design: ovadm installs OpenVox
+Server only, and your own Puppet code owns the database. An empty OpenVoxDB
+comes back the way it first arrived, from the site's code on the next agent
+run; the facts and catalogs of every node return on that node's next run.
+Reports, resource events and exported resources do not. For those, restore a
+`pg_dump` taken with the recipe under [Backing up by hand](#backing-up-by-hand)
+into the empty database, with the recipe under
+[Restoring by hand](#restoring-by-hand). The rebuild test in ovadm's lab does
+exactly that, and the reports it counted before the loss are back afterwards.
+
+### What is not covered
+
+- **Compilers** hold nothing unique: a lost compiler is re-enrolled with
+  `ovadm::add_compiler`, and the CA on the server knows it again as soon as
+  it signs its new certificate.
+- **Agents** likewise: `ovadm::add_agent`.
+- **Add-ons** such as the OpenVox GUI, Puppetboard or Foreman own their own
+  data and have their own backup story. Their keys under `/etc/puppetlabs/`
+  (the GUI's Bolt key, say) do travel with the archive.
+- **Changing the server's certname or address** is not a restore. An archive
+  restores onto the host whose certname it records; a server that must
+  change name is a new server, with a new certificate from the same CA.
+
 ## Backing up by hand
 
 The commands below run as root on the primary server and produce a timestamped
@@ -179,6 +506,50 @@ du -sh "$backup"
 
 If `cmp` reports a difference, a certificate was signed during the backup;
 run it again.
+
+## Restoring by hand
+
+The tiers 0 and 1 archive from the recipe above goes back as it came, with
+the services stopped:
+
+```console
+systemctl stop puppetserver puppetdb
+tar -C / -xzpf "$backup/etc-puppetlabs.tar.gz"
+systemctl start puppetserver puppetdb
+```
+
+Owners and modes come back with the files, since the archive was made as
+root. Leave out any `*.rpmnew` or `*.dpkg-dist` the archive holds.
+
+### Restoring OpenVoxDB
+
+Verified on PostgreSQL 16, and run as written by ovadm's rebuild test. The
+`puppetdb` role owns every object in the database, so it can restore without
+superuser rights; the one privileged step is resetting the schema, which the
+`postgres` user does. `pg_restore --clean` is not an alternative: it fails on
+the partitioned `resource_events_*` tables. The database must exist, with
+the `puppetdb` role as OpenVoxDB's configuration names it: on a rebuilt
+server, that means after the site's code has brought OpenVoxDB back.
+
+```console
+systemctl stop puppetdb
+sudo -u postgres psql -q -d puppetdb -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public; ALTER SCHEMA public OWNER TO pg_database_owner; GRANT USAGE ON SCHEMA public TO PUBLIC; GRANT CREATE ON SCHEMA public TO puppetdb;"
+ini=/etc/puppetlabs/puppetdb/conf.d/database.ini
+subname=$(awk -F= '/^subname/ {gsub(/ /,"",$2); print $2}' "$ini")
+export PGPASSWORD=$(awk -F= '/^password/ {gsub(/ /,"",$2); print $2}' "$ini")
+host=${subname#//}; host=${host%%[:/]*}
+port=$(echo "$subname" | sed -n 's#//[^:/]*:\([0-9]*\)/.*#\1#p'); port=${port:-5432}
+db=${subname##*/}
+pg_restore -h "$host" -p "$port" -U puppetdb -d "$db" -j4 "$backup/openvoxdb"
+unset PGPASSWORD
+systemctl start puppetdb
+```
+
+On PostgreSQL 14 and earlier `public` is owned by `postgres`, so leave the
+`ALTER SCHEMA ... OWNER` clause out. With PostgreSQL on another host, run the
+schema reset through an administrative connection there; `pg_restore` needs
+no shell on the database host. OpenVoxDB starts, finds the schema it expects,
+and the reports are there.
 
 ### How often
 

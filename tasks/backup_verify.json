@@ -1,0 +1,19 @@
+{
+  "description": "Check an archive that ovadm::backup_create wrote: it unpacks, every file matches its checksum, the manifest is present, and (with check_host) it is from this host and its package versions match. Problems are reported in the result as status failed; package differences as warnings",
+  "input_method": "environment",
+  "parameters": {
+    "archive": {
+      "description": "Path of the archive on this host",
+      "type": "String[1]"
+    },
+    "check_host": {
+      "description": "Compare the manifest's certname and package versions with this host. Default true",
+      "type": "Optional[Boolean]"
+    },
+    "age_identity": {
+      "description": "Path of an age identity file, needed to read a .tar.gz.age archive",
+      "type": "Optional[String[1]]"
+    }
+  },
+  "supports_noop": false
+}

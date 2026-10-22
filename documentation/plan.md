@@ -41,6 +41,8 @@ A server plus one or more compilers to distribute compilation load across large 
 | `ovadm::status` | Report health of a running deployment | P0 |
 | `ovadm::add_compiler` | Add a node to the `compiler_hosts` pool | P1 |
 | `ovadm::add_agent` | Install and enroll agent nodes from the workstation | P2 |
+| `ovadm::backup` | Back up the server into one checked archive | P1 |
+| `ovadm::restore` | Put an archive back on the server it came from, by scope | P1 |
 
 ### Subplans (internal)
 
@@ -57,6 +59,7 @@ The top-level plans should be thin orchestrators that call focused subplans. Thi
 | `ovadm::subplans::cert_setup` | Submit and sign CSRs; embed pp_role extension |
 | `ovadm::subplans::agent_package` | Install `openvox-agent` on `agent_hosts` and write puppet.conf; carries on past a failed host |
 | `ovadm::subplans::agent_enroll` | Submit and sign the agents' CSRs and apply their first catalog; carries on past a failed host |
+| `ovadm::subplans::restore_pass` | One pass of `ovadm::restore`: the files of a scope, missing gems, the termini package when asked, the server up, r10k deploy, one agent run |
 
 **Upgrade subplans:**
 
@@ -127,6 +130,15 @@ Tasks are the atomic operations that plans compose. The following are implemente
 |------|-------------|-------|
 | `ovadm::infrastatus` | Return full deployment status as JSON | Summary view for operators |
 | `ovadm::topology` | Report the server's certname and CA, its compilers (`pp_role=openvox_compiler` certificates), and where OpenVoxDB and PostgreSQL are, from files and packages only | Status output; the `topology.json` that `ovadm::backup` stores in the archive |
+
+### Backup
+
+| Task | Description | Notes |
+|------|-------------|-------|
+| `ovadm::backup_create` | Write one archive of the selected items with a manifest, the topology and a checksum of every file | Self-contained bash with a default for every `PT_*` input, so a timer can run it; needs `topology.sh` beside it |
+| `ovadm::backup_verify` | Unpack an archive, check every checksum and the manifest, and compare its certname and package versions with the host | Run by `ovadm::backup` after every backup; usable alone before a restore |
+| `ovadm::backup_restore` | Check an archive against the host (checksums, certname, server version, a CA that signed nothing since the backup), stop the services, extract the items in scope with owners and modes, start the services; `dry_run` reports only | Run by `ovadm::restore`; never puts `*.rpmnew` and the like back |
+| `ovadm::install_package` | Install one package at a given version with dnf or apt-get | `ovadm::restore` uses it for `openvoxdb-termini` on a rebuilt host |
 
 ---
 

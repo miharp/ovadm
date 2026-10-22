@@ -1,0 +1,31 @@
+{
+  "description": "Put the files of an ovadm::backup_create archive back on the host it came from: checks every checksum, the certname, the openvox-server version and that the host's CA has signed nothing the archive does not know, stops the running services, extracts the items in scope with owners and modes as archived, skipping *.rpmnew and the like, and starts the services again. Reports which files changed, which were missing, and which gems from the manifest are not installed",
+  "input_method": "environment",
+  "parameters": {
+    "archive": {
+      "description": "Path of the archive on this host",
+      "type": "String[1]"
+    },
+    "scope": {
+      "description": "Comma-separated items to put back: ca, config, code (with /etc/puppetlabs/r10k), extra. Default: everything the archive holds",
+      "type": "Optional[Pattern[/\\A(ca|config|code|extra)(,(ca|config|code|extra))*\\z/]]"
+    },
+    "exclude": {
+      "description": "Comma-separated absolute paths within the scope to leave out of this pass",
+      "type": "Optional[String[1]]"
+    },
+    "force": {
+      "description": "Restore even when the certname or the openvox-server version differ, or the host's CA has signed certificates since the backup. Default false",
+      "type": "Optional[Boolean]"
+    },
+    "dry_run": {
+      "description": "Report what would change and touch nothing. Default false",
+      "type": "Optional[Boolean]"
+    },
+    "age_identity": {
+      "description": "Path of an age identity file, needed to read a .tar.gz.age archive",
+      "type": "Optional[String[1]]"
+    }
+  },
+  "supports_noop": false
+}

@@ -4,9 +4,20 @@
 
 ## Table of Contents
 
+### Functions
+
+* [`ovadm::version`](#ovadm--version): ovadm's own version, read from its metadata.json
+
+### Data types
+
+* [`Ovadm::Backup_opts`](#Ovadm--Backup_opts): What `ovadm::backup` puts in the archive
+
 ### Tasks
 
 * [`agent_runonce`](#agent_runonce): Run the Puppet agent once and return the exit status
+* [`backup_create`](#backup_create): Back up an OpenVox primary server into one archive under destination: the selected items' files as they are on the host, a manifest of the ho
+* [`backup_restore`](#backup_restore): Put the files of an ovadm::backup_create archive back on the host it came from: checks every checksum, the certname, the openvox-server versi
+* [`backup_verify`](#backup_verify): Check an archive that ovadm::backup_create wrote: it unpacks, every file matches its checksum, the manifest is present, and (with check_host)
 * [`ca_setup`](#ca_setup): Create the CA with `puppetserver ca setup` (root + intermediate, 15-year lifetime) before the first service start. Skipped when a CA already
 * [`configure_ca_renewal`](#configure_ca_renewal): Set certificate auto-renewal settings in ca.conf on the CA. Takes effect on the next puppetserver (re)start and only affects certificates sig
 * [`configure_compiler_ssl`](#configure_compiler_ssl): Configure puppetserver SSL on a compiler to use the puppet-CA-signed node certificate
@@ -15,6 +26,7 @@
 * [`get_version`](#get_version): Return the installed openvox-server version, or puppetserver's on a host not yet upgraded to OpenVox, and which package it is; version is 'no
 * [`infrastatus`](#infrastatus): Return a concise status summary: installed version, service state, and port 8140
 * [`install_agent`](#install_agent): Install the openvox-agent package from the configured repository
+* [`install_package`](#install_package): Install one package at a given version from the host's repositories, with dnf or apt-get. Reports already_installed when the host has it at t
 * [`install_server`](#install_server): Install or upgrade the openvox-server package from the configured repository, replacing puppetserver if it is installed; edited configuration
 * [`os_identification`](#os_identification): Detect OS family, name, version, and architecture
 * [`precheck`](#precheck): Validate target readiness: OS family, Java version, port 8140, host firewall, NTP sync, and enough memory for OpenVox Server's heap; for an a
@@ -34,7 +46,9 @@
 
 * [`ovadm::add_agent`](#ovadm--add_agent): Add one or more agent nodes to an existing OpenVox Server deployment
 * [`ovadm::add_compiler`](#ovadm--add_compiler): Add one or more compiler nodes to an existing OpenVox Server deployment
+* [`ovadm::backup`](#ovadm--backup): Back up an OpenVox primary server to one archive
 * [`ovadm::install`](#ovadm--install): Install a new OpenVox Server deployment
+* [`ovadm::restore`](#ovadm--restore): Restore an OpenVox primary server from an `ovadm::backup` archive
 * [`ovadm::status`](#ovadm--status): Check the status of an OpenVox Server deployment
 * [`ovadm::upgrade`](#ovadm--upgrade): Upgrade an existing OpenVox Server deployment
 
@@ -47,9 +61,51 @@
 * `ovadm::subplans::configure`: Configure puppet.conf on an OpenVox Server node
 * `ovadm::subplans::install`: Install OpenVox Server packages on a target
 * `ovadm::subplans::precheck`: Validate that a target is ready to run OpenVox Server
+* `ovadm::subplans::restore_pass`: One pass of a restore: the files of a scope, then the server up
 * `ovadm::subplans::upgrade_compilers`: Upgrade openvox-server on compiler pool nodes
 * `ovadm::subplans::upgrade_repo`: Move nodes to the package repository of the major version they are upgraded to
 * `ovadm::subplans::upgrade_server`: Upgrade openvox-server on a single node
+
+## Functions
+
+### <a name="ovadm--version"></a>`ovadm::version`
+
+Type: Puppet Language
+
+Read rather than hardcoded: the release workflow refuses a tag that
+disagrees with metadata.json, so the file is the source of truth.
+
+#### `ovadm::version()`
+
+Read rather than hardcoded: the release workflow refuses a tag that
+disagrees with metadata.json, so the file is the source of truth.
+
+Returns: `String` the version, or `unknown` when metadata.json has none
+
+## Data types
+
+### <a name="Ovadm--Backup_opts"></a>`Ovadm::Backup_opts`
+
+Every item is on unless switched off, so the default is everything a
+disaster recovery needs and a caller opts out of what it does not want.
+
+- `ca`: the CA directory, the server's own certificate and key, and
+  OpenVoxDB's copy of them
+- `config`: the rest of `/etc/puppetlabs/` (without `code/`) and the
+  services' environment files
+- `code`: what r10k deployed, as each environment's `.r10k-deploy.json`
+  and `hiera.yaml`, with `/etc/puppetlabs/r10k/`; `include_code_tree` on
+  the plan takes the directory too
+
+Alias of
+
+```puppet
+Struct[{
+  Optional[ca]     => Boolean,
+  Optional[config] => Boolean,
+  Optional[code]   => Boolean,
+}]
+```
 
 ## Tasks
 
@@ -72,6 +128,138 @@ Seconds to wait for a certificate to be signed (0 = submit CSR and exit immediat
 Data type: `Optional[String[1]]`
 
 Environment to run against, passed as --environment. Omitted, the agent uses the environment the server assigned on its last run, falling back to puppet.conf; with it, the agent asks for this one and the run fails if the server does not have it
+
+### <a name="backup_create"></a>`backup_create`
+
+Back up an OpenVox primary server into one archive under destination: the selected items' files as they are on the host, a manifest of the host (versions, gems, deployed code, CA serial, OpenVoxDB schema) and the topology the server sees, with checksums of every file. Returns the archive path and size
+
+**Supports noop?** false
+
+#### Parameters
+
+##### `destination`
+
+Data type: `Optional[String[1]]`
+
+Directory for the archive, created 0700 if missing. Default /var/backups/openvox
+
+##### `ca`
+
+Data type: `Optional[Boolean]`
+
+Include the CA directory, the server's own certificate and key, and OpenVoxDB's copy of them. Default true
+
+##### `config`
+
+Data type: `Optional[Boolean]`
+
+Include the rest of /etc/puppetlabs (without code/) and the services' environment files. Default true
+
+##### `code`
+
+Data type: `Optional[Boolean]`
+
+Include each environment's .r10k-deploy.json and hiera.yaml, the record of what r10k deployed, and /etc/puppetlabs/r10k. Default true
+
+##### `include_code_tree`
+
+Data type: `Optional[Boolean]`
+
+With code, take /etc/puppetlabs/code itself. Default false
+
+##### `extra_paths`
+
+Data type: `Optional[String[1]]`
+
+Comma-separated absolute paths outside /etc/puppetlabs to include, such as the r10k deploy key. Each must exist
+
+##### `stop_services`
+
+Data type: `Optional[Boolean]`
+
+Stop puppetserver and puppetdb while the files are copied, and start them again afterwards. Default false
+
+##### `age_recipient`
+
+Data type: `Optional[String[1]]`
+
+An age public key; the archive is encrypted to it and named .tar.gz.age. age must be installed
+
+##### `ovadm_version`
+
+Data type: `Optional[String[1]]`
+
+Recorded in the manifest; the plan passes its own version
+
+### <a name="backup_restore"></a>`backup_restore`
+
+Put the files of an ovadm::backup_create archive back on the host it came from: checks every checksum, the certname, the openvox-server version and that the host's CA has signed nothing the archive does not know, stops the running services, extracts the items in scope with owners and modes as archived, skipping *.rpmnew and the like, and starts the services again. Reports which files changed, which were missing, and which gems from the manifest are not installed
+
+**Supports noop?** false
+
+#### Parameters
+
+##### `archive`
+
+Data type: `String[1]`
+
+Path of the archive on this host
+
+##### `scope`
+
+Data type: `Optional[Pattern[/\A(ca|config|code|extra)(,(ca|config|code|extra))*\z/]]`
+
+Comma-separated items to put back: ca, config, code (with /etc/puppetlabs/r10k), extra. Default: everything the archive holds
+
+##### `exclude`
+
+Data type: `Optional[String[1]]`
+
+Comma-separated absolute paths within the scope to leave out of this pass
+
+##### `force`
+
+Data type: `Optional[Boolean]`
+
+Restore even when the certname or the openvox-server version differ, or the host's CA has signed certificates since the backup. Default false
+
+##### `dry_run`
+
+Data type: `Optional[Boolean]`
+
+Report what would change and touch nothing. Default false
+
+##### `age_identity`
+
+Data type: `Optional[String[1]]`
+
+Path of an age identity file, needed to read a .tar.gz.age archive
+
+### <a name="backup_verify"></a>`backup_verify`
+
+Check an archive that ovadm::backup_create wrote: it unpacks, every file matches its checksum, the manifest is present, and (with check_host) it is from this host and its package versions match. Problems are reported in the result as status failed; package differences as warnings
+
+**Supports noop?** false
+
+#### Parameters
+
+##### `archive`
+
+Data type: `String[1]`
+
+Path of the archive on this host
+
+##### `check_host`
+
+Data type: `Optional[Boolean]`
+
+Compare the manifest's certname and package versions with this host. Default true
+
+##### `age_identity`
+
+Data type: `Optional[String[1]]`
+
+Path of an age identity file, needed to read a .tar.gz.age archive
 
 ### <a name="ca_setup"></a>`ca_setup`
 
@@ -214,6 +402,26 @@ Install the openvox-agent package from the configured repository
 Data type: `Optional[String[1]]`
 
 Version to install (e.g. '8.3.1'); omit for latest
+
+### <a name="install_package"></a>`install_package`
+
+Install one package at a given version from the host's repositories, with dnf or apt-get. Reports already_installed when the host has it at that version
+
+**Supports noop?** false
+
+#### Parameters
+
+##### `name`
+
+Data type: `String[1]`
+
+Package name
+
+##### `version`
+
+Data type: `Optional[String[1]]`
+
+Exact version as the package manager reports it (e.g. 8.17.0-1.el10 or 8.17.0-1+ubuntu24.04); omit for the repository's newest
 
 ### <a name="install_server"></a>`install_server`
 
@@ -534,6 +742,99 @@ Data type: `Optional[String[1]]`
 
 Default value: `undef`
 
+### <a name="ovadm--backup"></a>`ovadm::backup`
+
+Takes the CA, the server's certificates, its configuration and a record of
+the deployed code from the server into one archive under `destination`,
+with a manifest of the host it came from and the topology the server sees,
+then checks the archive against its own checksums. Copying the archive off
+the host is left to you: it holds the CA's private key.
+
+#### Parameters
+
+The following parameters are available in the `ovadm::backup` plan:
+
+* [`server_host`](#-ovadm--backup--server_host)
+* [`destination`](#-ovadm--backup--destination)
+* [`backup`](#-ovadm--backup--backup)
+* [`include_code_tree`](#-ovadm--backup--include_code_tree)
+* [`extra_paths`](#-ovadm--backup--extra_paths)
+* [`stop_services`](#-ovadm--backup--stop_services)
+* [`age_recipient`](#-ovadm--backup--age_recipient)
+* [`verify`](#-ovadm--backup--verify)
+
+##### <a name="-ovadm--backup--server_host"></a>`server_host`
+
+Data type: `TargetSpec`
+
+The OpenVox Server node
+
+##### <a name="-ovadm--backup--destination"></a>`destination`
+
+Data type: `String[1]`
+
+Directory on the server for the archive. Created with mode 0700 if it
+does not exist.
+
+Default value: `'/var/backups/openvox'`
+
+##### <a name="-ovadm--backup--backup"></a>`backup`
+
+Data type: `Ovadm::Backup_opts`
+
+What to include; everything is on unless switched off. See
+`Ovadm::Backup_opts`.
+
+Default value: `{}`
+
+##### <a name="-ovadm--backup--include_code_tree"></a>`include_code_tree`
+
+Data type: `Boolean`
+
+Take `/etc/puppetlabs/code/` itself, not only the record of what r10k
+deployed. For sites whose git server shares the primary's blast radius.
+
+Default value: `false`
+
+##### <a name="-ovadm--backup--extra_paths"></a>`extra_paths`
+
+Data type: `Array[String[1]]`
+
+Paths outside `/etc/puppetlabs/` to include, such as the r10k deploy key
+or the systemd units that run r10k. Each must exist.
+
+Default value: `[]`
+
+##### <a name="-ovadm--backup--stop_services"></a>`stop_services`
+
+Data type: `Boolean`
+
+Stop puppetserver and puppetdb while the files are copied, and start
+them again afterwards. Off by default: the CA directory changes only
+when a certificate is signed or revoked, and the plan reports if that
+happened during the copy.
+
+Default value: `false`
+
+##### <a name="-ovadm--backup--age_recipient"></a>`age_recipient`
+
+Data type: `Optional[String[1]]`
+
+An `age` public key. When set, the archive is encrypted to it and gets
+the suffix `.age`; `age` must be installed on the server.
+
+Default value: `undef`
+
+##### <a name="-ovadm--backup--verify"></a>`verify`
+
+Data type: `Boolean`
+
+Check the archive's checksums and manifest after writing it. Skipped
+for an encrypted archive, which the server cannot read back: run
+`ovadm::backup_verify` with `age_identity` where the identity is.
+
+Default value: `true`
+
 ### <a name="ovadm--install"></a>`ovadm::install`
 
 Runs prechecks, configures the package repository, installs openvox-server,
@@ -660,6 +961,133 @@ deployment live in another environment would otherwise be applied from
 
 Default value: `undef`
 
+### <a name="ovadm--restore"></a>`ovadm::restore`
+
+Puts the files of the archive back on the host they came from, with the
+services stopped for the copy, then starts puppetserver, redeploys the code
+when it is in scope, runs the agent once so the site's own code converges,
+and reports the status. The archive is checked first: its checksums, that
+it is from this host, that the openvox-server version matches, and, when
+the CA is in scope, that the CA on the host has signed nothing since the
+backup. Each check stops the plan unless `force` is set.
+
+Files added since the backup stay. On a host the openvox_server module
+manages, the files it owns come back on the next agent run: roll those
+back in Hiera, and use this plan for the rest.
+
+On a rebuilt host, run `ovadm::install` first with the versions the
+manifest names (the plan prints the exact command when the server is not
+installed), then this plan with `rebuild`. That restores everything but
+`puppet.conf`, `puppetdb.conf` and `routes.yaml` first and runs the agent
+on a server that has no OpenVoxDB wiring yet, as on the original build,
+so the site's code can bring OpenVoxDB back; then it puts the
+configuration back whole, with `openvoxdb-termini` installed when the
+host still lacks it.
+
+#### Parameters
+
+The following parameters are available in the `ovadm::restore` plan:
+
+* [`server_host`](#-ovadm--restore--server_host)
+* [`archive`](#-ovadm--restore--archive)
+* [`source`](#-ovadm--restore--source)
+* [`scope`](#-ovadm--restore--scope)
+* [`rebuild`](#-ovadm--restore--rebuild)
+* [`force`](#-ovadm--restore--force)
+* [`dry_run`](#-ovadm--restore--dry_run)
+* [`age_identity`](#-ovadm--restore--age_identity)
+* [`deploy_code`](#-ovadm--restore--deploy_code)
+* [`agent_run`](#-ovadm--restore--agent_run)
+
+##### <a name="-ovadm--restore--server_host"></a>`server_host`
+
+Data type: `TargetSpec`
+
+The OpenVox Server node
+
+##### <a name="-ovadm--restore--archive"></a>`archive`
+
+Data type: `String[1]`
+
+Path of the archive on the server
+
+##### <a name="-ovadm--restore--source"></a>`source`
+
+Data type: `Optional[String[1]]`
+
+Path of the archive on the workstation running Bolt. It is uploaded to
+`archive` on the server before anything else: the rebuilt-server path,
+where the archive is wherever the backups were kept.
+
+Default value: `undef`
+
+##### <a name="-ovadm--restore--scope"></a>`scope`
+
+Data type: `Optional[Array[Enum['ca', 'config', 'code', 'extra'], 1]]`
+
+What to put back: `ca`, `config`, `code` (what the archive holds under
+`/etc/puppetlabs/code/` and `/etc/puppetlabs/r10k/`, followed by an r10k
+deploy), `extra` (the paths given as `extra_paths` at backup time).
+Default: everything the archive holds.
+
+Default value: `undef`
+
+##### <a name="-ovadm--restore--rebuild"></a>`rebuild`
+
+Data type: `Boolean`
+
+The host was rebuilt: leave the files that wire the server to OpenVoxDB
+out of the first pass, run the agent so the site's code brings back
+what it installs, then put the configuration back whole.
+
+Default value: `false`
+
+##### <a name="-ovadm--restore--force"></a>`force`
+
+Data type: `Boolean`
+
+Restore even when the archive is from another certname or
+openvox-server version, or the host's CA has signed certificates since
+the backup; those certificates must then be cleaned and re-signed.
+
+Default value: `false`
+
+##### <a name="-ovadm--restore--dry_run"></a>`dry_run`
+
+Data type: `Boolean`
+
+Report which files would change and stop; nothing is written and no
+service is touched.
+
+Default value: `false`
+
+##### <a name="-ovadm--restore--age_identity"></a>`age_identity`
+
+Data type: `Optional[String[1]]`
+
+Path of the age identity file on the server, for a `.tar.gz.age` archive.
+
+Default value: `undef`
+
+##### <a name="-ovadm--restore--deploy_code"></a>`deploy_code`
+
+Data type: `Boolean`
+
+With `code` in scope, run `r10k deploy environment --modules` after the
+files are back, when r10k is installed.
+
+Default value: `true`
+
+##### <a name="-ovadm--restore--agent_run"></a>`agent_run`
+
+Data type: `Boolean`
+
+Run the agent once on the server after the restore, so the site's code
+brings back what it owns. A failed run is reported, not fatal: the files
+are back and the services are up by then.
+
+Default value: `true`
+
 ### <a name="ovadm--status"></a>`ovadm::status`
 
 Check the status of an OpenVox Server deployment
@@ -693,6 +1121,9 @@ The following parameters are available in the `ovadm::upgrade` plan:
 * [`ovox_major`](#-ovadm--upgrade--ovox_major)
 * [`apt_base_url`](#-ovadm--upgrade--apt_base_url)
 * [`yum_base_url`](#-ovadm--upgrade--yum_base_url)
+* [`skip_backup`](#-ovadm--upgrade--skip_backup)
+* [`backup_destination`](#-ovadm--upgrade--backup_destination)
+* [`backup_extra_paths`](#-ovadm--upgrade--backup_extra_paths)
 
 ##### <a name="-ovadm--upgrade--server_host"></a>`server_host`
 
@@ -753,3 +1184,31 @@ Base URL of a yum/dnf mirror to use instead of https://yum.voxpupuli.org,
 for nodes that move to a new major version's repository
 
 Default value: `undef`
+
+##### <a name="-ovadm--upgrade--skip_backup"></a>`skip_backup`
+
+Data type: `Boolean`
+
+Do not take a backup of the server before touching packages. The
+backup is `ovadm::backup` with its defaults: the CA, the certificates,
+the configuration and the code record, verified, under
+`backup_destination`. It is the way back if the upgrade goes wrong.
+
+Default value: `false`
+
+##### <a name="-ovadm--upgrade--backup_destination"></a>`backup_destination`
+
+Data type: `String[1]`
+
+Directory on the server for the pre-upgrade archive
+
+Default value: `'/var/backups/openvox'`
+
+##### <a name="-ovadm--upgrade--backup_extra_paths"></a>`backup_extra_paths`
+
+Data type: `Array[String[1]]`
+
+Paths outside `/etc/puppetlabs/` to include in the pre-upgrade archive,
+as `extra_paths` on `ovadm::backup`
+
+Default value: `[]`

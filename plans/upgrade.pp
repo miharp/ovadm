@@ -31,6 +31,23 @@
 #   Base URL of a yum/dnf mirror to use instead of https://yum.voxpupuli.org,
 #   for nodes that move to a new major version's repository
 #
+# @param skip_backup
+#   Do not take a backup of the server before touching packages. The
+#   backup is `ovadm::backup` with its defaults: the CA, the certificates,
+#   the configuration and the code record, verified, under
+#   `backup_destination`. It is the way back if the upgrade goes wrong.
+#
+# @param backup_destination
+#   Directory on the server for the pre-upgrade archive
+#
+# @param backup_extra_paths
+#   Paths outside `/etc/puppetlabs/` to include in the pre-upgrade archive,
+#   as `extra_paths` on `ovadm::backup`
+#
+# @return
+#   `backup`, the pre-upgrade archive path per target name, or empty with
+#   `skip_backup`
+#
 plan ovadm::upgrade(
   TargetSpec           $server_host,
   Optional[String[1]]  $ovox_server_version = undef,
@@ -39,6 +56,9 @@ plan ovadm::upgrade(
   Optional[Integer[8]] $ovox_major          = undef,
   Optional[String[1]]  $apt_base_url        = undef,
   Optional[String[1]]  $yum_base_url        = undef,
+  Boolean              $skip_backup         = false,
+  String[1]            $backup_destination  = '/var/backups/openvox',
+  Array[String[1]]     $backup_extra_paths  = [],
 ) {
   unless $ovox_server_version or $package_url {
     fail('Either ovox_server_version or package_url must be provided')
@@ -58,6 +78,21 @@ plan ovadm::upgrade(
 
   run_plan('ovadm::subplans::precheck', { 'server_host' => $server_host, 'upgrade' => true, 'ovox_major' => $target_major })
 
+  # The way back, taken before anything changes: the CA, certificates,
+  # configuration and code record of the server, verified. Compilers hold
+  # nothing unique and are left out.
+  $archives = $skip_backup ? {
+    true    => {},
+    default => run_plan('ovadm::backup', {
+      'server_host' => $server_host,
+      'destination' => $backup_destination,
+      'extra_paths' => $backup_extra_paths,
+    })['archives'],
+  }
+  $archives.each |$host, $path| {
+    out::message("Pre-upgrade backup of ${host}: ${path}. Copy it off the host; it is the way back if this upgrade goes wrong.")
+  }
+
   $node_params = {
     'ovox_server_version' => $ovox_server_version,
     'package_url'         => $package_url,
@@ -73,4 +108,6 @@ plan ovadm::upgrade(
   }
 
   out::message('OpenVox Server upgrade complete.')
+
+  return({ 'backup' => $archives })
 }
