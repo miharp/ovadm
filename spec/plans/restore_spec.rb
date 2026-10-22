@@ -22,7 +22,7 @@ describe 'ovadm::restore' do
       'status' => 'restored', 'archive' => archive, 'certname' => server, 'scope' => %w[ca config code],
       'in_scope' => 12, 'changed' => ['/etc/puppetlabs/puppetserver/conf.d/webserver.conf'], 'missing' => [], 'unchanged' => 11,
       'ca' => { 'live_ca_differs' => false, 'signed_after_backup' => [] },
-      'services_stopped' => %w[puppetserver puppetdb],
+      'excluded' => [], 'services_stopped' => %w[puppetserver puppetdb],
       'missing_gems' => { 'puppetserver' => [], 'agent' => [] }, 'warnings' => []
     }
   end
@@ -42,10 +42,13 @@ describe 'ovadm::restore' do
     allow_task('ovadm::backup_verify').always_return(verified.merge('host' => verified['host'].merge(
       'packages' => { 'openvoxdb-termini' => { 'archive' => '8.17.0-1.el10', 'host' => nil } }
     )))
-    expect_task('ovadm::backup_restore').with_params('archive' => archive, 'force' => false, 'dry_run' => false, 'scope' => 'ca,code,extra')
-                                        .always_return(restored.merge('scope' => %w[ca code extra]))
+    expect_task('ovadm::backup_restore').with_params(
+      'archive' => archive, 'force' => false, 'dry_run' => false, 'scope' => 'ca,config,code,extra',
+      'exclude' => '/etc/puppetlabs/puppet/puppet.conf,/etc/puppetlabs/puppet/puppetdb.conf,/etc/puppetlabs/puppet/routes.yaml'
+    ).always_return(restored.merge('scope' => %w[ca config code extra], 'excluded' => %w[/etc/puppetlabs/puppet/puppet.conf /etc/puppetlabs/puppet/puppetdb.conf /etc/puppetlabs/puppet/routes.yaml]))
     expect_task('ovadm::backup_restore').with_params('archive' => archive, 'force' => false, 'dry_run' => false, 'scope' => 'config')
                                         .always_return(restored.merge('scope' => ['config']))
+    expect_out_message.with_params("#{server}: left out for now: /etc/puppetlabs/puppet/puppet.conf, /etc/puppetlabs/puppet/puppetdb.conf, /etc/puppetlabs/puppet/routes.yaml")
     expect_task('ovadm::install_package').with_params('name' => 'openvoxdb-termini')
                                          .always_return('status' => 'installed', 'package' => 'openvoxdb-termini', 'version' => '8.17.0-1.el10', 'previous' => nil)
     expect_task('ovadm::agent_runonce').be_called_times(2).always_return(agent_ok)
@@ -58,17 +61,20 @@ describe 'ovadm::restore' do
 
     result = run_plan('ovadm::restore', { 'server_host' => server, 'archive' => archive, 'rebuild' => true })
     expect(result).to be_ok
-    expect(result.value['restore'].map { |r| r['scope'] }).to eq([%w[ca code extra], ['config']])
+    expect(result.value['restore'].map { |r| r['scope'] }).to eq([%w[ca config code extra], ['config']])
     expect(result.value['agent'].size).to eq(2)
   end
 
-  it 'with rebuild and config alone in scope, refuses' do
+  it 'with rebuild and config not in scope, makes one pass without the exclusion' do
     allow_task('ovadm::backup_verify').always_return(verified)
-    expect_task('ovadm::backup_restore').not_be_called
+    expect_task('ovadm::backup_restore').with_params('archive' => archive, 'force' => false, 'dry_run' => false, 'scope' => 'ca,extra')
+                                        .be_called_times(1).always_return(restored.merge('scope' => %w[ca extra]))
+    allow_rest
+    expect_command('/opt/puppetlabs/puppet/bin/r10k deploy environment --modules').not_be_called
 
-    result = run_plan('ovadm::restore', { 'server_host' => server, 'archive' => archive, 'rebuild' => true, 'scope' => ['config'] })
-    expect(result).not_to be_ok
-    expect(result.value.msg).to include('rebuild needs more than config')
+    result = run_plan('ovadm::restore', { 'server_host' => server, 'archive' => archive, 'rebuild' => true, 'scope' => %w[ca extra] })
+    expect(result).to be_ok
+    expect(result.value['restore'].size).to eq(1)
   end
 
   it 'leaves the termini package alone when the host has it' do

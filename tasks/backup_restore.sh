@@ -14,6 +14,7 @@ export PATH="/opt/puppetlabs/bin:$PATH"
 
 archive="${PT_archive:-}"
 scope="${PT_scope:-}"
+exclude="${PT_exclude:-}"
 force="${PT_force:-false}"
 dry_run="${PT_dry_run:-false}"
 age_identity="${PT_age_identity:-}"
@@ -166,6 +167,18 @@ if [ "$want_extra" = true ]; then
   while IFS= read -r p; do add_include "$p"; done <<< "$extra_paths"
 fi
 [ "${#includes[@]}" -gt 0 ] || fail 'none of the paths in scope are in the archive'
+# Paths left out of this pass, as ovadm::restore does with the OpenVoxDB
+# wiring on a rebuilt host.
+excluded=()
+if [ -n "$exclude" ]; then
+  IFS=',' read -r -a exclude_list <<< "$exclude"
+  for p in "${exclude_list[@]}"; do
+    [ -n "$p" ] || continue
+    case "$p" in /*) ;; *) fail "exclude path '$p' is not absolute" ;; esac
+    add_exclude "$p"
+    excluded+=("$p")
+  done
+fi
 
 # --- what would change ---------------------------------------------------------------------
 inc_re=$(printf '%s|' "${includes[@]}" | sed 's/|$//'); inc_re=$(regex_escape "$inc_re" | sed 's/\\|/|/g')
@@ -251,9 +264,10 @@ gems_server=$(missing_gems puppetserver /opt/puppetlabs/server/data/puppetserver
 gems_agent=$(missing_gems agent /opt/puppetlabs/puppet/lib/ruby/gems/*/specifications | json_lines)
 
 scope_json=$(printf '%s\n' "${scope_items[@]}" | json_lines)
+excluded_json=$(printf '%s\n' "${excluded[@]}" | json_lines)
 report() {
-  printf '{"status":"%s","archive":%s,"certname":%s,"scope":%s,"in_scope":%s,"changed":%s,"missing":%s,"unchanged":%s,"ca":%s,"services_stopped":%s,"missing_gems":{"puppetserver":%s,"agent":%s},"warnings":%s}\n' \
-    "$1" "$(json_str "$archive")" "$(json_str "$certname")" "$scope_json" "$in_scope" \
+  printf '{"status":"%s","archive":%s,"certname":%s,"scope":%s,"excluded":%s,"in_scope":%s,"changed":%s,"missing":%s,"unchanged":%s,"ca":%s,"services_stopped":%s,"missing_gems":{"puppetserver":%s,"agent":%s},"warnings":%s}\n' \
+    "$1" "$(json_str "$archive")" "$(json_str "$certname")" "$scope_json" "$excluded_json" "$in_scope" \
     "$(printf '%s\n' "${changed[@]}" | json_lines)" "$(printf '%s\n' "${missing[@]}" | json_lines)" "$unchanged" \
     "$ca_json" "$2" "$gems_server" "$gems_agent" "$(printf '%s\n' "${warnings[@]}" | json_lines)"
 }

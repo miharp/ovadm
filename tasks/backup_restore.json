@@ -10,6 +10,10 @@
       "description": "Comma-separated items to put back: ca, config, code (with /etc/puppetlabs/r10k), extra. Default: everything the archive holds",
       "type": "Optional[Pattern[/\\A(ca|config|code|extra)(,(ca|config|code|extra))*\\z/]]"
     },
+    "exclude": {
+      "description": "Comma-separated absolute paths within the scope to leave out of this pass",
+      "type": "Optional[String[1]]"
+    },
     "force": {
       "description": "Restore even when the certname or the openvox-server version differ, or the host's CA has signed certificates since the backup. Default false",
       "type": "Optional[Boolean]"

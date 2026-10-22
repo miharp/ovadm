@@ -14,11 +14,12 @@
 #
 # On a rebuilt host, run `ovadm::install` first with the versions the
 # manifest names (the plan prints the exact command when the server is not
-# installed), then this plan with `rebuild`. That restores the CA, the code
-# and the extra paths first, runs the agent on a server that has no
-# OpenVoxDB wiring yet, as on the original build, so the site's code can
-# bring OpenVoxDB back, and only then puts the configuration back, with
-# `openvoxdb-termini` installed when the host still lacks it.
+# installed), then this plan with `rebuild`. That restores everything but
+# `puppet.conf`, `puppetdb.conf` and `routes.yaml` first and runs the agent
+# on a server that has no OpenVoxDB wiring yet, as on the original build,
+# so the site's code can bring OpenVoxDB back; then it puts the
+# configuration back whole, with `openvoxdb-termini` installed when the
+# host still lacks it.
 #
 # @param server_host
 #   The OpenVox Server node
@@ -38,8 +39,9 @@
 #   Default: everything the archive holds.
 #
 # @param rebuild
-#   The host was rebuilt: restore the configuration last, after one agent
-#   run has let the site's code bring back what it installs.
+#   The host was rebuilt: leave the files that wire the server to OpenVoxDB
+#   out of the first pass, run the agent so the site's code brings back
+#   what it installs, then put the configuration back whole.
 #
 # @param force
 #   Restore even when the archive is from another certname or
@@ -133,17 +135,17 @@ plan ovadm::restore(
       undef   => ['ca', 'config', 'code', 'extra'],
       default => $scope,
     }
-    $first = $wanted.filter |$i| { $i != 'config' }
-    if $first.empty {
-      fail_plan('rebuild needs more than config in scope: ca, code or extra come first', 'ovadm/restore')
-    }
-    # Pass 1: what the site's code needs to run, on a server wired as the
-    # fresh install left it. Pass 2: the configuration, over what the site's
-    # code has written.
-    $pass1 = run_plan('ovadm::subplans::restore_pass', $pass + { 'scope' => $first })
+    # Pass 1: everything but the three files that wire the server to
+    # OpenVoxDB, so the site's code runs on a server wired as the fresh
+    # install left it, as on the original build. Pass 2: the configuration
+    # whole, over what the site's code has written.
+    $wiring = ['/etc/puppetlabs/puppet/puppet.conf', '/etc/puppetlabs/puppet/puppetdb.conf', '/etc/puppetlabs/puppet/routes.yaml']
     $passes = ('config' in $wanted) ? {
-      true    => [$pass1, run_plan('ovadm::subplans::restore_pass', $pass + { 'scope' => ['config'], 'install_termini' => $termini_missing })],
-      default => [$pass1],
+      true    => [
+        run_plan('ovadm::subplans::restore_pass', $pass + { 'scope' => $wanted, 'exclude' => $wiring }),
+        run_plan('ovadm::subplans::restore_pass', $pass + { 'scope' => ['config'], 'install_termini' => $termini_missing }),
+      ],
+      default => [run_plan('ovadm::subplans::restore_pass', $pass + { 'scope' => $wanted })],
     }
     $status = run_plan('ovadm::status', { 'server_host' => $target })
     out::message("Restore of ${archive} on ${name} complete. Files added since the backup were left alone.")

@@ -211,6 +211,12 @@ Data type: `Optional[Pattern[/\A(ca|config|code|extra)(,(ca|config|code|extra))*
 
 Comma-separated items to put back: ca, config, code (with /etc/puppetlabs/r10k), extra. Default: everything the archive holds
 
+##### `exclude`
+
+Data type: `Optional[String[1]]`
+
+Comma-separated absolute paths within the scope to leave out of this pass
+
 ##### `force`
 
 Data type: `Optional[Boolean]`
@@ -971,11 +977,12 @@ back in Hiera, and use this plan for the rest.
 
 On a rebuilt host, run `ovadm::install` first with the versions the
 manifest names (the plan prints the exact command when the server is not
-installed), then this plan with `rebuild`. That restores the CA, the code
-and the extra paths first, runs the agent on a server that has no
-OpenVoxDB wiring yet, as on the original build, so the site's code can
-bring OpenVoxDB back, and only then puts the configuration back, with
-`openvoxdb-termini` installed when the host still lacks it.
+installed), then this plan with `rebuild`. That restores everything but
+`puppet.conf`, `puppetdb.conf` and `routes.yaml` first and runs the agent
+on a server that has no OpenVoxDB wiring yet, as on the original build,
+so the site's code can bring OpenVoxDB back; then it puts the
+configuration back whole, with `openvoxdb-termini` installed when the
+host still lacks it.
 
 #### Parameters
 
@@ -1029,8 +1036,9 @@ Default value: `undef`
 
 Data type: `Boolean`
 
-The host was rebuilt: restore the configuration last, after one agent
-run has let the site's code bring back what it installs.
+The host was rebuilt: leave the files that wire the server to OpenVoxDB
+out of the first pass, run the agent so the site's code brings back
+what it installs, then put the configuration back whole.
 
 Default value: `false`
 

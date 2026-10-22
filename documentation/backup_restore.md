@@ -331,19 +331,20 @@ address the agents use, then:
    ```
 
    `rebuild` orders the restore the way the server was first built. The
-   first pass puts back the CA (the plan warns that the throwaway one is
-   replaced), the code record with r10k's configuration, and the extra
-   paths; installs the gems the manifest lists (r10k among them, when the
-   site installed it by hand); redeploys the code; and runs the agent on a
-   server still wired as `ovadm::install` left it, with no OpenVoxDB
-   terminus. That run is where the site's own code brings back what it
-   owns: OpenVoxDB and PostgreSQL, the r10k timer, the firewall. A site
-   whose code queries PuppetDB at compile time would fail that run with the
-   terminus in place, which is why the configuration waits. The second
-   pass then puts the configuration back, installs `openvoxdb-termini` if
-   the site's code did not (the restored `routes.yaml` needs it), restarts,
-   and runs the agent again. Expect the first run to take a while and to
-   report changes; the second should be clean.
+   first pass puts back everything but `puppet.conf`, `puppetdb.conf` and
+   `routes.yaml`, the three files that wire the server to OpenVoxDB (the
+   plan warns that the throwaway CA is replaced); installs the gems the
+   manifest lists (r10k among them, when the site installed it by hand);
+   redeploys the code; and runs the agent on a server still wired as
+   `ovadm::install` left it. That run is where the site's own code brings
+   back what it owns: OpenVoxDB and PostgreSQL, the r10k timer, the
+   firewall. A site whose code queries PuppetDB at compile time would fail
+   that run with the terminus in place, which is why those files wait. The
+   second pass then puts the configuration back whole, installs
+   `openvoxdb-termini` if the site's code did not (the restored
+   `routes.yaml` needs it), restarts, and runs the agent again. Expect the
+   first run to take a while and to report changes; the second should be
+   clean.
 3. **Files of users that did not exist yet** are put back under their old
    numeric ids and the plan says which: on a host without OpenVoxDB that is
    everything under `/etc/puppetlabs/puppetdb/`. The package creates the

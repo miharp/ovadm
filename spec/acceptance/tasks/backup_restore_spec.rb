@@ -135,6 +135,20 @@ RSpec.describe 'ovadm::backup_restore task' do
       )
     end
 
+    it 'leaves excluded paths out of a pass' do
+      archive = backup
+      run_shell("echo changed > /etc/puppetlabs/puppetserver/conf.d/webserver.conf; echo changed > /etc/puppetlabs/puppet/puppet.conf; rm /etc/puppetlabs/puppet/autosign.conf")
+      data = restore('archive' => archive, 'scope' => 'config', 'exclude' => '/etc/puppetlabs/puppet/puppet.conf,/etc/puppetlabs/puppet/routes.yaml').result
+      expect(data['status']).to eq('restored')
+      expect(data['excluded']).to eq(%w[/etc/puppetlabs/puppet/puppet.conf /etc/puppetlabs/puppet/routes.yaml])
+      expect(data['changed']).to eq(['/etc/puppetlabs/puppetserver/conf.d/webserver.conf'])
+      expect(data['missing']).to eq(['/etc/puppetlabs/puppet/autosign.conf'])
+      expect(cat('/etc/puppetlabs/puppet/puppet.conf')).to eq("changed\n")
+      expect(cat('/etc/puppetlabs/puppetserver/conf.d/webserver.conf')).to eq("webserver: { good: true }\n")
+      result = restore('archive' => archive, 'scope' => 'config', 'exclude' => 'etc/puppetlabs/puppet/puppet.conf')
+      expect(result.result['_error']['msg']).to eq("exclude path 'etc/puppetlabs/puppet/puppet.conf' is not absolute")
+    end
+
     it 'refuses a scope item the archive does not hold' do
       archive = backup('ca' => false)
       result = restore('archive' => archive, 'scope' => 'ca')

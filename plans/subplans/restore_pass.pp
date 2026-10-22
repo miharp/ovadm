@@ -24,6 +24,8 @@
 #   As on `ovadm::restore`
 # @param agent_run
 #   As on `ovadm::restore`
+# @param exclude
+#   Paths within the scope to leave out of this pass
 # @param install_termini
 #   Install `openvoxdb-termini` when the host lacks it, before starting the
 #   server: the restored `routes.yaml` names the puppetdb terminus
@@ -41,6 +43,7 @@ plan ovadm::subplans::restore_pass(
   Optional[String[1]]                                       $age_identity    = undef,
   Boolean                                                   $deploy_code     = true,
   Boolean                                                   $agent_run       = true,
+  Optional[Array[String[1], 1]]                             $exclude         = undef,
   Boolean                                                   $install_termini = false,
 ) {
   $name = $target.name
@@ -55,8 +58,14 @@ plan ovadm::subplans::restore_pass(
   }) + ($scope ? {
     undef   => {},
     default => { 'scope' => $scope.join(',') },
+  }) + ($exclude ? {
+    undef   => {},
+    default => { 'exclude' => $exclude.join(',') },
   })
   $restore = run_task('ovadm::backup_restore', $target, $params).first.value
+  unless $restore['excluded'].empty {
+    out::message("${name}: left out for now: ${restore['excluded'].join(', ')}")
+  }
 
   $restore['warnings'].each |$w| { out::message("WARNING ${name}: ${w}") }
   $verb = $dry_run ? { true => 'would change', default => 'changed' }
