@@ -16,7 +16,7 @@
       "type": "Optional[Boolean]"
     },
     "code": {
-      "description": "Include each environment's .r10k-deploy.json and hiera.yaml, the record of what r10k deployed. Default true",
+      "description": "Include each environment's .r10k-deploy.json and hiera.yaml, the record of what r10k deployed, and /etc/puppetlabs/r10k. Default true",
       "type": "Optional[Boolean]"
     },
     "include_code_tree": {

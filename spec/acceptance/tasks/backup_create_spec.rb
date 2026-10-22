@@ -34,6 +34,7 @@ RSpec.describe 'ovadm::backup_create task' do
       echo '{"name":"production","signature":"abc123def","started_at":"2026-10-20T10:00:00+00:00","finished_at":"2026-10-20T10:00:05+00:00","deploy_success":true}' > /etc/puppetlabs/code/environments/production/.r10k-deploy.json
       printf 'version: 5\\ndefaults:\\n  options:\\n    pkcs7_private_key: /etc/puppetlabs-eyaml/private_key.pkcs7.pem\\n' > /etc/puppetlabs/code/environments/production/hiera.yaml
       echo '{"name":"miharp-openvox_server","version":"0.1.1"}' > /etc/puppetlabs/code/environments/production/modules/openvox_server/metadata.json
+      install -d /etc/puppetlabs/r10k; printf ':cachedir: /var/cache/r10k\n' > /etc/puppetlabs/r10k/r10k.yaml
       if [ -d /etc/sysconfig ]; then echo 'JAVA_ARGS="-Xmx2g"' > /etc/sysconfig/puppetserver; else mkdir -p /etc/default; echo 'JAVA_ARGS="-Xmx2g"' > /etc/default/puppetserver; fi
       install -d -m 0700 /root/.ssh
       echo DEPLOYKEY > /root/.ssh/deploy_key; chmod 0600 /root/.ssh/deploy_key
@@ -151,6 +152,15 @@ RSpec.describe 'ovadm::backup_create task' do
       expect(members.grep(%r{/puppet/ssl/})).to be_empty
       expect(members.grep(%r{/puppetdb/ssl/})).to be_empty
       expect(members).to include(a_string_ending_with('/files/etc/puppetlabs/puppet/puppet.conf'))
+    end
+
+    it 'takes the code record with r10k.yaml, with config off' do
+      result = run_bolt_task('ovadm::backup_create', { 'ca' => false, 'config' => false })
+      expect(result.exit_code).to eq(0)
+      members = listing(result.result['archive'])
+      expect(members).to include(a_string_ending_with('/files/etc/puppetlabs/code/environments/production/.r10k-deploy.json'),
+                                 a_string_ending_with('/files/etc/puppetlabs/r10k/r10k.yaml'))
+      expect(members.grep(/puppet\.conf$/)).to be_empty
     end
 
     it 'takes only the CA and certificates with config and code off' do

@@ -7,8 +7,9 @@
 #   OpenVoxDB's copy of them
 # - `config`: the rest of `/etc/puppetlabs/` (without `code/`) and the
 #   services' environment files
-# - `code`: what r10k deployed, as each environment's `.r10k-deploy.json`;
-#   `include_code_tree` on the plan takes the directory too
+# - `code`: what r10k deployed, as each environment's `.r10k-deploy.json`
+#   and `hiera.yaml`, with `/etc/puppetlabs/r10k/`; `include_code_tree` on
+#   the plan takes the directory too
 type Ovadm::Backup_opts = Struct[{
   Optional[ca]     => Boolean,
   Optional[config] => Boolean,

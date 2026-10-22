@@ -14,11 +14,11 @@
 #
 # On a rebuilt host, run `ovadm::install` first with the versions the
 # manifest names (the plan prints the exact command when the server is not
-# installed), then this plan over the throwaway CA. It installs
-# openvoxdb-termini at the manifest's version when the host lacks it, since
-# the restored routes.yaml needs it, and makes PuppetDB writes non-fatal for
-# the agent run when OpenVoxDB does not answer, so the site's code can bring
-# OpenVoxDB back.
+# installed), then this plan with `rebuild`. That restores the CA, the code
+# and the extra paths first, runs the agent on a server that has no
+# OpenVoxDB wiring yet, as on the original build, so the site's code can
+# bring OpenVoxDB back, and only then puts the configuration back, with
+# `openvoxdb-termini` installed when the host still lacks it.
 #
 # @param server_host
 #   The OpenVox Server node
@@ -32,8 +32,14 @@
 #   where the archive is wherever the backups were kept.
 #
 # @param scope
-#   What to put back: `ca`, `config`, `code`, `extra` (the paths given as
-#   `extra_paths` at backup time). Default: everything the archive holds.
+#   What to put back: `ca`, `config`, `code` (what the archive holds under
+#   `/etc/puppetlabs/code/` and `/etc/puppetlabs/r10k/`, followed by an r10k
+#   deploy), `extra` (the paths given as `extra_paths` at backup time).
+#   Default: everything the archive holds.
+#
+# @param rebuild
+#   The host was rebuilt: restore the configuration last, after one agent
+#   run has let the site's code bring back what it installs.
 #
 # @param force
 #   Restore even when the archive is from another certname or
@@ -58,18 +64,20 @@
 #
 # @return
 #   `verify`, `restore` and `agent` results from the tasks, and `status`
-#   from `ovadm::status`; with `dry_run`, `verify` and `restore` only.
+#   from `ovadm::status`; with `dry_run`, `verify` and `restore` only. With
+#   `rebuild`, `restore` and `agent` are arrays, one entry per pass.
 #
 plan ovadm::restore(
-  TargetSpec                                         $server_host,
-  String[1]                                          $archive,
-  Optional[String[1]]                                $source       = undef,
-  Optional[Array[Enum['ca', 'config', 'code', 'extra'], 1]] $scope = undef,
-  Boolean                                            $force        = false,
-  Boolean                                            $dry_run      = false,
-  Optional[String[1]]                                $age_identity = undef,
-  Boolean                                            $deploy_code  = true,
-  Boolean                                            $agent_run    = true,
+  TargetSpec                                                $server_host,
+  String[1]                                                 $archive,
+  Optional[String[1]]                                       $source       = undef,
+  Optional[Array[Enum['ca', 'config', 'code', 'extra'], 1]] $scope        = undef,
+  Boolean                                                   $rebuild      = false,
+  Boolean                                                   $force        = false,
+  Boolean                                                   $dry_run      = false,
+  Optional[String[1]]                                       $age_identity = undef,
+  Boolean                                                   $deploy_code  = true,
+  Boolean                                                   $agent_run    = true,
 ) {
   $target = get_targets($server_host)[0]
   $name   = $target.name
@@ -99,105 +107,58 @@ plan ovadm::restore(
   }
   out::message("${name}: ${archive} verified, ${verify['checksums']['checked']} checksums, from ${verify['certname']} on ${verify['created']}")
 
-  $restore_params = {
-    'archive' => $archive,
-    'force'   => $force,
-    'dry_run' => $dry_run,
-  } + $age + ($scope ? {
-    undef   => {},
-    default => { 'scope' => $scope.join(',') },
-  })
-  $restore = run_task('ovadm::backup_restore', $target, $restore_params).first.value
-
-  $restore['warnings'].each |$w| { out::message("WARNING ${name}: ${w}") }
-  $verb = $dry_run ? { true => 'would change', default => 'changed' }
-  out::message("${name}: scope ${restore['scope'].join(', ')}: ${restore['changed'].length} file(s) ${verb}, ${restore['missing'].length} missing on the host, ${restore['unchanged']} unchanged")
-  if $dry_run {
-    ($restore['changed'] + $restore['missing']).each |$f| { out::message("  ${f}") }
-    return({ 'verify' => $verify, 'restore' => $restore })
-  }
-  unless $restore['services_stopped'].empty {
-    out::message("${name}: ${restore['services_stopped'].join(' and ')} stopped for the copy and started again")
-  }
-
-  # Gems the manifest lists that this host lacks: the ones an operator
-  # installed by hand. Reinstalled from rubygems; a failure is reported, not
-  # fatal, since the files are already back.
-  $restore['missing_gems']['puppetserver'].each |$gem| {
-    $m = $gem.match(/^(.*)-([^-]+)$/)
-    $r = run_command("puppetserver gem install --no-document ${m[1]} -v ${m[2]}", $target, '_catch_errors' => true)
-    if $r.ok { out::message("${name}: installed puppetserver gem ${gem}") } else { out::message("WARNING ${name}: puppetserver gem ${gem} could not be installed: ${r.first.error.message}") }
-  }
-  $restore['missing_gems']['agent'].each |$gem| {
-    $m = $gem.match(/^(.*)-([^-]+)$/)
-    $r = run_command("/opt/puppetlabs/puppet/bin/gem install --no-document ${m[1]} -v ${m[2]}", $target, '_catch_errors' => true)
-    if $r.ok { out::message("${name}: installed agent gem ${gem}") } else { out::message("WARNING ${name}: agent gem ${gem} could not be installed: ${r.first.error.message}") }
-  }
-
-  # A rebuilt host: the restored routes.yaml names the puppetdb terminus, so
-  # the server cannot start until the termini package is back. The manifest
-  # has its version; the repository ovadm::install set up has the package.
   $termini = $verify['host'] ? {
     undef   => undef,
     default => $verify['host']['packages']['openvoxdb-termini'],
   }
-  if $termini and $termini['archive'] and !$termini['host'] {
-    $pkg = run_task('ovadm::install_package', $target, { 'name' => 'openvoxdb-termini', 'version' => $termini['archive'] }).first.value
-    out::message("${name}: installed openvoxdb-termini ${pkg['version']}, which the manifest lists and the host lacked")
+  $termini_missing = ($termini != undef and $termini['archive'] != undef and $termini['host'] == undef)
+
+  $pass = {
+    'target'       => $target,
+    'archive'      => $archive,
+    'force'        => $force,
+    'dry_run'      => $dry_run,
+    'age_identity' => $age_identity,
+    'deploy_code'  => $deploy_code,
+    'agent_run'    => $agent_run,
   }
 
-  # Up, whatever state the host was in: a restore means the server should run.
-  run_command('systemctl start puppetserver', $target)
-  run_task('ovadm::wait_until_service_ready', $target)
+  if $dry_run {
+    $one = run_plan('ovadm::subplans::restore_pass', $pass + { 'scope' => $scope })
+    return({ 'verify' => $verify, 'restore' => $one['restore'] })
+  }
 
-  if $deploy_code and 'code' in $restore['scope'] {
-    $r10k = run_command('test -x /opt/puppetlabs/puppet/bin/r10k', $target, '_catch_errors' => true)
-    if $r10k.ok {
-      $deploy = run_command('/opt/puppetlabs/puppet/bin/r10k deploy environment --modules', $target, '_catch_errors' => true)
-      if $deploy.ok {
-        out::message("${name}: code redeployed with r10k")
-      } else {
-        $r10k_errors = $deploy.first.value['stderr'].split("\n").filter |$l| { $l =~ /ERROR/ }.join("\n  ")
-        out::message("WARNING ${name}: r10k deploy exited ${deploy.first.value['exit_code']}; the environments are as r10k left them:\n  ${r10k_errors}")
-      }
-    } else {
-      out::message("${name}: r10k is not installed; the code directory is as the archive holds it")
+  if $rebuild {
+    $wanted = $scope ? {
+      undef   => ['ca', 'config', 'code', 'extra'],
+      default => $scope,
     }
-  }
-
-  # On a rebuilt host OpenVoxDB is not back yet, and the restored
-  # configuration sends facts and catalogs there. For the agent run that
-  # lets the site's code bring it back, those writes are made non-fatal;
-  # the archived puppetdb.conf is put back afterwards.
-  if $agent_run {
-    $soft = run_task('ovadm::puppetdb_soft_writes', $target, { 'mode' => 'enable_if_unreachable' }).first.value
-    if $soft['status'] == 'enabled' {
-      out::message("${name}: OpenVoxDB at ${soft['url']} does not answer; PuppetDB writes made non-fatal in puppetdb.conf for the agent run")
-      run_task('ovadm::service_restart', $target)
-      run_task('ovadm::wait_until_service_ready', $target)
+    $first = $wanted.filter |$i| { $i != 'config' }
+    if $first.empty {
+      fail_plan('rebuild needs more than config in scope: ca, code or extra come first', 'ovadm/restore')
     }
-  }
-
-  $agent = $agent_run ? {
-    true    => run_task('ovadm::agent_runonce', $target, { 'waitforcert' => 0 }).first.value,
-    default => undef,
-  }
-  if $agent and $agent['status'] == 'failed' {
-    out::message("WARNING ${name}: the agent run after the restore failed (exit ${agent['exit_code']}); the files are back and the services are up. Run puppet agent -t on the server to see why")
-  }
-  if $agent {
-    $unsoft = run_task('ovadm::puppetdb_soft_writes', $target, { 'mode' => 'restore' }).first.value
-    if $unsoft['status'] == 'restored' {
-      out::message("${name}: puppetdb.conf put back as archived")
-      run_task('ovadm::service_restart', $target)
+    # Pass 1: what the site's code needs to run, on a server wired as the
+    # fresh install left it. Pass 2: the configuration, over what the site's
+    # code has written.
+    $pass1 = run_plan('ovadm::subplans::restore_pass', $pass + { 'scope' => $first })
+    $passes = ('config' in $wanted) ? {
+      true    => [$pass1, run_plan('ovadm::subplans::restore_pass', $pass + { 'scope' => ['config'], 'install_termini' => $termini_missing })],
+      default => [$pass1],
     }
-    # The site's code may have restarted puppetserver during that run.
-    run_task('ovadm::wait_until_service_ready', $target)
+    $status = run_plan('ovadm::status', { 'server_host' => $target })
+    out::message("Restore of ${archive} on ${name} complete. Files added since the backup were left alone.")
+    return({
+      'verify'  => $verify,
+      'restore' => $passes.map |$p| { $p['restore'] },
+      'agent'   => $passes.map |$p| { $p['agent'] },
+      'status'  => $status,
+    })
   }
 
+  $one = run_plan('ovadm::subplans::restore_pass', $pass + { 'scope' => $scope, 'install_termini' => $termini_missing })
   $status = run_plan('ovadm::status', { 'server_host' => $target })
 
   out::message("Restore of ${archive} on ${name} complete. Files added since the backup were left alone.")
 
-  return({ 'verify' => $verify, 'restore' => $restore, 'agent' => $agent, 'status' => $status })
+  return({ 'verify' => $verify, 'restore' => $one['restore'], 'agent' => $one['agent'], 'status' => $status })
 }

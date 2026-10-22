@@ -31,6 +31,7 @@ RSpec.describe 'ovadm::backup_restore task' do
       echo 'node default {}' > /etc/puppetlabs/code/environments/production/manifests/site.pp
       echo '{"name":"production","signature":"abc123"}' > /etc/puppetlabs/code/environments/production/.r10k-deploy.json
       install -d -m 0700 /root/.ssh; echo DEPLOYKEY > /root/.ssh/deploy_key; chmod 0600 /root/.ssh/deploy_key
+      install -d /etc/puppetlabs/r10k; printf ':cachedir: /var/cache/r10k\n' > /etc/puppetlabs/r10k/r10k.yaml
     SH
   end
 
@@ -106,6 +107,12 @@ RSpec.describe 'ovadm::backup_restore task' do
       data = restore('archive' => archive, 'scope' => 'config').result
       expect(data['changed']).to eq(['/etc/puppetlabs/puppetserver/conf.d/webserver.conf'])
       expect(cat('/etc/puppetlabs/puppetserver/conf.d/webserver.conf')).to eq("webserver: { good: true }\n")
+
+      # code brings r10k's configuration with it
+      run_shell('rm /etc/puppetlabs/r10k/r10k.yaml')
+      data = restore('archive' => archive, 'scope' => 'code').result
+      expect(data['missing']).to eq(['/etc/puppetlabs/r10k/r10k.yaml'])
+      expect(cat('/etc/puppetlabs/r10k/r10k.yaml')).to eq(":cachedir: /var/cache/r10k\n")
     end
 
     it 'stops a service that is still starting, restores, and starts it again' do

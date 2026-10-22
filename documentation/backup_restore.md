@@ -321,26 +321,29 @@ address the agents use, then:
 
    That install makes a throwaway CA and certificate; the restore replaces
    them.
-2. **Restore the archive**, uploading it from wherever the backups are kept:
+2. **Restore the archive with `rebuild=true`**, uploading it from wherever
+   the backups are kept:
 
    ```console
-   bolt plan run ovadm::restore server_host=ovox-server.example.com \
+   bolt plan run ovadm::restore server_host=ovox-server.example.com rebuild=true \
      source=/backups/openvox-backup-ovox-server.example.com-20261021T181530Z.tar.gz \
      archive=/var/backups/openvox/openvox-backup-ovox-server.example.com-20261021T181530Z.tar.gz
    ```
 
-   The plan warns that the CA on the host is not the archived one and
-   replaces it, puts the configuration and the code record back, installs
-   the gems the manifest lists (r10k among them, when the site installed
-   it by hand), and installs `openvoxdb-termini` at the manifest's version,
-   without which the restored `routes.yaml` stops the server from starting.
-   It redeploys the code, and runs the agent once. OpenVoxDB is not back
-   yet at that point, and the restored configuration sends facts and
-   catalogs there, so for that one run the plan makes those writes
-   non-fatal (`soft_write_failure` in `puppetdb.conf`, put back as archived
-   afterwards). That run is where the site's own code brings back what it
-   owns: OpenVoxDB and PostgreSQL, the r10k timer, the firewall. Expect it
-   to take a while and to report changes; a second run should be clean.
+   `rebuild` orders the restore the way the server was first built. The
+   first pass puts back the CA (the plan warns that the throwaway one is
+   replaced), the code record with r10k's configuration, and the extra
+   paths; installs the gems the manifest lists (r10k among them, when the
+   site installed it by hand); redeploys the code; and runs the agent on a
+   server still wired as `ovadm::install` left it, with no OpenVoxDB
+   terminus. That run is where the site's own code brings back what it
+   owns: OpenVoxDB and PostgreSQL, the r10k timer, the firewall. A site
+   whose code queries PuppetDB at compile time would fail that run with the
+   terminus in place, which is why the configuration waits. The second
+   pass then puts the configuration back, installs `openvoxdb-termini` if
+   the site's code did not (the restored `routes.yaml` needs it), restarts,
+   and runs the agent again. Expect the first run to take a while and to
+   report changes; the second should be clean.
 3. **Files of users that did not exist yet** are put back under their old
    numeric ids and the plan says which: on a host without OpenVoxDB that is
    everything under `/etc/puppetlabs/puppetdb/`. The package creates the

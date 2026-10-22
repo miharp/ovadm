@@ -30,7 +30,6 @@
 * [`install_server`](#install_server): Install or upgrade the openvox-server package from the configured repository, replacing puppetserver if it is installed; edited configuration
 * [`os_identification`](#os_identification): Detect OS family, name, version, and architecture
 * [`precheck`](#precheck): Validate target readiness: OS family, Java version, port 8140, host firewall, NTP sync, and enough memory for OpenVox Server's heap; for an a
-* [`puppetdb_soft_writes`](#puppetdb_soft_writes): Set soft_write_failure = true in puppetdb.conf so the server compiles catalogs while OpenVoxDB is unreachable, keeping a copy of the file; or
 * [`select_java`](#select_java): Make sure the installed openvox-server has a supported Java: on 8, point the java alternative at Java 17 or 21 when the default is neither; o
 * [`service_restart`](#service_restart): Restart the puppetserver service
 * [`service_start`](#service_start): Start the puppetserver service
@@ -62,6 +61,7 @@
 * `ovadm::subplans::configure`: Configure puppet.conf on an OpenVox Server node
 * `ovadm::subplans::install`: Install OpenVox Server packages on a target
 * `ovadm::subplans::precheck`: Validate that a target is ready to run OpenVox Server
+* `ovadm::subplans::restore_pass`: One pass of a restore: the files of a scope, then the server up
 * `ovadm::subplans::upgrade_compilers`: Upgrade openvox-server on compiler pool nodes
 * `ovadm::subplans::upgrade_repo`: Move nodes to the package repository of the major version they are upgraded to
 * `ovadm::subplans::upgrade_server`: Upgrade openvox-server on a single node
@@ -93,8 +93,9 @@ disaster recovery needs and a caller opts out of what it does not want.
   OpenVoxDB's copy of them
 - `config`: the rest of `/etc/puppetlabs/` (without `code/`) and the
   services' environment files
-- `code`: what r10k deployed, as each environment's `.r10k-deploy.json`;
-  `include_code_tree` on the plan takes the directory too
+- `code`: what r10k deployed, as each environment's `.r10k-deploy.json`
+  and `hiera.yaml`, with `/etc/puppetlabs/r10k/`; `include_code_tree` on
+  the plan takes the directory too
 
 Alias of
 
@@ -158,7 +159,7 @@ Include the rest of /etc/puppetlabs (without code/) and the services' environmen
 
 Data type: `Optional[Boolean]`
 
-Include each environment's .r10k-deploy.json and hiera.yaml, the record of what r10k deployed. Default true
+Include each environment's .r10k-deploy.json and hiera.yaml, the record of what r10k deployed, and /etc/puppetlabs/r10k. Default true
 
 ##### `include_code_tree`
 
@@ -208,7 +209,7 @@ Path of the archive on this host
 
 Data type: `Optional[Pattern[/\A(ca|config|code|extra)(,(ca|config|code|extra))*\z/]]`
 
-Comma-separated items to put back: ca, config, code, extra. Default: everything the archive holds
+Comma-separated items to put back: ca, config, code (with /etc/puppetlabs/r10k), extra. Default: everything the archive holds
 
 ##### `force`
 
@@ -467,20 +468,6 @@ Check a host ovadm::upgrade is about to upgrade. A Java below the supported vers
 Data type: `Optional[Integer[8]]`
 
 The OpenVox major version about to be installed or upgraded to, when known. On 9 and later the server picks its own Java through a launcher, so the system java is not checked. A host where the launcher is already installed is checked against the Java it runs, whatever this says.
-
-### <a name="puppetdb_soft_writes"></a>`puppetdb_soft_writes`
-
-Set soft_write_failure = true in puppetdb.conf so the server compiles catalogs while OpenVoxDB is unreachable, keeping a copy of the file; or put the copy back. For the agent run that brings OpenVoxDB back on a rebuilt host
-
-**Supports noop?** false
-
-#### Parameters
-
-##### `mode`
-
-Data type: `Optional[Enum['enable_if_unreachable', 'enable', 'restore']]`
-
-enable_if_unreachable (default: only when the first server_url does not answer), enable, or restore (put the kept copy back)
 
 ### <a name="select_java"></a>`select_java`
 
@@ -984,11 +971,11 @@ back in Hiera, and use this plan for the rest.
 
 On a rebuilt host, run `ovadm::install` first with the versions the
 manifest names (the plan prints the exact command when the server is not
-installed), then this plan over the throwaway CA. It installs
-openvoxdb-termini at the manifest's version when the host lacks it, since
-the restored routes.yaml needs it, and makes PuppetDB writes non-fatal for
-the agent run when OpenVoxDB does not answer, so the site's code can bring
-OpenVoxDB back.
+installed), then this plan with `rebuild`. That restores the CA, the code
+and the extra paths first, runs the agent on a server that has no
+OpenVoxDB wiring yet, as on the original build, so the site's code can
+bring OpenVoxDB back, and only then puts the configuration back, with
+`openvoxdb-termini` installed when the host still lacks it.
 
 #### Parameters
 
@@ -998,6 +985,7 @@ The following parameters are available in the `ovadm::restore` plan:
 * [`archive`](#-ovadm--restore--archive)
 * [`source`](#-ovadm--restore--source)
 * [`scope`](#-ovadm--restore--scope)
+* [`rebuild`](#-ovadm--restore--rebuild)
 * [`force`](#-ovadm--restore--force)
 * [`dry_run`](#-ovadm--restore--dry_run)
 * [`age_identity`](#-ovadm--restore--age_identity)
@@ -1030,10 +1018,21 @@ Default value: `undef`
 
 Data type: `Optional[Array[Enum['ca', 'config', 'code', 'extra'], 1]]`
 
-What to put back: `ca`, `config`, `code`, `extra` (the paths given as
-`extra_paths` at backup time). Default: everything the archive holds.
+What to put back: `ca`, `config`, `code` (what the archive holds under
+`/etc/puppetlabs/code/` and `/etc/puppetlabs/r10k/`, followed by an r10k
+deploy), `extra` (the paths given as `extra_paths` at backup time).
+Default: everything the archive holds.
 
 Default value: `undef`
+
+##### <a name="-ovadm--restore--rebuild"></a>`rebuild`
+
+Data type: `Boolean`
+
+The host was rebuilt: restore the configuration last, after one agent
+run has let the site's code bring back what it installs.
+
+Default value: `false`
 
 ##### <a name="-ovadm--restore--force"></a>`force`
 

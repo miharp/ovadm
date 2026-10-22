@@ -160,7 +160,7 @@ if [ "$want_config" = true ]; then
   if [ "$want_ca" != true ]; then add_exclude "$cadir"; add_exclude "$ssldir"; add_exclude "$puppetdb_ssl"; fi
 else
   if [ "$want_ca" = true ]; then add_include "$cadir"; add_include "$ssldir"; add_include "$puppetdb_ssl"; fi
-  [ "$want_code" = true ] && add_include "$codedir"
+  if [ "$want_code" = true ]; then add_include "$codedir"; add_include /etc/puppetlabs/r10k; fi
 fi
 if [ "$want_extra" = true ]; then
   while IFS= read -r p; do add_include "$p"; done <<< "$extra_paths"

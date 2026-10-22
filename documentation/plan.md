@@ -59,6 +59,7 @@ The top-level plans should be thin orchestrators that call focused subplans. Thi
 | `ovadm::subplans::cert_setup` | Submit and sign CSRs; embed pp_role extension |
 | `ovadm::subplans::agent_package` | Install `openvox-agent` on `agent_hosts` and write puppet.conf; carries on past a failed host |
 | `ovadm::subplans::agent_enroll` | Submit and sign the agents' CSRs and apply their first catalog; carries on past a failed host |
+| `ovadm::subplans::restore_pass` | One pass of `ovadm::restore`: the files of a scope, missing gems, the termini package when asked, the server up, r10k deploy, one agent run |
 
 **Upgrade subplans:**
 
@@ -138,7 +139,6 @@ Tasks are the atomic operations that plans compose. The following are implemente
 | `ovadm::backup_verify` | Unpack an archive, check every checksum and the manifest, and compare its certname and package versions with the host | Run by `ovadm::backup` after every backup; usable alone before a restore |
 | `ovadm::backup_restore` | Check an archive against the host (checksums, certname, server version, a CA that signed nothing since the backup), stop the services, extract the items in scope with owners and modes, start the services; `dry_run` reports only | Run by `ovadm::restore`; never puts `*.rpmnew` and the like back |
 | `ovadm::install_package` | Install one package at a given version with dnf or apt-get | `ovadm::restore` uses it for `openvoxdb-termini` on a rebuilt host |
-| `ovadm::puppetdb_soft_writes` | Set `soft_write_failure = true` in `puppetdb.conf`, keeping a copy, or put the copy back | Around the agent run of `ovadm::restore` when OpenVoxDB does not answer |
 
 ---
 

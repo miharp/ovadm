@@ -134,7 +134,8 @@ if [ -n "$extra_paths" ]; then
     add_path "$p"
   done
 fi
-[ "${#paths[@]}" -gt 0 ] || fail 'none of the selected paths exist on this host'
+# A code-only backup copies no tree, just the record below.
+[ "${#paths[@]}" -gt 0 ] || [ "$want_code" = true ] || fail 'none of the selected paths exist on this host'
 
 # --- services ---------------------------------------------------------------------
 stopped=()
@@ -183,7 +184,7 @@ serial_before=''
 # Through a pipe rather than cp, so owners and modes survive and the
 # excludes apply to whole subtrees. Relative names, so tar has nothing to
 # strip and nothing to warn about.
-if ! tar -C / --anchored "${excludes[@]}" -cf - "${paths[@]}" | tar -C "$stage/files" -xpf -; then
+if [ "${#paths[@]}" -gt 0 ] && ! tar -C / --anchored "${excludes[@]}" -cf - "${paths[@]}" | tar -C "$stage/files" -xpf -; then
   fail 'copying the files failed'
 fi
 
@@ -208,6 +209,11 @@ if [ "$want_code" = true ] && [ "$take_tree" != true ] && [ -d "$codedir/environ
   if [ "${#record[@]}" -gt 2 ] && ! tar -C / --no-recursion -cf - "${record[@]}" | tar -C "$stage/files" -xpf -; then
     fail 'copying the code record failed'
   fi
+fi
+# r10k's own configuration belongs with the code: a rebuilt host deploys the
+# code before its configuration comes back.
+if [ "$want_code" = true ] && [ "$want_config" != true ] && [ -d /etc/puppetlabs/r10k ]; then
+  tar -C / -cf - etc/puppetlabs/r10k | tar -C "$stage/files" -xpf - || fail 'copying the r10k configuration failed'
 fi
 
 serial_after=''

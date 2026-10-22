@@ -7,7 +7,7 @@
       "type": "String[1]"
     },
     "scope": {
-      "description": "Comma-separated items to put back: ca, config, code, extra. Default: everything the archive holds",
+      "description": "Comma-separated items to put back: ca, config, code (with /etc/puppetlabs/r10k), extra. Default: everything the archive holds",
       "type": "Optional[Pattern[/\\A(ca|config|code|extra)(,(ca|config|code|extra))*\\z/]]"
     },
     "force": {
