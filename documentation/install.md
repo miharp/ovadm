@@ -148,6 +148,14 @@ Standard install first and `ovadm::add_compiler` after the deploy. A compiler
 the plan stopped on keeps its signed certificate; once the environment is
 there, `ovadm::add_compiler` for it finishes the job.
 
+## FIPS mode
+
+OpenVox publishes separate packages for Enterprise Linux hosts running in FIPS mode, under `redhatfips` instead of `el` on `yum.voxpupuli.org` (x86-64, EL 9 for OpenVox 8 and 9, EL 10 for OpenVox 9). Their bundled OpenSSL runs with its FIPS provider; the `el` builds' does not. `ovadm::configure_repo` installs the `redhatfips` release package when the kernel reports FIPS mode (`/proc/sys/crypto/fips_enabled`), so `ovadm::install`, `ovadm::add_compiler`, `ovadm::add_agent` and `ovadm::upgrade` need no extra parameter on such a host; `fips=true` or `fips=false` on the task overrides the detection. A version passed as a bare `8.17.0` resolves to the FIPS build; a full `8.17.0-1.el9` would not exist in that repository.
+
+The `redhatfips` packages of OpenVox Server 9 and OpenVoxDB 9 run on Java 21 only, while their launcher prefers an installed Java 25, so the precheck fails on a FIPS host where the launcher would pick Java 25, and `ovadm::upgrade`'s Java step accepts only 21 there. OpenVox Server 8 runs on Java 17 or 21 in FIPS mode as elsewhere.
+
+Moving a host from the `el` to the `redhatfips` builds in place (a host put into FIPS mode after its first install) has one trap: the `redhatfips` agent package writes `/opt/puppetlabs/puppet/ssl/openssl.cnf` from its post-install script without owning it, and rpm then removes the `el` package's copy of that path, so the agent runs without its FIPS provider and nothing warns. After such a move, put the file back the way the package does, `cp --preserve openssl-fips.cnf openssl.cnf` in that directory, and check that `/opt/puppetlabs/puppet/bin/ruby -ropenssl -e 'p OpenSSL.fips_mode'` prints `true`. The [openvox_agent](https://forge.puppet.com/modules/miharp/openvox_agent) module does this on agents it manages; ovadm does not do it for the server and compilers it installs, which are expected to start out on the right build.
+
 ## Internal package mirror
 
 If your nodes cannot reach the public VoxPupuli repositories, point `apt_base_url` and/or `yum_base_url` at an internal mirror of `https://apt.voxpupuli.org` or `https://yum.voxpupuli.org`. The mirror needs the same layout as the public site, such as a full copy or a caching proxy of it: ovadm downloads the release package from it (`openvox8-release-ubuntu24.04.deb`, `openvox8-release-el-9.noarch.rpm`) and points the repository file the package installs at it. That file is `/etc/apt/sources.list.d/openvox8-release.list` or `/etc/yum.repos.d/openvox8-release.repo`, and it names the public site otherwise.

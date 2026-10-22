@@ -7,6 +7,16 @@ Notable changes to ovadm are recorded here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `ovadm::configure_repo` installs the `redhatfips` release package on an
+  Enterprise Linux host in FIPS mode, so every plan uses the packages OpenVox
+  builds for such hosts; a `fips` parameter overrides the detection, and the
+  result reports the `platform`. The precheck fails on a FIPS host where
+  OpenVox Server 9's launcher would run a Java other than 21, the only Java
+  the `redhatfips` packages support, and `ovadm::select_java` accepts only 21
+  there. Documented in "FIPS mode" of `documentation/install.md`.
+
 ## [0.8.0] - 2026-10-22
 
 ### Added

@@ -24,6 +24,8 @@ java_major() {
 server_major="${server_version%%.*}"
 if [ "$server_major" -ge 9 ]; then
   supported='21 25'
+  # The redhatfips packages of OpenVox Server 9 run on Java 21 only.
+  [ "$(cat /proc/sys/crypto/fips_enabled 2>/dev/null)" = '1' ] && supported='21'
 else
   supported='17 21'
 fi
