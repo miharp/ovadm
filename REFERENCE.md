@@ -377,6 +377,12 @@ Data type: `Optional[String[1]]`
 
 Base URL of a mirror of yum.voxpupuli.org, with the same layout: the release package is downloaded from it, and the repository file points at it. Defaults to https://yum.voxpupuli.org
 
+##### `fips`
+
+Data type: `Optional[Boolean]`
+
+On Enterprise Linux, use the redhatfips repository (the packages OpenVox builds for hosts in FIPS mode) instead of el. Defaults to whether the kernel reports FIPS mode
+
 ### <a name="get_version"></a>`get_version`
 
 Return the installed openvox-server version, or puppetserver's on a host not yet upgraded to OpenVox, and which package it is; version is 'not_installed' when neither is
