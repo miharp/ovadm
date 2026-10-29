@@ -7,6 +7,8 @@ Notable changes to ovadm are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-10-29
+
 ### Added
 
 - `ovadm::configure_repo` installs the `redhatfips` release package on an
@@ -404,7 +406,8 @@ covers the module as it stands.
 - CI: plan unit tests, acceptance tests on Rocky 9, Ubuntu 22.04, Ubuntu 24.04 and
   Debian 12, and an end-to-end install test covering both topologies.
 
-[Unreleased]: https://github.com/miharp/ovadm/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/miharp/ovadm/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/miharp/ovadm/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/miharp/ovadm/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/miharp/ovadm/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/miharp/ovadm/compare/v0.6.0...v0.7.0
