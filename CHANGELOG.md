@@ -17,6 +17,25 @@ Notable changes to ovadm are recorded here. The format follows
   the `redhatfips` packages support, and `ovadm::select_java` accepts only 21
   there. Documented in "FIPS mode" of `documentation/install.md`.
 
+### Fixed
+
+- `ovadm::restore` with `rebuild` on a server that uses static catalogs:
+  the first pass also leaves out `conf.d/versioned-code.conf`, whose
+  commands the site's code may be what installs (codavox's, for one).
+  Put back before them, it made OpenVox Server refuse every compile,
+  including the agent run that would have installed them, and the rebuild
+  could not finish. The second pass puts it back with the rest of the
+  configuration.
+- `ovadm::restore` installs `git` before the r10k deploy when the host
+  lacks it, as a rebuilt host does until the site's code runs, so r10k no
+  longer stops with "No Git providers are functional"; and, with `source`,
+  installs `tar` before the upload, which a stock image may not have.
+- `ovadm::backup_restore` makes the directories it has to create on the
+  way to a restored path `0755`, as the host's own would be. They came back
+  root-only, so an extra path under a directory the host did not have yet
+  (codavox's provenance log on a rebuilt host, before the codavox package)
+  left OpenVox Server unable to run codavox's static-catalog commands.
+
 ## [0.8.0] - 2026-10-22
 
 ### Added

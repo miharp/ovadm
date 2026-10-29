@@ -33,22 +33,29 @@ describe 'ovadm::restore' do
     allow_command('systemctl start puppetserver').always_return('stdout' => '', 'stderr' => '')
     allow_task('ovadm::wait_until_service_ready').always_return('status' => 'ready', 'elapsed_seconds' => 5)
     allow_command('test -x /opt/puppetlabs/puppet/bin/r10k').always_return('stdout' => '', 'stderr' => '')
+    allow_command('command -v git').always_return('stdout' => '/usr/bin/git', 'stderr' => '')
+    allow_command('command -v tar').always_return('stdout' => '/usr/bin/tar', 'stderr' => '')
     allow_command('/opt/puppetlabs/puppet/bin/r10k deploy environment --modules').always_return('stdout' => '', 'stderr' => '')
     allow_task('ovadm::agent_runonce').always_return(agent_ok)
     allow_plan('ovadm::status').always_return({})
   end
 
-  it 'on a rebuilt host, restores the CA, code and extra paths first, runs the agent, then the configuration, installing the termini package' do
+  let(:held_back) do
+    %w[/etc/puppetlabs/puppet/puppet.conf /etc/puppetlabs/puppet/puppetdb.conf /etc/puppetlabs/puppet/routes.yaml
+       /etc/puppetlabs/puppetserver/conf.d/versioned-code.conf]
+  end
+
+  it 'on a rebuilt host, restores all but the OpenVoxDB and static-catalog wiring first, runs the agent, then the configuration, installing the termini package' do
     allow_task('ovadm::backup_verify').always_return(verified.merge('host' => verified['host'].merge(
       'packages' => { 'openvoxdb-termini' => { 'archive' => '8.17.0-1.el10', 'host' => nil } }
     )))
     expect_task('ovadm::backup_restore').with_params(
       'archive' => archive, 'force' => false, 'dry_run' => false, 'scope' => 'ca,config,code,extra',
-      'exclude' => '/etc/puppetlabs/puppet/puppet.conf,/etc/puppetlabs/puppet/puppetdb.conf,/etc/puppetlabs/puppet/routes.yaml'
-    ).always_return(restored.merge('scope' => %w[ca config code extra], 'excluded' => %w[/etc/puppetlabs/puppet/puppet.conf /etc/puppetlabs/puppet/puppetdb.conf /etc/puppetlabs/puppet/routes.yaml]))
+      'exclude' => held_back.join(',')
+    ).always_return(restored.merge('scope' => %w[ca config code extra], 'excluded' => held_back))
     expect_task('ovadm::backup_restore').with_params('archive' => archive, 'force' => false, 'dry_run' => false, 'scope' => 'config')
                                         .always_return(restored.merge('scope' => ['config']))
-    expect_out_message.with_params("#{server}: left out for now: /etc/puppetlabs/puppet/puppet.conf, /etc/puppetlabs/puppet/puppetdb.conf, /etc/puppetlabs/puppet/routes.yaml")
+    expect_out_message.with_params("#{server}: left out for now: #{held_back.join(', ')}")
     expect_task('ovadm::install_package').with_params('name' => 'openvoxdb-termini')
                                          .always_return('status' => 'installed', 'package' => 'openvoxdb-termini', 'version' => '8.17.0-1.el10', 'previous' => nil)
     expect_task('ovadm::agent_runonce').be_called_times(2).always_return(agent_ok)
@@ -58,6 +65,7 @@ describe 'ovadm::restore' do
     expect_out_message.with_params("#{server}: installed openvoxdb-termini 8.17.0-1.el10, which the manifest lists and the host lacked")
     allow_command('systemctl start puppetserver').always_return('stdout' => '', 'stderr' => '')
     allow_command('test -x /opt/puppetlabs/puppet/bin/r10k').always_return('stdout' => '', 'stderr' => '')
+    allow_command('command -v git').always_return('stdout' => '/usr/bin/git', 'stderr' => '')
 
     result = run_plan('ovadm::restore', { 'server_host' => server, 'archive' => archive, 'rebuild' => true })
     expect(result).to be_ok
@@ -95,6 +103,8 @@ describe 'ovadm::restore' do
     expect_task('ovadm::wait_until_service_ready').be_called_times(2).always_return('status' => 'ready', 'elapsed_seconds' => 5)
     expect_command('/opt/puppetlabs/puppet/bin/r10k deploy environment --modules').be_called_times(1).always_return('stdout' => '', 'stderr' => '')
     allow_command('test -x /opt/puppetlabs/puppet/bin/r10k').always_return('stdout' => '', 'stderr' => '')
+    allow_command('command -v git').always_return('stdout' => '/usr/bin/git', 'stderr' => '')
+    expect_task('ovadm::install_package').not_be_called
     expect_task('ovadm::agent_runonce').with_params('waitforcert' => 0).always_return(agent_ok)
     expect_plan('ovadm::status').be_called_times(1).always_return({})
     expect_out_message.with_params("#{server}: scope ca, config, code: 1 file(s) changed, 0 missing on the host, 11 unchanged")
@@ -132,6 +142,46 @@ describe 'ovadm::restore' do
     expect(result).to be_ok
   ensure
     source&.close!
+  end
+
+  it 'installs tar before uploading to a host that lacks it, as a stock image may' do
+    source = Tempfile.new(['openvox-backup', '.tar.gz'])
+    allow_command("install -d -m 0700 '/var/backups/openvox'").always_return('stdout' => '', 'stderr' => '')
+    allow_upload(source.path)
+    allow_task('ovadm::backup_verify').always_return(verified)
+    allow_task('ovadm::backup_restore').always_return(restored)
+    allow_rest
+    allow_command('command -v tar').error_with('msg' => 'no tar', 'kind' => 'puppetlabs.tasks/command-error')
+    expect_task('ovadm::install_package').with_params('name' => 'tar')
+                                         .always_return('status' => 'installed', 'package' => 'tar', 'version' => '1.35-13.el10_2', 'previous' => nil)
+    expect_out_message.with_params("#{server}: installed tar 1.35-13.el10_2, which the restore unpacks the archive with")
+
+    expect(run_plan('ovadm::restore', { 'server_host' => server, 'archive' => archive, 'source' => source.path })).to be_ok
+  ensure
+    source&.close!
+  end
+
+  it 'installs git before the r10k deploy when the host lacks it' do
+    allow_task('ovadm::backup_verify').always_return(verified)
+    allow_task('ovadm::backup_restore').always_return(restored)
+    allow_rest
+    allow_command('command -v git').error_with('msg' => 'no git', 'kind' => 'puppetlabs.tasks/command-error')
+    expect_task('ovadm::install_package').with_params('name' => 'git', '_catch_errors' => true)
+                                         .always_return('status' => 'installed', 'package' => 'git', 'version' => '2.47.3-1.el10', 'previous' => nil)
+    expect_out_message.with_params("#{server}: installed git 2.47.3-1.el10, which r10k needs")
+    expect_command('/opt/puppetlabs/puppet/bin/r10k deploy environment --modules').be_called_times(1).always_return('stdout' => '', 'stderr' => '')
+    expect(run_plan('ovadm::restore', { 'server_host' => server, 'archive' => archive })).to be_ok
+  end
+
+  it 'warns when git cannot be installed, and still runs r10k, which says why it failed' do
+    allow_task('ovadm::backup_verify').always_return(verified)
+    allow_task('ovadm::backup_restore').always_return(restored)
+    allow_rest
+    allow_command('command -v git').error_with('msg' => 'no git', 'kind' => 'puppetlabs.tasks/command-error')
+    expect_task('ovadm::install_package').with_params('name' => 'git', '_catch_errors' => true)
+                                         .error_with('msg' => 'dnf could not install git', 'kind' => 'ovadm/install-package')
+    expect_out_message.with_params("WARNING #{server}: git could not be installed, so r10k cannot deploy: dnf could not install git")
+    expect(run_plan('ovadm::restore', { 'server_host' => server, 'archive' => archive })).to be_ok
   end
 
   it 'stops after reporting with dry_run' do

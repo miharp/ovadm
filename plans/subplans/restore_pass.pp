@@ -3,8 +3,8 @@
 # Runs `backup_restore` for the scope, reports what changed, reinstalls the
 # gems the manifest lists that the host lacks, installs `openvoxdb-termini`
 # when asked, starts puppetserver and waits for it, redeploys the code with
-# r10k when `code` is in scope, and runs the agent once. With `dry_run`,
-# reports and stops.
+# r10k when `code` is in scope (installing git first when the host lacks
+# it), and runs the agent once. With `dry_run`, reports and stops.
 #
 # @api private
 #
@@ -109,6 +109,16 @@ plan ovadm::subplans::restore_pass(
   if $deploy_code and 'code' in $restore['scope'] {
     $r10k = run_command('test -x /opt/puppetlabs/puppet/bin/r10k', $target, '_catch_errors' => true)
     if $r10k.ok {
+      # r10k clones with git, which a rebuilt host lacks until the site's
+      # code installs it, and that code is what r10k is about to deploy.
+      unless run_command('command -v git', $target, '_catch_errors' => true).ok {
+        $git = run_task('ovadm::install_package', $target, { 'name' => 'git', '_catch_errors' => true }).first.value
+        if $git['status'] == 'installed' {
+          out::message("${name}: installed git ${git['version']}, which r10k needs")
+        } else {
+          out::message("WARNING ${name}: git could not be installed, so r10k cannot deploy: ${git['_error']['msg']}")
+        }
+      }
       $deploy = run_command('/opt/puppetlabs/puppet/bin/r10k deploy environment --modules', $target, '_catch_errors' => true)
       if $deploy.ok {
         out::message("${name}: code redeployed with r10k")

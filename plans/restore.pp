@@ -15,9 +15,10 @@
 # On a rebuilt host, run `ovadm::install` first with the versions the
 # manifest names (the plan prints the exact command when the server is not
 # installed), then this plan with `rebuild`. That restores everything but
-# `puppet.conf`, `puppetdb.conf` and `routes.yaml` first and runs the agent
-# on a server that has no OpenVoxDB wiring yet, as on the original build,
-# so the site's code can bring OpenVoxDB back; then it puts the
+# `puppet.conf`, `puppetdb.conf`, `routes.yaml` and `versioned-code.conf`
+# first and runs the agent on a server that has no OpenVoxDB wiring and no
+# static catalogs yet, as on the original build, so the site's code can
+# bring back OpenVoxDB and whatever serves static catalogs; then it puts the
 # configuration back whole, with `openvoxdb-termini` installed when the
 # host still lacks it.
 #
@@ -30,7 +31,8 @@
 # @param source
 #   Path of the archive on the workstation running Bolt. It is uploaded to
 #   `archive` on the server before anything else: the rebuilt-server path,
-#   where the archive is wherever the backups were kept.
+#   where the archive is wherever the backups were kept. `tar` is installed
+#   first when the host lacks it, as a stock image may.
 #
 # @param scope
 #   What to put back: `ca`, `config`, `code` (what the archive holds under
@@ -40,8 +42,9 @@
 #
 # @param rebuild
 #   The host was rebuilt: leave the files that wire the server to OpenVoxDB
-#   out of the first pass, run the agent so the site's code brings back
-#   what it installs, then put the configuration back whole.
+#   and to static catalogs out of the first pass, run the agent so the
+#   site's code brings back what it installs, then put the configuration
+#   back whole.
 #
 # @param force
 #   Restore even when the archive is from another certname or
@@ -85,9 +88,14 @@ plan ovadm::restore(
   $name   = $target.name
 
   if $source {
-    # A rebuilt host has no backup directory yet.
+    # A rebuilt host has no backup directory yet, and a stock image may have
+    # no tar, which every task here unpacks the archive with.
     $archive_dir = $archive.regsubst('/[^/]+$', '')
     run_command("install -d -m 0700 '${archive_dir}'", $target)
+    unless run_command('command -v tar', $target, '_catch_errors' => true).ok {
+      $tar = run_task('ovadm::install_package', $target, { 'name' => 'tar' }).first.value
+      out::message("${name}: installed tar ${tar['version']}, which the restore unpacks the archive with")
+    }
     upload_file($source, $archive, $target)
     out::message("${name}: uploaded ${source} to ${archive}")
   }
@@ -135,14 +143,23 @@ plan ovadm::restore(
       undef   => ['ca', 'config', 'code', 'extra'],
       default => $scope,
     }
-    # Pass 1: everything but the three files that wire the server to
-    # OpenVoxDB, so the site's code runs on a server wired as the fresh
-    # install left it, as on the original build. Pass 2: the configuration
-    # whole, over what the site's code has written.
-    $wiring = ['/etc/puppetlabs/puppet/puppet.conf', '/etc/puppetlabs/puppet/puppetdb.conf', '/etc/puppetlabs/puppet/routes.yaml']
+    # Pass 1: everything but the files that point the server at what the
+    # site's code installs, so that code runs on a server set up as the
+    # fresh install left it, as on the original build: the three that wire
+    # it to OpenVoxDB, and versioned-code.conf, whose code-id and
+    # code-content commands (codavox's, or the site's own scripts) may not
+    # exist yet. OpenVox Server refuses every compile while either is
+    # missing. Pass 2: the configuration whole, over what the site's code
+    # has written.
+    $held_back = [
+      '/etc/puppetlabs/puppet/puppet.conf',
+      '/etc/puppetlabs/puppet/puppetdb.conf',
+      '/etc/puppetlabs/puppet/routes.yaml',
+      '/etc/puppetlabs/puppetserver/conf.d/versioned-code.conf',
+    ]
     $passes = ('config' in $wanted) ? {
       true    => [
-        run_plan('ovadm::subplans::restore_pass', $pass + { 'scope' => $wanted, 'exclude' => $wiring }),
+        run_plan('ovadm::subplans::restore_pass', $pass + { 'scope' => $wanted, 'exclude' => $held_back }),
         run_plan('ovadm::subplans::restore_pass', $pass + { 'scope' => ['config'], 'install_termini' => $termini_missing }),
       ],
       default => [run_plan('ovadm::subplans::restore_pass', $pass + { 'scope' => $wanted })],
