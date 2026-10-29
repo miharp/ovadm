@@ -298,9 +298,14 @@ stopped_json=$(printf '%s\n' "${stopped[@]}" | json_lines)
 
 tar_excludes=()
 for e in "${excludes[@]}"; do tar_excludes+=("--exclude=$e"); done
+# Everything tar takes keeps its archived owner and mode. A directory it has
+# to make up on the way to a path, one the host does not have yet (codavox's
+# under /opt/puppetlabs, say, before its package is back), gets 0755 as the
+# host's own would, not the 0700 this script's umask gives: a root-only
+# parent shuts the services out of what is restored beneath it.
 if ! tar -C "$top/files" --anchored "${tar_excludes[@]}" \
     --exclude='*.rpmnew' --exclude='*.rpmsave' --exclude='*.dpkg-dist' --exclude='*.dpkg-old' \
-    -cf - "${includes[@]}" | tar -C / -xpf -; then
+    -cf - "${includes[@]}" | (umask 022 && tar -C / -xpf -); then
   fail 'putting the files back failed; the services are started again'
 fi
 start_services

@@ -203,6 +203,20 @@ RSpec.describe 'ovadm::backup_restore task' do
     end
   end
 
+  context 'with an extra path whose directories the host does not have yet' do
+    it 'makes those directories 0755, as the host would, and keeps the path its own mode' do
+      run_shell('install -d -m 0755 /opt/extra; install -d -m 0700 /opt/extra/state; echo LOG > /opt/extra/state/log.jsonl; chmod 0600 /opt/extra/state/log.jsonl')
+      archive = backup('extra_paths' => '/opt/extra/state/log.jsonl')
+      run_shell('rm -rf /opt/extra')
+      data = restore('archive' => archive, 'scope' => 'extra').result
+      expect(data['status']).to eq('restored')
+      expect(cat('/opt/extra/state/log.jsonl')).to eq("LOG\n")
+      expect(run_shell("stat -c '%a' /opt/extra /opt/extra/state /opt/extra/state/log.jsonl")['stdout'].split).to eq(%w[755 755 600])
+    ensure
+      run_shell('rm -rf /opt/extra')
+    end
+  end
+
   context 'with files of a user the host does not have' do
     it 'puts them back by number and says so' do
       run_shell('chown 4242:4242 /etc/puppetlabs/puppetdb/conf.d/database.ini')

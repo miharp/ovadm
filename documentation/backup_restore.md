@@ -236,6 +236,11 @@ Three things to know before the first restore:
   are back and the services are up by then. Package manager leftovers
   (`*.rpmnew`, `*.rpmsave`, `*.dpkg-dist`, `*.dpkg-old`) in the archive are
   not put back.
+- **Files the archive holds are written whole.** An extra path that only
+  grows, such as codavox's provenance log, goes back to what it held at
+  backup time, and the records added since are lost. On a server that is
+  still running, restore what was lost with `scope` (`ca`, `config`) and
+  leave `extra` to a rebuild.
 - **On a host the openvox_server module manages**, the files it owns
   (`webserver.conf`, `services.d/ca.cfg`, the `puppet.conf` and `ca.conf`
   settings it is given, the JVM sizing) come back on the next agent run,
@@ -330,18 +335,23 @@ address the agents use, then:
      archive=/var/backups/openvox/openvox-backup-ovox-server.example.com-20261021T181530Z.tar.gz
    ```
 
-   `rebuild` orders the restore the way the server was first built. The
-   first pass puts back everything but `puppet.conf`, `puppetdb.conf` and
-   `routes.yaml`, the three files that wire the server to OpenVoxDB (the
-   plan warns that the throwaway CA is replaced); installs the gems the
-   manifest lists (r10k among them, when the site installed it by hand);
-   redeploys the code; and runs the agent on a server still wired as
-   `ovadm::install` left it. That run is where the site's own code brings
-   back what it owns: OpenVoxDB and PostgreSQL, the r10k timer, the
-   firewall. A site whose code queries PuppetDB at compile time would fail
-   that run with the terminus in place, which is why those files wait. The
-   second pass then puts the configuration back whole, installs
-   `openvoxdb-termini` if the site's code did not (the restored
+   `rebuild` orders the restore the way the server was first built. A
+   stock image may lack `tar`, which the restore unpacks the archive with;
+   with `source`, the plan installs it first. The first pass puts back
+   everything but `puppet.conf`, `puppetdb.conf` and `routes.yaml`, the
+   three files that wire the server to OpenVoxDB, and `versioned-code.conf`,
+   whose static-catalog commands (codavox's, or the site's own scripts) the
+   site's code may be what installs; OpenVox Server refuses every compile
+   while either command is missing. The plan warns that the throwaway CA is
+   replaced. The pass installs the gems the manifest lists (r10k among
+   them, when the site installed it by hand) and `git` when r10k needs it
+   and the host lacks it, redeploys the code, and runs the agent on a server
+   still set up as `ovadm::install` left it. That run is where the site's
+   own code brings back what it owns: OpenVoxDB and PostgreSQL, codavox, the
+   r10k timer, the firewall. A site whose code queries PuppetDB at compile
+   time would fail that run with the terminus in place, which is why those
+   files wait. The second pass then puts the configuration back whole,
+   installs `openvoxdb-termini` if the site's code did not (the restored
    `routes.yaml` needs it), restarts, and runs the agent again. Expect the
    first run to take a while and to report changes; the second should be
    clean.

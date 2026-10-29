@@ -984,9 +984,10 @@ back in Hiera, and use this plan for the rest.
 On a rebuilt host, run `ovadm::install` first with the versions the
 manifest names (the plan prints the exact command when the server is not
 installed), then this plan with `rebuild`. That restores everything but
-`puppet.conf`, `puppetdb.conf` and `routes.yaml` first and runs the agent
-on a server that has no OpenVoxDB wiring yet, as on the original build,
-so the site's code can bring OpenVoxDB back; then it puts the
+`puppet.conf`, `puppetdb.conf`, `routes.yaml` and `versioned-code.conf`
+first and runs the agent on a server that has no OpenVoxDB wiring and no
+static catalogs yet, as on the original build, so the site's code can
+bring back OpenVoxDB and whatever serves static catalogs; then it puts the
 configuration back whole, with `openvoxdb-termini` installed when the
 host still lacks it.
 
@@ -1023,7 +1024,8 @@ Data type: `Optional[String[1]]`
 
 Path of the archive on the workstation running Bolt. It is uploaded to
 `archive` on the server before anything else: the rebuilt-server path,
-where the archive is wherever the backups were kept.
+where the archive is wherever the backups were kept. `tar` is installed
+first when the host lacks it, as a stock image may.
 
 Default value: `undef`
 
@@ -1043,8 +1045,9 @@ Default value: `undef`
 Data type: `Boolean`
 
 The host was rebuilt: leave the files that wire the server to OpenVoxDB
-out of the first pass, run the agent so the site's code brings back
-what it installs, then put the configuration back whole.
+and to static catalogs out of the first pass, run the agent so the
+site's code brings back what it installs, then put the configuration
+back whole.
 
 Default value: `false`
 
