@@ -35,12 +35,14 @@ differ, as noted.
 
 ### Tier 0: irreplaceable
 
-Lose any of these without a backup and the fleet has to be re-enrolled or the
-secret re-issued.
+Lose any of these without a backup and there is no way to recover it. Losing
+the CA means re-enrolling every agent under a new one; losing a key means
+issuing a new key and replacing everything that depended on the old one, such
+as every eyaml-encrypted Hiera value.
 
 | What | Where | Why it matters |
 | ---- | ----- | -------------- |
-| The CA: signing key and certificate, root key, CRL, serial, inventory, signed certificates, pending requests | `/etc/puppetlabs/puppetserver/ca/` (`cadir`), the whole directory: `ca_key.pem`, `root_key.pem`, `ca_crt.pem`, `ca_pub.pem`, `ca_crl.pem`, `serial`, `inventory.txt`, `infra_crl.pem`, `infra_inventory.txt`, `infra_serials`, `signed/`, `requests/` | Every agent trusts this CA. Without the key, no new node can be signed and no certificate revoked; without `inventory.txt` and `signed/`, the CA no longer knows the certificates it issued. The `infra_*` files drive the [infrastructure CRL](https://docs.openvoxproject.org/openvox-server/latest/infrastructure_crl.html) and are empty placeholders until it is enabled. Owned by `puppet:puppet`, directory `0750`, files `0640`. If the directory is lost, restore it before the next agent run on the server: the openvox_server module recreates a CA when `ca_crt.pem` is missing, and from then on the server presents a certificate no agent trusts until the backup is put back. |
+| The certificate authority | `/etc/puppetlabs/puppetserver/ca/` (`cadir`), the whole directory: `ca_key.pem`, `root_key.pem`, `ca_crt.pem`, `ca_pub.pem`, `ca_crl.pem`, `serial`, `inventory.txt`, `infra_crl.pem`, `infra_inventory.txt`, `infra_serials`, `signed/`, `requests/` | Every agent trusts this CA. Without the key, no new node can be signed and no certificate revoked; without `inventory.txt` and `signed/`, the CA no longer knows the certificates it issued. The `infra_*` files drive the [infrastructure CRL](https://docs.openvoxproject.org/openvox-server/latest/infrastructure_crl.html) and are empty placeholders until it is enabled. Owned by `puppet:puppet`, directory `0750`, files `0640`. If the directory is lost, restore it before the next agent run on the server: a module that sets the CA up when `ca_crt.pem` is absent will try to, and the failed run (`puppetserver ca setup` refuses while the server's own certificate exists) is one more thing to sort out. |
 | The server's own certificate and key | `/etc/puppetlabs/puppet/ssl/` (`ssldir`) | Re-issuable from the CA, but restoring it means no re-sign step and no change agents could notice. Also holds the server's copy of the CA bundle and the CRL. `puppet:puppet`. |
 | OpenVoxDB's copy of the server certificate | `/etc/puppetlabs/puppetdb/ssl/` | Copies of the files above, made by `puppetdb ssl-setup`. Regenerable from `ssldir`, cheap to keep. `puppetdb:puppetdb`, `0700`. |
 | Hiera eyaml keys | The paths that `pkcs7_private_key` and `pkcs7_public_key` name in each environment's `hiera.yaml`, for example `/etc/puppetlabs/eyaml/keys/` or `/etc/puppetlabs/puppet/eyaml/` | Without the private key, every encrypted Hiera value is gone and every secret in your data has to be rotated. Check where yours are: the location is set by your control repository, not by the package. |
@@ -86,7 +88,7 @@ they imply, not by default.
 | ---- | ----- | ----------------------- |
 | Deployed code | `/etc/puppetlabs/code/environments/`, one directory per environment | `r10k deploy environment --modules` rebuilds it from your Git server. Each environment's `.r10k-deploy.json` records the commit (`signature`) and the module versions that were deployed, so keep those files, or the output of `git rev-parse HEAD` per environment, to be able to reproduce the exact state. Back up the tree itself only when your Git server shares the primary's blast radius. |
 | r10k cache | `/var/cache/r10k/` | Re-fetched on the next deploy. |
-| OpenVoxDB data | The `puppetdb` database in PostgreSQL. The `puppetdb` role owns every table, and `puppetdb-read` is the read-only connection's role. Dumped with `pg_dump`, never copied as files while PostgreSQL runs. | Facts and catalogs come back on each agent's next run. Reports, resource events, and exported resources do not. Sites that rely on exported resources, on report history, or on tools that read OpenVoxDB want this tier. |
+| OpenVoxDB data | The `puppetdb` database in PostgreSQL, dumped with `pg_dump` | Facts and catalogs come back on each agent's next run. Reports, resource events, and exported resources do not. Sites that rely on exported resources, on report history, or on tools that read OpenVoxDB want this tier. The `puppetdb` role owns every table and `puppetdb-read` is the read-only connection's role; never copy the database as files while PostgreSQL runs. |
 | Server runtime data | `/opt/puppetlabs/server/data/puppetserver/` | The node cache (`yaml/`) and the JRuby gem directory regenerate; the file bucket (`bucket/`) matters only if your site uses it, and reports stored there only if you do not send them to OpenVoxDB. Mostly vendored gems that come with the package. If you use static catalogs, the `code_id` and `code_content` scripts under `scripts/` are yours; `ovadm::backup` takes them with the configuration when `conf.d` names them. |
 
 ### What is not here
@@ -484,14 +486,17 @@ On Debian and Ubuntu, use `dpkg-query -W openvox-server openvoxdb
 openvoxdb-termini openvox-agent postgresql` for the versions.
 
 Back up tiers 0 and 1, adding the paths outside `/etc/puppetlabs/` that your
-site uses (here, root's SSH directory for the r10k deploy key and the systemd
-units that run r10k):
+site uses (here, root's SSH directory for the r10k deploy key, the systemd
+units that run r10k, and the static catalog scripts; drop the ones you do
+not have). Without the scripts, a server whose restored `conf.d` turns
+static catalogs on compiles no catalog at all:
 
 ```console
 tar --exclude=/etc/puppetlabs/code -czf "$backup/etc-puppetlabs.tar.gz" \
   /etc/puppetlabs \
   /etc/sysconfig/puppetserver /etc/sysconfig/puppetdb \
-  /root/.ssh /etc/systemd/system/r10k-deploy.*
+  /root/.ssh /etc/systemd/system/r10k-deploy.* \
+  /opt/puppetlabs/server/data/puppetserver/scripts
 ```
 
 Record what code was deployed, which is enough to reproduce the environments
@@ -499,7 +504,8 @@ with r10k:
 
 ```console
 for d in /etc/puppetlabs/code/environments/*/; do
-  cp "$d/.r10k-deploy.json" "$backup/r10k-deploy-$(basename "$d").json" 2>/dev/null
+  cp "$d/.r10k-deploy.json" \
+    "$backup/r10k-deploy-$(basename "$d").json" 2>/dev/null
 done
 cp /etc/puppetlabs/r10k/r10k.yaml "$backup/"
 ```
@@ -513,12 +519,15 @@ already has it.
 
 ```console
 ini=/etc/puppetlabs/puppetdb/conf.d/database.ini
-subname=$(awk -F= '/^subname/ {gsub(/ /,"",$2); print $2}' "$ini")   # //HOST:PORT/DATABASE
+# subname has the form //HOST:PORT/DATABASE
+subname=$(awk -F= '/^subname/ {gsub(/ /,"",$2); print $2}' "$ini")
 export PGPASSWORD=$(awk -F= '/^password/ {gsub(/ /,"",$2); print $2}' "$ini")
 host=${subname#//}; host=${host%%[:/]*}
-port=$(echo "$subname" | sed -n 's#//[^:/]*:\([0-9]*\)/.*#\1#p'); port=${port:-5432}
+port=$(echo "$subname" | sed -n 's#//[^:/]*:\([0-9]*\)/.*#\1#p')
+port=${port:-5432}
 db=${subname##*/}
-pg_dump -h "$host" -p "$port" -U puppetdb -d "$db" -Fd -Z3 -j4 -f "$backup/openvoxdb"
+pg_dump -h "$host" -p "$port" -U puppetdb -d "$db" \
+  -Fd -Z3 -j4 -f "$backup/openvoxdb"
 unset PGPASSWORD
 ```
 
@@ -532,13 +541,14 @@ Finally, confirm the CA did not change while you worked, and close the
 archive:
 
 ```console
-cmp "$backup/ca-serial-before" /etc/puppetlabs/puppetserver/ca/serial && rm "$backup/ca-serial-before"
+cmp "$backup/ca-serial-before" /etc/puppetlabs/puppetserver/ca/serial \
+  && rm "$backup/ca-serial-before"
 chmod -R go-rwx "$backup"
 du -sh "$backup"
 ```
 
 If `cmp` reports a difference, a certificate was signed during the backup;
-run it again.
+run it again. Then copy the directory off the host.
 
 ## Restoring by hand
 
@@ -549,10 +559,22 @@ the services stopped:
 systemctl stop puppetserver puppetdb
 tar -C / -xzpf "$backup/etc-puppetlabs.tar.gz"
 systemctl start puppetserver puppetdb
+curl -sk https://localhost:8140/status/v1/simple
 ```
 
 Owners and modes come back with the files, since the archive was made as
-root. Leave out any `*.rpmnew` or `*.dpkg-dist` the archive holds.
+root. Leave out any `*.rpmnew` or `*.dpkg-dist` the archive holds. Files
+added since the backup stay in place; remove any you do not want yourself.
+`systemctl start` returns once the server is up, which takes a minute or
+two; the status endpoint then prints `running`. Run the agent on the server
+once afterwards, so that a module that manages it takes its files over
+again.
+
+The other two by-hand procedures, a lost CA directory with the fleet intact
+and a rebuild on a new host, are on the OpenVox docs page
+[Backing up and restoring OpenVox Server](https://docs.openvoxproject.org/openvox-server/latest/backup_restore.html),
+step by step and run as written in ovadm's lab. The plans above do the same
+with fewer steps.
 
 ### Restoring OpenVoxDB
 
@@ -566,20 +588,28 @@ server, that means after the site's code has brought OpenVoxDB back.
 
 ```console
 systemctl stop puppetdb
-sudo -u postgres psql -q -d puppetdb -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public; ALTER SCHEMA public OWNER TO pg_database_owner; GRANT USAGE ON SCHEMA public TO PUBLIC; GRANT CREATE ON SCHEMA public TO puppetdb;"
+sudo -u postgres psql -q -d puppetdb <<'SQL'
+DROP SCHEMA public CASCADE;
+CREATE SCHEMA public;
+ALTER SCHEMA public OWNER TO pg_database_owner;
+GRANT USAGE ON SCHEMA public TO PUBLIC;
+GRANT CREATE ON SCHEMA public TO puppetdb;
+SQL
 ini=/etc/puppetlabs/puppetdb/conf.d/database.ini
 subname=$(awk -F= '/^subname/ {gsub(/ /,"",$2); print $2}' "$ini")
 export PGPASSWORD=$(awk -F= '/^password/ {gsub(/ /,"",$2); print $2}' "$ini")
 host=${subname#//}; host=${host%%[:/]*}
-port=$(echo "$subname" | sed -n 's#//[^:/]*:\([0-9]*\)/.*#\1#p'); port=${port:-5432}
+port=$(echo "$subname" | sed -n 's#//[^:/]*:\([0-9]*\)/.*#\1#p')
+port=${port:-5432}
 db=${subname##*/}
 pg_restore -h "$host" -p "$port" -U puppetdb -d "$db" -j4 "$backup/openvoxdb"
 unset PGPASSWORD
 systemctl start puppetdb
 ```
 
-On PostgreSQL 14 and earlier `public` is owned by `postgres`, so leave the
-`ALTER SCHEMA ... OWNER` clause out. With PostgreSQL on another host, run the
+The `DROP SCHEMA` prints notices about the objects it cascades to; that is
+the old schema going. On PostgreSQL 14 and earlier `public` is owned by
+`postgres`, so leave the `ALTER SCHEMA` line out. With PostgreSQL on another host, run the
 schema reset through an administrative connection there; `pg_restore` needs
 no shell on the database host. OpenVoxDB starts, finds the schema it expects,
 and the reports are there.
@@ -587,8 +617,9 @@ and the reports are there.
 ### How often
 
 Take a backup before every upgrade and after every batch of certificate
-signings, and on a schedule that matches how often your fleet changes. A CA
-restored from a backup does not know the certificates signed after that
-backup was taken; the smaller that set, the simpler the recovery. Tier 2 is
+signings or revocations, and on a schedule that matches how often your fleet
+changes. A CA restored from a backup does not know the certificates signed,
+or revoked, after that backup was taken; the smaller that set, the simpler
+the recovery. Tier 2 is
 worth including on the schedule only if your site depends on report history
 or exported resources.

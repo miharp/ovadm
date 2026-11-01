@@ -43,6 +43,13 @@ Notable changes to ovadm are recorded here. The format follows
   `puppetserver ca clean`, which works on such a certificate and revokes a
   serial the restored CA is about to reissue, so the next certificate
   with that serial is revoked from the start (#98).
+- `documentation/backup_restore.md` corrected from the lab run of the
+  openvox-docs page built on it: the tier 0 table no longer says the
+  openvox_server module recreates a missing CA (its `puppetserver ca setup`
+  refuses while the server's own certificate exists), the by-hand recipes
+  include the static catalog scripts, a status check and the OpenVoxDB
+  schema reset as a heredoc, and the lost-CA and rebuild by-hand
+  procedures point at the docs page that carries them step by step (#103).
 
 ## [0.9.0] - 2026-10-29
 
