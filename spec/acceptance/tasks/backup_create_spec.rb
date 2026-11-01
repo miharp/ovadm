@@ -187,6 +187,33 @@ RSpec.describe 'ovadm::backup_create task' do
     end
   end
 
+  context 'with static catalog scripts' do
+    it 'takes the commands conf.d names with the configuration, and records them in the manifest' do
+      run_shell(<<~SH)
+        install -d /opt/puppetlabs/server/data/puppetserver/scripts
+        printf '#!/bin/sh\necho abc\n' > /opt/puppetlabs/server/data/puppetserver/scripts/code_id.sh
+        printf '#!/bin/sh\ncat\n' > /opt/puppetlabs/server/data/puppetserver/scripts/code_content.sh
+        printf 'versioned-code: {\n  code-id-command: "/opt/puppetlabs/server/data/puppetserver/scripts/code_id.sh"\n  code-content-command: "/opt/puppetlabs/server/data/puppetserver/scripts/code_content.sh"\n}\n' > /etc/puppetlabs/puppetserver/conf.d/versioned-code.conf
+      SH
+      result = run_bolt_task('ovadm::backup_create')
+      expect(result.exit_code).to eq(0)
+      expect(result.result['warnings']).to eq([])
+      name = File.basename(result.result['archive'], '.tar.gz')
+      expect(listing(result.result['archive'])).to include(
+        "#{name}/files/opt/puppetlabs/server/data/puppetserver/scripts/code_id.sh",
+        "#{name}/files/opt/puppetlabs/server/data/puppetserver/scripts/code_content.sh"
+      )
+      manifest = JSON.parse(read_from(result.result['archive'], "#{name}/ovadm/manifest.json"))
+      expect(manifest['backup']['static_catalog_scripts']).to eq(%w[/opt/puppetlabs/server/data/puppetserver/scripts/code_content.sh /opt/puppetlabs/server/data/puppetserver/scripts/code_id.sh])
+
+      # With config off they stay out; without versioned-code.conf nothing is recorded.
+      result = run_bolt_task('ovadm::backup_create', { 'config' => false })
+      expect(listing(result.result['archive'])).not_to include(a_string_including('/scripts/code_id.sh'))
+    ensure
+      run_shell('rm -rf /opt/puppetlabs /etc/puppetlabs/puppetserver/conf.d/versioned-code.conf')
+    end
+  end
+
   context 'with extra paths' do
     it 'includes them with their modes' do
       result = run_bolt_task('ovadm::backup_create', { 'extra_paths' => '/root/.ssh/deploy_key' })

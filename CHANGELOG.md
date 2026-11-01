@@ -7,6 +7,43 @@ Notable changes to ovadm are recorded here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `ovadm::backup` takes the static catalog commands that `conf.d` names
+  (`code-id-command` and `code-content-command`, usually under
+  `/opt/puppetlabs/server/data/puppetserver/scripts/`) with the configuration,
+  and records them in the manifest as `static_catalog_scripts`;
+  `ovadm::restore` puts them back with the `config` scope. A restored
+  `conf.d` points at them, and OpenVox Server compiles nothing while they
+  are missing, not even the agent run that would recreate them, so a backup
+  that left them to `extra_paths` could not finish a rebuild (#101).
+- `ovadm::restore` compares the archive's revocation list with the live
+  one and refuses, unless forced, when the CA has revoked certificates
+  since the backup: the restored `ca_crl.pem` is the archive's, so those
+  certificates would be valid again. The warning after a forced restore
+  names them and the `puppetserver ca revoke` command to run (#99).
+- `ovadm::restore` on a host whose CA directory is gone compares OpenVoxDB's
+  node list with the archive's inventory and names the nodes the archive
+  does not know, which is as close as the host can get to "who enrolled
+  since the backup" once the inventory is lost (#102).
+
+### Changed
+
+- `ovadm::restore rebuild=true` no longer holds back `puppet.conf` whole.
+  The first pass puts the file back and takes only `storeconfigs`,
+  `storeconfigs_backend` and `reports` out of it (`backup_restore`'s new
+  `strip_openvoxdb_settings`), so the agent run that brings OpenVoxDB back
+  keeps the certname, server, environment and `dns_alt_names` the archive
+  recorded. Held back whole, the run used the default environment and, on
+  a host whose certname differs from its FQDN, the server could not have
+  started (#100).
+- The warning after a forced CA restore no longer says to clean the
+  certificates signed since the backup: it says to delete their
+  `signed/<name>.pem` by hand and enrol the hosts again, and not to use
+  `puppetserver ca clean`, which works on such a certificate and revokes a
+  serial the restored CA is about to reissue, so the next certificate
+  with that serial is revoked from the start (#98).
+
 ## [0.9.0] - 2026-10-29
 
 ### Added

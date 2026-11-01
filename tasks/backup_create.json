@@ -12,7 +12,7 @@
       "type": "Optional[Boolean]"
     },
     "config": {
-      "description": "Include the rest of /etc/puppetlabs (without code/) and the services' environment files. Default true",
+      "description": "Include the rest of /etc/puppetlabs (without code/), the services' environment files, and the static catalog commands conf.d names. Default true",
       "type": "Optional[Boolean]"
     },
     "code": {
