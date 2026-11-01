@@ -5,8 +5,8 @@
 # when it is in scope, runs the agent once so the site's own code converges,
 # and reports the status. The archive is checked first: its checksums, that
 # it is from this host, that the openvox-server version matches, and, when
-# the CA is in scope, that the CA on the host has signed nothing since the
-# backup. Each check stops the plan unless `force` is set.
+# the CA is in scope, that the CA on the host has signed and revoked
+# nothing since the backup. Each check stops the plan unless `force` is set.
 #
 # Files added since the backup stay. On a host the openvox_server module
 # manages, the files it owns come back on the next agent run: roll those
@@ -15,12 +15,14 @@
 # On a rebuilt host, run `ovadm::install` first with the versions the
 # manifest names (the plan prints the exact command when the server is not
 # installed), then this plan with `rebuild`. That restores everything but
-# `puppet.conf`, `puppetdb.conf`, `routes.yaml` and `versioned-code.conf`
-# first and runs the agent on a server that has no OpenVoxDB wiring and no
-# static catalogs yet, as on the original build, so the site's code can
-# bring back OpenVoxDB and whatever serves static catalogs; then it puts the
-# configuration back whole, with `openvoxdb-termini` installed when the
-# host still lacks it.
+# `puppetdb.conf`, `routes.yaml` and `versioned-code.conf` first, takes
+# `storeconfigs`, `storeconfigs_backend` and `reports` out of the restored
+# `puppet.conf` (the rest of it, certname, server and environment, is what
+# the agent run needs), and runs the agent on a server that has no OpenVoxDB
+# wiring and no static catalogs yet, as on the original build, so the site's
+# code can bring back OpenVoxDB and whatever serves static catalogs; then it
+# puts the configuration back whole, with `openvoxdb-termini` installed when
+# the host still lacks it.
 #
 # @param server_host
 #   The OpenVox Server node
@@ -42,14 +44,17 @@
 #
 # @param rebuild
 #   The host was rebuilt: leave the files that wire the server to OpenVoxDB
-#   and to static catalogs out of the first pass, run the agent so the
-#   site's code brings back what it installs, then put the configuration
-#   back whole.
+#   and to static catalogs out of the first pass and the OpenVoxDB settings
+#   out of `puppet.conf`, run the agent so the site's code brings back what
+#   it installs, then put the configuration back whole.
 #
 # @param force
 #   Restore even when the archive is from another certname or
-#   openvox-server version, or the host's CA has signed certificates since
-#   the backup; those certificates must then be cleaned and re-signed.
+#   openvox-server version, or the host's CA has signed or revoked
+#   certificates since the backup. The hosts signed since then must be
+#   enrolled again after their `signed/<name>.pem` is deleted by hand (not
+#   with `puppetserver ca clean`, which would revoke a serial the restored
+#   CA reissues), and the certificates revoked since then revoked again.
 #
 # @param dry_run
 #   Report which files would change and stop; nothing is written and no
@@ -145,21 +150,22 @@ plan ovadm::restore(
     }
     # Pass 1: everything but the files that point the server at what the
     # site's code installs, so that code runs on a server set up as the
-    # fresh install left it, as on the original build: the three that wire
-    # it to OpenVoxDB, and versioned-code.conf, whose code-id and
-    # code-content commands (codavox's, or the site's own scripts) may not
-    # exist yet. OpenVox Server refuses every compile while either is
-    # missing. Pass 2: the configuration whole, over what the site's code
-    # has written.
+    # fresh install left it, as on the original build: puppetdb.conf and
+    # routes.yaml, which wire it to OpenVoxDB, and versioned-code.conf, whose
+    # code-id and code-content commands (codavox's, or the site's own
+    # scripts) may not exist yet. OpenVox Server refuses every compile while
+    # either is missing. puppet.conf comes back, less its three OpenVoxDB
+    # settings: the certname, server, environment and dns_alt_names in it
+    # are what the agent run and the server need. Pass 2: the configuration
+    # whole, over what the site's code has written.
     $held_back = [
-      '/etc/puppetlabs/puppet/puppet.conf',
       '/etc/puppetlabs/puppet/puppetdb.conf',
       '/etc/puppetlabs/puppet/routes.yaml',
       '/etc/puppetlabs/puppetserver/conf.d/versioned-code.conf',
     ]
     $passes = ('config' in $wanted) ? {
       true    => [
-        run_plan('ovadm::subplans::restore_pass', $pass + { 'scope' => $wanted, 'exclude' => $held_back }),
+        run_plan('ovadm::subplans::restore_pass', $pass + { 'scope' => $wanted, 'exclude' => $held_back, 'strip_openvoxdb_settings' => true }),
         run_plan('ovadm::subplans::restore_pass', $pass + { 'scope' => ['config'], 'install_termini' => $termini_missing }),
       ],
       default => [run_plan('ovadm::subplans::restore_pass', $pass + { 'scope' => $wanted })],

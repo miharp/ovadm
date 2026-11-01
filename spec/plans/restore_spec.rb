@@ -21,8 +21,8 @@ describe 'ovadm::restore' do
     {
       'status' => 'restored', 'archive' => archive, 'certname' => server, 'scope' => %w[ca config code],
       'in_scope' => 12, 'changed' => ['/etc/puppetlabs/puppetserver/conf.d/webserver.conf'], 'missing' => [], 'unchanged' => 11,
-      'ca' => { 'live_ca_differs' => false, 'signed_after_backup' => [] },
-      'excluded' => [], 'services_stopped' => %w[puppetserver puppetdb],
+      'ca' => { 'live_ca_differs' => false, 'signed_after_backup' => [], 'revoked_after_backup' => [], 'openvoxdb_nodes_unknown_to_archive' => nil },
+      'excluded' => [], 'settings_stripped' => [], 'services_stopped' => %w[puppetserver puppetdb],
       'missing_gems' => { 'puppetserver' => [], 'agent' => [] }, 'warnings' => []
     }
   end
@@ -41,21 +41,23 @@ describe 'ovadm::restore' do
   end
 
   let(:held_back) do
-    %w[/etc/puppetlabs/puppet/puppet.conf /etc/puppetlabs/puppet/puppetdb.conf /etc/puppetlabs/puppet/routes.yaml
+    %w[/etc/puppetlabs/puppet/puppetdb.conf /etc/puppetlabs/puppet/routes.yaml
        /etc/puppetlabs/puppetserver/conf.d/versioned-code.conf]
   end
+  let(:stripped) { %w[storeconfigs storeconfigs_backend reports] }
 
-  it 'on a rebuilt host, restores all but the OpenVoxDB and static-catalog wiring first, runs the agent, then the configuration, installing the termini package' do
+  it 'on a rebuilt host, restores all but the OpenVoxDB and static-catalog wiring first, with the OpenVoxDB settings out of puppet.conf, runs the agent, then the configuration, installing the termini package' do
     allow_task('ovadm::backup_verify').always_return(verified.merge('host' => verified['host'].merge(
       'packages' => { 'openvoxdb-termini' => { 'archive' => '8.17.0-1.el10', 'host' => nil } }
     )))
     expect_task('ovadm::backup_restore').with_params(
       'archive' => archive, 'force' => false, 'dry_run' => false, 'scope' => 'ca,config,code,extra',
-      'exclude' => held_back.join(',')
-    ).always_return(restored.merge('scope' => %w[ca config code extra], 'excluded' => held_back))
+      'exclude' => held_back.join(','), 'strip_openvoxdb_settings' => true
+    ).always_return(restored.merge('scope' => %w[ca config code extra], 'excluded' => held_back, 'settings_stripped' => stripped))
     expect_task('ovadm::backup_restore').with_params('archive' => archive, 'force' => false, 'dry_run' => false, 'scope' => 'config')
                                         .always_return(restored.merge('scope' => ['config']))
     expect_out_message.with_params("#{server}: left out for now: #{held_back.join(', ')}")
+    expect_out_message.with_params("#{server}: taken out of puppet.conf for now: #{stripped.join(', ')}")
     expect_task('ovadm::install_package').with_params('name' => 'openvoxdb-termini')
                                          .always_return('status' => 'installed', 'package' => 'openvoxdb-termini', 'version' => '8.17.0-1.el10', 'previous' => nil)
     expect_task('ovadm::agent_runonce').be_called_times(2).always_return(agent_ok)

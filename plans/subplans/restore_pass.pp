@@ -29,6 +29,10 @@
 # @param install_termini
 #   Install `openvoxdb-termini` when the host lacks it, before starting the
 #   server: the restored `routes.yaml` names the puppetdb terminus
+# @param strip_openvoxdb_settings
+#   Take `storeconfigs`, `storeconfigs_backend` and `reports` out of the
+#   restored `puppet.conf`: the first pass on a rebuilt host, which has no
+#   OpenVoxDB yet
 #
 # @return
 #   `restore`, the `backup_restore` result, and `agent`, the agent run's
@@ -45,6 +49,7 @@ plan ovadm::subplans::restore_pass(
   Boolean                                                   $agent_run       = true,
   Optional[Array[String[1], 1]]                             $exclude         = undef,
   Boolean                                                   $install_termini = false,
+  Boolean                                                   $strip_openvoxdb_settings = false,
 ) {
   $name = $target.name
 
@@ -61,10 +66,17 @@ plan ovadm::subplans::restore_pass(
   }) + ($exclude ? {
     undef   => {},
     default => { 'exclude' => $exclude.join(',') },
+  }) + ($strip_openvoxdb_settings ? {
+    true    => { 'strip_openvoxdb_settings' => true },
+    default => {},
   })
   $restore = run_task('ovadm::backup_restore', $target, $params).first.value
   unless $restore['excluded'].empty {
     out::message("${name}: left out for now: ${restore['excluded'].join(', ')}")
+  }
+  $stripped = $restore['settings_stripped'] ? { undef => [], default => $restore['settings_stripped'] }
+  unless $stripped.empty {
+    out::message("${name}: taken out of puppet.conf for now: ${stripped.join(', ')}")
   }
 
   $restore['warnings'].each |$w| { out::message("WARNING ${name}: ${w}") }

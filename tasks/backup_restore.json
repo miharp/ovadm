@@ -1,5 +1,5 @@
 {
-  "description": "Put the files of an ovadm::backup_create archive back on the host it came from: checks every checksum, the certname, the openvox-server version and that the host's CA has signed nothing the archive does not know, stops the running services, extracts the items in scope with owners and modes as archived, skipping *.rpmnew and the like, and starts the services again. Reports which files changed, which were missing, and which gems from the manifest are not installed",
+  "description": "Put the files of an ovadm::backup_create archive back on the host it came from: checks every checksum, the certname, the openvox-server version and that the host's CA has signed or revoked nothing the archive does not know, stops the running services, extracts the items in scope with owners and modes as archived, skipping *.rpmnew and the like, and starts the services again. Reports which files changed, which were missing, and which gems from the manifest are not installed",
   "input_method": "environment",
   "parameters": {
     "archive": {
@@ -14,8 +14,12 @@
       "description": "Comma-separated absolute paths within the scope to leave out of this pass",
       "type": "Optional[String[1]]"
     },
+    "strip_openvoxdb_settings": {
+      "description": "After the files are back, take storeconfigs, storeconfigs_backend and reports out of puppet.conf, for a rebuilt host that has no OpenVoxDB yet; a later pass puts the file back whole. Default false",
+      "type": "Optional[Boolean]"
+    },
     "force": {
-      "description": "Restore even when the certname or the openvox-server version differ, or the host's CA has signed certificates since the backup. Default false",
+      "description": "Restore even when the certname or the openvox-server version differ, or the host's CA has signed or revoked certificates since the backup. Default false",
       "type": "Optional[Boolean]"
     },
     "dry_run": {

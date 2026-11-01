@@ -153,7 +153,7 @@ Include the CA directory, the server's own certificate and key, and OpenVoxDB's 
 
 Data type: `Optional[Boolean]`
 
-Include the rest of /etc/puppetlabs (without code/) and the services' environment files. Default true
+Include the rest of /etc/puppetlabs (without code/), the services' environment files, and the static catalog commands conf.d names. Default true
 
 ##### `code`
 
@@ -193,7 +193,7 @@ Recorded in the manifest; the plan passes its own version
 
 ### <a name="backup_restore"></a>`backup_restore`
 
-Put the files of an ovadm::backup_create archive back on the host it came from: checks every checksum, the certname, the openvox-server version and that the host's CA has signed nothing the archive does not know, stops the running services, extracts the items in scope with owners and modes as archived, skipping *.rpmnew and the like, and starts the services again. Reports which files changed, which were missing, and which gems from the manifest are not installed
+Put the files of an ovadm::backup_create archive back on the host it came from: checks every checksum, the certname, the openvox-server version and that the host's CA has signed or revoked nothing the archive does not know, stops the running services, extracts the items in scope with owners and modes as archived, skipping *.rpmnew and the like, and starts the services again. Reports which files changed, which were missing, and which gems from the manifest are not installed
 
 **Supports noop?** false
 
@@ -217,11 +217,17 @@ Data type: `Optional[String[1]]`
 
 Comma-separated absolute paths within the scope to leave out of this pass
 
+##### `strip_openvoxdb_settings`
+
+Data type: `Optional[Boolean]`
+
+After the files are back, take storeconfigs, storeconfigs_backend and reports out of puppet.conf, for a rebuilt host that has no OpenVoxDB yet; a later pass puts the file back whole. Default false
+
 ##### `force`
 
 Data type: `Optional[Boolean]`
 
-Restore even when the certname or the openvox-server version differ, or the host's CA has signed certificates since the backup. Default false
+Restore even when the certname or the openvox-server version differ, or the host's CA has signed or revoked certificates since the backup. Default false
 
 ##### `dry_run`
 
@@ -974,8 +980,8 @@ services stopped for the copy, then starts puppetserver, redeploys the code
 when it is in scope, runs the agent once so the site's own code converges,
 and reports the status. The archive is checked first: its checksums, that
 it is from this host, that the openvox-server version matches, and, when
-the CA is in scope, that the CA on the host has signed nothing since the
-backup. Each check stops the plan unless `force` is set.
+the CA is in scope, that the CA on the host has signed and revoked
+nothing since the backup. Each check stops the plan unless `force` is set.
 
 Files added since the backup stay. On a host the openvox_server module
 manages, the files it owns come back on the next agent run: roll those
@@ -984,12 +990,14 @@ back in Hiera, and use this plan for the rest.
 On a rebuilt host, run `ovadm::install` first with the versions the
 manifest names (the plan prints the exact command when the server is not
 installed), then this plan with `rebuild`. That restores everything but
-`puppet.conf`, `puppetdb.conf`, `routes.yaml` and `versioned-code.conf`
-first and runs the agent on a server that has no OpenVoxDB wiring and no
-static catalogs yet, as on the original build, so the site's code can
-bring back OpenVoxDB and whatever serves static catalogs; then it puts the
-configuration back whole, with `openvoxdb-termini` installed when the
-host still lacks it.
+`puppetdb.conf`, `routes.yaml` and `versioned-code.conf` first, takes
+`storeconfigs`, `storeconfigs_backend` and `reports` out of the restored
+`puppet.conf` (the rest of it, certname, server and environment, is what
+the agent run needs), and runs the agent on a server that has no OpenVoxDB
+wiring and no static catalogs yet, as on the original build, so the site's
+code can bring back OpenVoxDB and whatever serves static catalogs; then it
+puts the configuration back whole, with `openvoxdb-termini` installed when
+the host still lacks it.
 
 #### Parameters
 
@@ -1045,9 +1053,9 @@ Default value: `undef`
 Data type: `Boolean`
 
 The host was rebuilt: leave the files that wire the server to OpenVoxDB
-and to static catalogs out of the first pass, run the agent so the
-site's code brings back what it installs, then put the configuration
-back whole.
+and to static catalogs out of the first pass and the OpenVoxDB settings
+out of `puppet.conf`, run the agent so the site's code brings back what
+it installs, then put the configuration back whole.
 
 Default value: `false`
 
@@ -1056,8 +1064,11 @@ Default value: `false`
 Data type: `Boolean`
 
 Restore even when the archive is from another certname or
-openvox-server version, or the host's CA has signed certificates since
-the backup; those certificates must then be cleaned and re-signed.
+openvox-server version, or the host's CA has signed or revoked
+certificates since the backup. The hosts signed since then must be
+enrolled again after their `signed/<name>.pem` is deleted by hand (not
+with `puppetserver ca clean`, which would revoke a serial the restored
+CA reissues), and the certificates revoked since then revoked again.
 
 Default value: `false`
 

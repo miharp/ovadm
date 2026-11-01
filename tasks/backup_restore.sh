@@ -2,9 +2,9 @@
 # Put the files of an archive that backup_create wrote back on the host it
 # came from. Checks first: every checksum, the certname, the openvox-server
 # version, and, when the CA is in scope, that the CA on the host has not
-# signed certificates the archive does not know. Then stops the services
-# that are running, extracts the items in scope over the live tree with
-# owners and modes as archived, and starts the services again. Package
+# signed or revoked certificates the archive does not know. Then stops the
+# services that are running, extracts the items in scope over the live tree
+# with owners and modes as archived, and starts the services again. Package
 # manager leftovers (*.rpmnew, *.rpmsave, *.dpkg-dist, *.dpkg-old) are never
 # put back. With dry_run, reports what would change and touches nothing.
 set -euo pipefail
@@ -18,6 +18,7 @@ exclude="${PT_exclude:-}"
 force="${PT_force:-false}"
 dry_run="${PT_dry_run:-false}"
 age_identity="${PT_age_identity:-}"
+strip_openvoxdb_settings="${PT_strip_openvoxdb_settings:-false}"
 
 json_str() {
   if [ -z "${1:-}" ]; then
@@ -159,6 +160,9 @@ if [ "$want_config" = true ]; then
   for f in /etc/sysconfig/puppetserver /etc/sysconfig/puppetdb /etc/default/puppetserver /etc/default/puppetdb; do add_include "$f"; done
   [ "$want_code" = true ] || add_exclude "$codedir"
   if [ "$want_ca" != true ]; then add_exclude "$cadir"; add_exclude "$ssldir"; add_exclude "$puppetdb_ssl"; fi
+  # The static catalog commands conf.d names, taken with the configuration
+  # because a restored conf.d points at them.
+  while IFS= read -r p; do [ -n "$p" ] && add_include "$p"; done <<< "$(manifest_list backup static_catalog_scripts)"
 else
   if [ "$want_ca" = true ]; then add_include "$cadir"; add_include "$ssldir"; add_include "$puppetdb_ssl"; fi
   if [ "$want_code" = true ]; then add_include "$codedir"; add_include /etc/puppetlabs/r10k; fi
@@ -219,31 +223,98 @@ if [ -n "$unknown" ]; then
 fi
 
 # --- the CA on the host against the one in the archive -------------------------------------
+# Serials as the CRL and inventory.txt write them, made comparable: lower
+# case, no 0x, no leading zeros.
+norm_serial() { printf '%s' "$1" | tr 'A-F' 'a-f' | sed 's/^0x//; s/^0*//; s/^$/0/'; }
+# crl_serials FILE: the revoked serials of a CRL, one per line; fails when
+# no openssl is available to read it.
+crl_serials() {
+  local ssl s
+  ssl=$(command -v openssl 2>/dev/null || true)
+  [ -n "$ssl" ] || { [ -x /opt/puppetlabs/puppet/bin/openssl ] && ssl=/opt/puppetlabs/puppet/bin/openssl; }
+  [ -n "$ssl" ] || return 1
+  "$ssl" crl -in "$1" -noout -text 2>/dev/null | sed -n 's/^[[:space:]]*Serial Number:[[:space:]]*//p' \
+    | while IFS= read -r s; do norm_serial "$s"; printf '\n'; done
+}
+# inventory_name INVENTORY SERIAL: the certname the inventory has for a serial
+inventory_name() {
+  local line
+  while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    if [ "$(norm_serial "${line%% *}")" = "$2" ]; then printf '%s' "$line" | sed -n 's|.*/CN=||p'; return 0; fi
+  done < "$1"
+  return 1
+}
 ca_json='null'
 if [ "$want_ca" = true ]; then
-  live_differs=false; signed_after=()
+  live_differs=false; signed_after=(); revoked_after=(); pdb_unknown=(); pdb_json='null'
   if [ -f "$cadir/ca_crt.pem" ] && [ -f "$top/files${cadir}/ca_crt.pem" ]; then
     # sha256sum rather than cmp: diffutils is not in every base image.
     if [ "$(sha256sum < "$cadir/ca_crt.pem")" != "$(sha256sum < "$top/files${cadir}/ca_crt.pem")" ]; then
       live_differs=true
       warn "the CA on this host is not the one in the archive; it is replaced by the restore"
-    elif [ -f "$cadir/inventory.txt" ] && [ -f "$top/files${cadir}/inventory.txt" ]; then
-      # inventory.txt lines: 0xSERIAL not_before not_after /CN=name
-      while IFS= read -r line; do
-        [ -n "$line" ] || continue
-        signed_after+=("$(printf '%s' "$line" | sed -n 's|.*/CN=||p') (serial ${line%% *})")
-      done < <(grep -vxF -f "$top/files${cadir}/inventory.txt" "$cadir/inventory.txt" || true)
-      if [ "${#signed_after[@]}" -gt 0 ]; then
-        if [ "$force" != true ]; then
-          fail "the CA has signed ${#signed_after[@]} certificate(s) since the backup: $(printf '%s, ' "${signed_after[@]}" | sed 's/, $//'). The restored CA would not know them. Pass force=true to restore anyway, then clean and re-sign them"
+    else
+      if [ -f "$cadir/inventory.txt" ] && [ -f "$top/files${cadir}/inventory.txt" ]; then
+        # inventory.txt lines: 0xSERIAL not_before not_after /CN=name
+        while IFS= read -r line; do
+          [ -n "$line" ] || continue
+          signed_after+=("$(printf '%s' "$line" | sed -n 's|.*/CN=||p') (serial ${line%% *})")
+        done < <(grep -vxF -f "$top/files${cadir}/inventory.txt" "$cadir/inventory.txt" || true)
+        if [ "${#signed_after[@]}" -gt 0 ]; then
+          names=$(printf '%s, ' "${signed_after[@]}" | sed 's/, $//')
+          # The restored CA counts serials on from the archive's, so these
+          # serials come round again: a ca clean on them would put a serial
+          # the next certificate gets on the CRL.
+          if [ "$force" != true ]; then
+            fail "the CA has signed ${#signed_after[@]} certificate(s) since the backup: $names. The restored CA would not know them. Pass force=true to restore anyway, then delete signed/<name>.pem for each on this host and enrol the host again; do not use puppetserver ca clean on them, which would revoke a serial the restored CA reissues"
+          fi
+          warn "the restored CA does not know ${#signed_after[@]} certificate(s) signed since the backup: $names. Delete signed/<name>.pem for each and enrol the host again; do not use puppetserver ca clean on them, which would revoke a serial the restored CA reissues"
         fi
-        warn "the restored CA does not know ${#signed_after[@]} certificate(s) signed since the backup: $(printf '%s, ' "${signed_after[@]}" | sed 's/, $//')"
+      fi
+      # The archive's CRL is the one that comes back, so a certificate
+      # revoked since the backup is valid again unless revoked once more.
+      if [ -f "$cadir/ca_crl.pem" ] && [ -f "$top/files${cadir}/ca_crl.pem" ]; then
+        if archived_revoked=$(crl_serials "$top/files${cadir}/ca_crl.pem") && live_revoked=$(crl_serials "$cadir/ca_crl.pem"); then
+          while IFS= read -r serial; do
+            [ -n "$serial" ] || continue
+            grep -qxF "$serial" <<< "$archived_revoked" && continue
+            cn=$(inventory_name "$cadir/inventory.txt" "$serial" 2>/dev/null || true)
+            revoked_after+=("${cn:-unknown} (serial 0x$serial)")
+          done <<< "$live_revoked"
+          if [ "${#revoked_after[@]}" -gt 0 ]; then
+            names=$(printf '%s, ' "${revoked_after[@]}" | sed 's/, $//')
+            if [ "$force" != true ]; then
+              fail "the CA has revoked ${#revoked_after[@]} certificate(s) since the backup: $names. The restored CA would consider them valid again. Pass force=true to restore anyway, then revoke them again with puppetserver ca revoke --certname <name>"
+            fi
+            warn "the restored CA considers ${#revoked_after[@]} certificate(s) revoked since the backup valid again: $names. Revoke them again with puppetserver ca revoke --certname <name>"
+          fi
+        else
+          warn 'openssl is not available, so the revocation lists were not compared; a certificate revoked since the backup is valid again after the restore'
+        fi
       fi
     fi
   elif [ ! -f "$cadir/ca_crt.pem" ]; then
-    warn "no CA on this host; the archive's is put in place"
+    # The record of who enrolled since the backup went with the directory.
+    # OpenVoxDB's node list is the next best one: every node that has
+    # checked in is there.
+    if command -v curl >/dev/null 2>&1 && nodes=$(curl -sf --max-time 5 http://localhost:8080/pdb/query/v4/nodes 2>/dev/null); then
+      known=$(sed -n 's|.*/CN=||p' "$top/files${cadir}/inventory.txt" 2>/dev/null | sort -u)
+      while IFS= read -r n; do
+        [ -n "$n" ] || continue
+        grep -qxF "$n" <<< "$known" || pdb_unknown+=("$n")
+      done < <(printf '%s' "$nodes" | grep -o '"certname"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*:[[:space:]]*"//; s/"$//' | sort -u)
+      pdb_json=$(printf '%s\n' "${pdb_unknown[@]}" | json_lines)
+      if [ "${#pdb_unknown[@]}" -gt 0 ]; then
+        warn "no CA on this host; the archive's is put in place. OpenVoxDB lists ${#pdb_unknown[@]} node(s) the archive's inventory does not: $(printf '%s, ' "${pdb_unknown[@]}" | sed 's/, $//'). If they enrolled since the backup, delete any signed/<name>.pem of theirs that survived and enrol them again; do not use puppetserver ca clean on them. Hosts that have not checked in since the backup are not on this list"
+      else
+        warn "no CA on this host; the archive's is put in place. OpenVoxDB lists no node the archive's inventory lacks"
+      fi
+    else
+      warn "no CA on this host; the archive's is put in place. OpenVoxDB did not answer on localhost:8080, so the hosts enrolled since the backup could not be listed; compare its node list with the archive's inventory.txt"
+    fi
   fi
-  ca_json=$(printf '{"live_ca_differs":%s,"signed_after_backup":%s}' "$live_differs" "$(printf '%s\n' "${signed_after[@]}" | json_lines)")
+  ca_json=$(printf '{"live_ca_differs":%s,"signed_after_backup":%s,"revoked_after_backup":%s,"openvoxdb_nodes_unknown_to_archive":%s}' \
+    "$live_differs" "$(printf '%s\n' "${signed_after[@]}" | json_lines)" "$(printf '%s\n' "${revoked_after[@]}" | json_lines)" "$pdb_json")
 fi
 
 # --- missing gems ------------------------------------------------------------------------
@@ -265,11 +336,12 @@ gems_agent=$(missing_gems agent /opt/puppetlabs/puppet/lib/ruby/gems/*/specifica
 
 scope_json=$(printf '%s\n' "${scope_items[@]}" | json_lines)
 excluded_json=$(printf '%s\n' "${excluded[@]}" | json_lines)
+stripped=()
 report() {
-  printf '{"status":"%s","archive":%s,"certname":%s,"scope":%s,"excluded":%s,"in_scope":%s,"changed":%s,"missing":%s,"unchanged":%s,"ca":%s,"services_stopped":%s,"missing_gems":{"puppetserver":%s,"agent":%s},"warnings":%s}\n' \
+  printf '{"status":"%s","archive":%s,"certname":%s,"scope":%s,"excluded":%s,"in_scope":%s,"changed":%s,"missing":%s,"unchanged":%s,"ca":%s,"services_stopped":%s,"settings_stripped":%s,"missing_gems":{"puppetserver":%s,"agent":%s},"warnings":%s}\n' \
     "$1" "$(json_str "$archive")" "$(json_str "$certname")" "$scope_json" "$excluded_json" "$in_scope" \
     "$(printf '%s\n' "${changed[@]}" | json_lines)" "$(printf '%s\n' "${missing[@]}" | json_lines)" "$unchanged" \
-    "$ca_json" "$2" "$gems_server" "$gems_agent" "$(printf '%s\n' "${warnings[@]}" | json_lines)"
+    "$ca_json" "$2" "$(printf '%s\n' "${stripped[@]}" | json_lines)" "$gems_server" "$gems_agent" "$(printf '%s\n' "${warnings[@]}" | json_lines)"
 }
 
 if [ "$dry_run" = true ]; then
@@ -307,6 +379,19 @@ if ! tar -C "$top/files" --anchored "${tar_excludes[@]}" \
     --exclude='*.rpmnew' --exclude='*.rpmsave' --exclude='*.dpkg-dist' --exclude='*.dpkg-old' \
     -cf - "${includes[@]}" | (umask 022 && tar -C / -xpf -); then
   fail 'putting the files back failed; the services are started again'
+fi
+# On a rebuilt host the settings that point the server at OpenVoxDB come
+# out of the restored puppet.conf until OpenVoxDB exists again; the rest of
+# the file (certname, server, environment, dns_alt_names) stays, since the
+# agent run that brings OpenVoxDB back needs it. A later pass puts the file
+# back whole.
+if [ "$strip_openvoxdb_settings" = true ] && [ -f /etc/puppetlabs/puppet/puppet.conf ]; then
+  for setting in storeconfigs storeconfigs_backend reports; do
+    if grep -qE "^[[:space:]]*${setting}[[:space:]]*=" /etc/puppetlabs/puppet/puppet.conf; then
+      sed -i -E "/^[[:space:]]*${setting}[[:space:]]*=/d" /etc/puppetlabs/puppet/puppet.conf
+      stripped+=("$setting")
+    fi
+  done
 fi
 start_services
 

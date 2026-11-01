@@ -87,7 +87,7 @@ they imply, not by default.
 | Deployed code | `/etc/puppetlabs/code/environments/`, one directory per environment | `r10k deploy environment --modules` rebuilds it from your Git server. Each environment's `.r10k-deploy.json` records the commit (`signature`) and the module versions that were deployed, so keep those files, or the output of `git rev-parse HEAD` per environment, to be able to reproduce the exact state. Back up the tree itself only when your Git server shares the primary's blast radius. |
 | r10k cache | `/var/cache/r10k/` | Re-fetched on the next deploy. |
 | OpenVoxDB data | The `puppetdb` database in PostgreSQL. The `puppetdb` role owns every table, and `puppetdb-read` is the read-only connection's role. Dumped with `pg_dump`, never copied as files while PostgreSQL runs. | Facts and catalogs come back on each agent's next run. Reports, resource events, and exported resources do not. Sites that rely on exported resources, on report history, or on tools that read OpenVoxDB want this tier. |
-| Server runtime data | `/opt/puppetlabs/server/data/puppetserver/` | The node cache (`yaml/`) and the JRuby gem directory regenerate; the file bucket (`bucket/`) matters only if your site uses it, and reports stored there only if you do not send them to OpenVoxDB. Mostly vendored gems that come with the package. |
+| Server runtime data | `/opt/puppetlabs/server/data/puppetserver/` | The node cache (`yaml/`) and the JRuby gem directory regenerate; the file bucket (`bucket/`) matters only if your site uses it, and reports stored there only if you do not send them to OpenVoxDB. Mostly vendored gems that come with the package. If you use static catalogs, the `code_id` and `code_content` scripts under `scripts/` are yours; `ovadm::backup` takes them with the configuration when `conf.d` names them. |
 
 ### What is not here
 
@@ -129,21 +129,26 @@ Everything is on unless you switch it off with `backup`:
 | Item | What it takes | Switch off with |
 | ---- | ------------- | --------------- |
 | `ca` | `cadir`, `ssldir` and OpenVoxDB's `ssl/`: tier 0 | `backup='{"ca": false}'` |
-| `config` | the rest of `/etc/puppetlabs/` without `code/`, plus the services' environment files under `/etc/sysconfig/` or `/etc/default/`: tier 1 | `backup='{"config": false}'` |
+| `config` | the rest of `/etc/puppetlabs/` without `code/`, the services' environment files under `/etc/sysconfig/` or `/etc/default/`, and the static catalog commands `conf.d` names (`code-id-command`, `code-content-command`): tier 1 | `backup='{"config": false}'` |
 | `code` | each environment's `.r10k-deploy.json` and `hiera.yaml`: enough to redeploy the same commits with r10k, and to find the eyaml keys | `backup='{"code": false}'` |
 
 `include_code_tree=true` takes `/etc/puppetlabs/code/` itself as well, for a
 site whose git server could be lost together with the primary.
 
-`extra_paths` adds paths outside the tree, as a list. The r10k deploy key,
-the units that run r10k, and the static-catalog scripts under
-`/opt/puppetlabs/server/data/puppetserver/scripts/` when `puppetserver.conf`
-names them are the usual ones:
+`extra_paths` adds paths outside the tree, as a list. The r10k deploy key
+and the units that run r10k are the usual ones:
 
 ```console
 bolt plan run ovadm::backup server_host=ovox-server.example.com \
-  extra_paths='["/root/.ssh", "/etc/systemd/system/r10k-deploy.service", "/etc/systemd/system/r10k-deploy.timer", "/opt/puppetlabs/server/data/puppetserver/scripts"]'
+  extra_paths='["/root/.ssh", "/etc/systemd/system/r10k-deploy.service", "/etc/systemd/system/r10k-deploy.timer"]'
 ```
+
+The static catalog scripts need no entry: when `conf.d` names a
+`code-id-command` or `code-content-command` that is a file on the host, the
+plan takes it with the configuration and records it in the manifest, and the
+restore puts it back with `config`. A restored `conf.d` points at those
+commands, and OpenVox Server compiles nothing while they are missing, not
+even the agent run that would recreate them.
 
 A rebuild from the archive needs every path the server reads before the
 site's own code has run again; a backup that misses one is found out then.
@@ -302,14 +307,29 @@ a first-start elsewhere, the restore replaces it with the archived one and
 warns that it did.
 
 A CA restored from a backup does not know the certificates signed after it
-was taken. The plan compares the live `inventory.txt` with the archive's and
-refuses to go on if the live CA has signed certificates the archive lacks,
-naming them. With `force=true` it restores anyway; afterwards, remove those
-hosts' certificates (`puppetserver ca clean --certname <host>` will not know
-them, so delete `signed/<host>.pem` by hand, and `ssldir` on the host) and
-enrol them again with `ovadm::add_agent`. Their serial numbers are reused by
-the restored CA, which is why their files must go. The smaller that set, the
-simpler the recovery, which is why backups follow signings.
+was taken, and considers the ones revoked after it valid again:
+`inventory.txt` and `ca_crl.pem` come back as the archive has them. The plan
+compares both with the live ones and refuses to go on when either differs,
+naming the certificates. With `force=true` it restores anyway; afterwards:
+
+- For each host signed since the backup, delete `signed/<host>.pem` by hand
+  on the server and `ssldir` on the host, then enrol it again with
+  `ovadm::add_agent`. Do not use `puppetserver ca clean` for this. It works
+  on such a certificate, revoking by the serial in the file, but the
+  restored CA counts serials on from the archive's `serial`, so that serial
+  is reissued next, and the next certificate with it is revoked from the
+  start.
+- For each certificate revoked since the backup, revoke it again with
+  `puppetserver ca revoke --certname <host>`.
+
+The smaller both sets, the simpler the recovery, which is why backups follow
+signings and revocations.
+
+When the CA directory is gone entirely, the live inventory is gone with it
+and the plan has nothing to compare. It asks OpenVoxDB instead: every node
+that has checked in is in its node list, and the plan names the nodes the
+archive's inventory does not know. Hosts that have not checked in since the
+backup are not on that list; add them from your provisioning records.
 
 ### Rebuilding the server on a new host
 
@@ -338,12 +358,15 @@ address the agents use, then:
    `rebuild` orders the restore the way the server was first built. A
    stock image may lack `tar`, which the restore unpacks the archive with;
    with `source`, the plan installs it first. The first pass puts back
-   everything but `puppet.conf`, `puppetdb.conf` and `routes.yaml`, the
-   three files that wire the server to OpenVoxDB, and `versioned-code.conf`,
-   whose static-catalog commands (codavox's, or the site's own scripts) the
-   site's code may be what installs; OpenVox Server refuses every compile
-   while either command is missing. The plan warns that the throwaway CA is
-   replaced. The pass installs the gems the manifest lists (r10k among
+   everything but `puppetdb.conf` and `routes.yaml`, the two files that wire
+   the server to OpenVoxDB, and `versioned-code.conf`, whose static-catalog
+   commands may be codavox's, which the site's code installs (the site's own
+   scripts come back with the configuration); OpenVox Server refuses every
+   compile while either command is missing. `puppet.conf` comes back less
+   `storeconfigs`, `storeconfigs_backend` and `reports`, so the agent run
+   keeps the certname, server, environment and `dns_alt_names` the archive
+   recorded; the second pass puts the file back whole. The plan warns that
+   the throwaway CA is replaced. The pass installs the gems the manifest lists (r10k among
    them, when the site installed it by hand) and `git` when r10k needs it
    and the host lacks it, redeploys the code, and runs the agent on a server
    still set up as `ovadm::install` left it. That run is where the site's

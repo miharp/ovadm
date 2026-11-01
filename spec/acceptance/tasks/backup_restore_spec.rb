@@ -70,7 +70,8 @@ RSpec.describe 'ovadm::backup_restore task' do
       expect(data['changed']).to eq(['/etc/puppetlabs/puppetserver/conf.d/webserver.conf'])
       expect(data['missing']).to eq(['/etc/puppetlabs/puppet/autosign.conf'])
       expect(data['unchanged']).to eq(data['in_scope'] - 2)
-      expect(data['ca']).to eq('live_ca_differs' => false, 'signed_after_backup' => [])
+      expect(data['ca']).to eq('live_ca_differs' => false, 'signed_after_backup' => [], 'revoked_after_backup' => [], 'openvoxdb_nodes_unknown_to_archive' => nil)
+      expect(data['settings_stripped']).to eq([])
       expect(data['services_stopped']).to eq([])
       expect(data['warnings']).to eq([])
       expect(cat('/etc/puppetlabs/puppetserver/conf.d/webserver.conf')).to eq("webserver: { good: true }\n")
@@ -175,10 +176,52 @@ RSpec.describe 'ovadm::backup_restore task' do
       data = restore('archive' => archive, 'scope' => 'ca', 'force' => true).result
       expect(data['status']).to eq('restored')
       expect(data['ca']['signed_after_backup']).to eq(['agent02.example.com (serial 0x0003)'])
-      expect(data['warnings']).to eq(['the restored CA does not know 1 certificate(s) signed since the backup: agent02.example.com (serial 0x0003)'])
+      expect(data['warnings']).to eq(['the restored CA does not know 1 certificate(s) signed since the backup: agent02.example.com (serial 0x0003). ' \
+                                      'Delete signed/<name>.pem for each and enrol the host again; do not use puppetserver ca clean on them, which would revoke a serial the restored CA reissues'])
       expect(cat("#{cadir}/serial")).to eq("0x0003\n")
       # The certificate signed after the backup stays on disk; the CA just does not know it.
       expect(cat("#{cadir}/signed/agent02.example.com.pem")).to eq("NEW\n")
+    end
+
+    it 'refuses to replace a CA that revoked certificates since the backup, unless forced' do
+      skip 'openssl is not in this image' unless run_shell('command -v openssl && echo yes')['stdout'].include?('yes')
+      # Real CRLs: the archive's with nothing revoked, the live one with serial 2 (agent01) revoked.
+      run_shell(<<~SH)
+        set -e
+        cd /tmp && rm -rf crl && mkdir crl && cd crl
+        openssl req -x509 -newkey rsa:2048 -nodes -keyout ca.key -out ca.crt -subj /CN=lab-ca -days 2 >/dev/null 2>&1
+        printf '01\n' > serial; : > index.txt; echo unique_subject=no > index.txt.attr
+        cat > ca.cnf <<'CNF'
+        [ca]
+        default_ca = lab
+        [lab]
+        database = index.txt
+        serial = serial
+        certificate = ca.crt
+        private_key = ca.key
+        default_md = sha256
+        default_crl_days = 2
+        CNF
+        openssl ca -config ca.cnf -gencrl -out empty.crl >/dev/null 2>&1
+        openssl req -newkey rsa:2048 -nodes -keyout a.key -out a.csr -subj /CN=agent01.example.com >/dev/null 2>&1
+        openssl x509 -req -in a.csr -CA ca.crt -CAkey ca.key -set_serial 2 -out a.crt -days 2 >/dev/null 2>&1
+        openssl ca -config ca.cnf -revoke a.crt >/dev/null 2>&1
+        openssl ca -config ca.cnf -gencrl -out revoked.crl >/dev/null 2>&1
+        cp empty.crl #{cadir}/ca_crl.pem
+      SH
+      archive = backup
+      run_shell("cp /tmp/crl/revoked.crl #{cadir}/ca_crl.pem")
+      result = restore('archive' => archive, 'scope' => 'ca')
+      expect(result.exit_code).to eq(1)
+      expect(result.result['_error']['msg']).to eq('the CA has revoked 1 certificate(s) since the backup: agent01.example.com (serial 0x2). The restored CA would consider them valid again. ' \
+                                                   'Pass force=true to restore anyway, then revoke them again with puppetserver ca revoke --certname <name>')
+      data = restore('archive' => archive, 'scope' => 'ca', 'force' => true).result
+      expect(data['status']).to eq('restored')
+      expect(data['ca']['revoked_after_backup']).to eq(['agent01.example.com (serial 0x2)'])
+      expect(data['warnings']).to eq(['the restored CA considers 1 certificate(s) revoked since the backup valid again: agent01.example.com (serial 0x2). Revoke them again with puppetserver ca revoke --certname <name>'])
+      expect(cat("#{cadir}/ca_crl.pem")).to eq(cat('/tmp/crl/empty.crl'))
+    ensure
+      run_shell('rm -rf /tmp/crl')
     end
 
     it 'replaces a CA that is not the archived one, with a warning' do
@@ -197,9 +240,51 @@ RSpec.describe 'ovadm::backup_restore task' do
       data = restore('archive' => archive, 'scope' => 'ca').result
       expect(data['status']).to eq('restored')
       expect(data['missing']).to include("#{cadir}/ca_key.pem", "#{cadir}/serial", "#{cadir}/signed/agent01.example.com.pem")
-      expect(data['warnings']).to eq(["no CA on this host; the archive's is put in place"])
+      # No OpenVoxDB in the container, so the fallback for the lost inventory says so.
+      expect(data['warnings']).to eq(["no CA on this host; the archive's is put in place. OpenVoxDB did not answer on localhost:8080, " \
+                                      "so the hosts enrolled since the backup could not be listed; compare its node list with the archive's inventory.txt"])
+      expect(data['ca']['openvoxdb_nodes_unknown_to_archive']).to be_nil
       expect(run_shell("stat -c '%a %u' #{cadir}")['stdout'].strip).to eq('750 65534')
       expect(cat("#{cadir}/inventory.txt").lines.size).to eq(2)
+    end
+  end
+
+  context 'on a rebuilt host' do
+    it 'takes the OpenVoxDB settings out of the restored puppet.conf when asked, and leaves the rest' do
+      run_shell(<<~SH)
+        printf '[main]\ncertname = host\nserver = host\n\n[server]\nstoreconfigs = true\nstoreconfigs_backend = puppetdb\nreports = puppetdb\n\n[agent]\nenvironment = openvox9\n' > /etc/puppetlabs/puppet/puppet.conf
+      SH
+      archive = backup
+      run_shell("printf '[main]\ncertname = host\n' > /etc/puppetlabs/puppet/puppet.conf")
+      data = restore('archive' => archive, 'scope' => 'config', 'strip_openvoxdb_settings' => true).result
+      expect(data['status']).to eq('restored')
+      expect(data['settings_stripped']).to eq(%w[storeconfigs storeconfigs_backend reports])
+      expect(cat('/etc/puppetlabs/puppet/puppet.conf')).to eq("[main]\ncertname = host\nserver = host\n\n[server]\n\n[agent]\nenvironment = openvox9\n")
+      # The next pass puts the file back whole.
+      data = restore('archive' => archive, 'scope' => 'config').result
+      expect(data['settings_stripped']).to eq([])
+      expect(cat('/etc/puppetlabs/puppet/puppet.conf')).to include("storeconfigs_backend = puppetdb\n")
+    end
+  end
+
+  context 'with static catalog scripts' do
+    it 'puts back the commands conf.d names, with the configuration' do
+      run_shell(<<~SH)
+        install -d /opt/puppetlabs/server/data/puppetserver/scripts
+        printf '#!/bin/sh\necho abc\n' > /opt/puppetlabs/server/data/puppetserver/scripts/code_id.sh; chmod 0755 /opt/puppetlabs/server/data/puppetserver/scripts/code_id.sh
+        printf 'versioned-code: {\n  code-id-command: "/opt/puppetlabs/server/data/puppetserver/scripts/code_id.sh"\n  code-content-command: "/opt/puppetlabs/server/data/puppetserver/scripts/code_content.sh"\n}\n' > /etc/puppetlabs/puppetserver/conf.d/versioned-code.conf
+      SH
+      result = run_bolt_task('ovadm::backup_create')
+      expect(result.result['warnings']).to eq(['conf.d names /opt/puppetlabs/server/data/puppetserver/scripts/code_content.sh as a static catalog command, which does not exist on this host'])
+      archive = result.result['archive']
+      run_shell('rm -rf /opt/puppetlabs')
+      data = restore('archive' => archive, 'scope' => 'config').result
+      expect(data['status']).to eq('restored')
+      expect(data['missing']).to include('/opt/puppetlabs/server/data/puppetserver/scripts/code_id.sh')
+      expect(run_shell("stat -c '%a' /opt/puppetlabs/server/data/puppetserver/scripts/code_id.sh")['stdout'].strip).to eq('755')
+      expect(cat('/opt/puppetlabs/server/data/puppetserver/scripts/code_id.sh')).to eq("#!/bin/sh\necho abc\n")
+    ensure
+      run_shell('rm -rf /opt/puppetlabs /etc/puppetlabs/puppetserver/conf.d/versioned-code.conf')
     end
   end
 

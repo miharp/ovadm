@@ -121,6 +121,26 @@ if [ "$want_ca" = true ] && [ ! -f "$cadir/ca_crt.pem" ]; then
   warn "no CA at $cadir/ca_crt.pem; the archive holds no CA"
 fi
 
+# The static catalog commands conf.d names (code-id-command and
+# code-content-command, usually under /opt/puppetlabs/server/data/puppetserver/scripts/)
+# go with the configuration: a restored conf.d points at them, and OpenVox
+# Server compiles nothing while they are missing, not even the agent run
+# that would put them back.
+static_scripts=()
+if [ "$want_config" = true ]; then
+  while IFS= read -r cmd; do
+    [ -n "$cmd" ] || continue
+    case "$cmd" in /*) ;; *) continue ;; esac
+    case "$cmd" in "$etc_root"/*) continue ;; esac
+    if [ ! -f "$cmd" ]; then
+      warn "conf.d names $cmd as a static catalog command, which does not exist on this host"
+      continue
+    fi
+    add_path "$cmd"
+    static_scripts+=("$cmd")
+  done < <(sed -n 's/^[[:space:]]*code-\(id\|content\)-command[[:space:]]*[:=][[:space:]]*"\{0,1\}\([^"[:space:]]*\)"\{0,1\}.*/\2/p' /etc/puppetlabs/puppetserver/conf.d/*.conf 2>/dev/null | sort -u)
+fi
+
 extra_list=()
 if [ -n "$extra_paths" ]; then
   IFS=',' read -r -a extra_list <<< "$extra_paths"
@@ -335,6 +355,7 @@ module_meta="$codedir/environments/$agent_environment/modules/openvox_server/met
 
 file_count=$(find "$stage/files" -type f | wc -l | tr -d ' ')
 extra_json=$(printf '%s\n' "${extra_list[@]}" | json_lines)
+static_json=$(printf '%s\n' "${static_scripts[@]}" | json_lines)
 
 # One key per line at the top level and inside packages, which is what
 # backup_verify reads it with.
@@ -347,7 +368,7 @@ cat > "$stage/ovadm/manifest.json" <<MANIFEST
   "hostname": $(json_str "$hostname_fqdn"),
   "os": {"id": $(json_str "$os_id"), "version": $(json_str "$os_version")},
   "ovadm_version": $(json_str "$ovadm_version"),
-  "backup": {"ca": $want_ca, "config": $want_config, "code": $want_code, "include_code_tree": $take_tree, "extra_paths": $extra_json, "stop_services": $stop_services, "services_stopped": $stopped_json},
+  "backup": {"ca": $want_ca, "config": $want_config, "code": $want_code, "include_code_tree": $take_tree, "extra_paths": $extra_json, "static_catalog_scripts": $static_json, "stop_services": $stop_services, "services_stopped": $stopped_json},
   "paths": {"cadir": $(json_str "$cadir"), "ssldir": $(json_str "$ssldir"), "codedir": $(json_str "$codedir")},
   "ca": {"serial_before": $(json_str "$serial_before"), "serial_after": $(json_str "$serial_after"), "serial_moved": $serial_moved},
   "packages": {
