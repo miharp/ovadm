@@ -131,7 +131,7 @@ Environment to run against, passed as --environment. Omitted, the agent uses the
 
 ### <a name="backup_create"></a>`backup_create`
 
-Back up an OpenVox primary server into one archive under destination: the selected items' files as they are on the host, a manifest of the host (versions, gems, deployed code, CA serial, OpenVoxDB schema) and the topology the server sees, with checksums of every file. Returns the archive path and size
+Back up an OpenVox primary server into one archive under destination: the selected items' files as they are on the host, a manifest of the host (versions, gems, deployed code, CA serial, OpenVoxDB schema) and the topology the server sees, with checksums of every file. The agent is disabled while the files are copied and enabled again afterwards. Returns the archive path and size
 
 **Supports noop?** false
 
@@ -193,7 +193,7 @@ Recorded in the manifest; the plan passes its own version
 
 ### <a name="backup_restore"></a>`backup_restore`
 
-Put the files of an ovadm::backup_create archive back on the host it came from: checks every checksum, the certname, the openvox-server version and that the host's CA has signed or revoked nothing the archive does not know, stops the running services, extracts the items in scope with owners and modes as archived, skipping *.rpmnew and the like, and starts the services again. Reports which files changed, which were missing, and which gems from the manifest are not installed
+Put the files of an ovadm::backup_create archive back on the host it came from: checks every checksum, the certname, the openvox-server version and that the host's CA has signed or revoked nothing the archive does not know, disables the agent and stops the running services, extracts the items in scope with owners and modes as archived, skipping *.rpmnew and the like, and starts the services again. Reports which files changed, which were missing, and which gems from the manifest are not installed
 
 **Supports noop?** false
 

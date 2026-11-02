@@ -1,5 +1,5 @@
 {
-  "description": "Put the files of an ovadm::backup_create archive back on the host it came from: checks every checksum, the certname, the openvox-server version and that the host's CA has signed or revoked nothing the archive does not know, stops the running services, extracts the items in scope with owners and modes as archived, skipping *.rpmnew and the like, and starts the services again. Reports which files changed, which were missing, and which gems from the manifest are not installed",
+  "description": "Put the files of an ovadm::backup_create archive back on the host it came from: checks every checksum, the certname, the openvox-server version and that the host's CA has signed or revoked nothing the archive does not know, disables the agent and stops the running services, extracts the items in scope with owners and modes as archived, skipping *.rpmnew and the like, and starts the services again. Reports which files changed, which were missing, and which gems from the manifest are not installed",
   "input_method": "environment",
   "parameters": {
     "archive": {

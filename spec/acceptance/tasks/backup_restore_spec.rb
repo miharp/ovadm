@@ -249,6 +249,82 @@ RSpec.describe 'ovadm::backup_restore task' do
     end
   end
 
+  context 'with the agent' do
+    def fake_puppet
+      run_shell(<<~SH)
+        cat > /usr/local/sbin/puppet <<'FAKE'
+        #!/bin/bash
+        echo "$*" >> /tmp/puppet.log
+        case "$1 $2" in
+          "config print")
+            case "$3" in
+              certname) hostname -f ;;
+              cadir) echo /etc/puppetlabs/puppetserver/ca ;;
+              ssldir) echo /etc/puppetlabs/puppet/ssl ;;
+              codedir) echo /etc/puppetlabs/code ;;
+              environment) echo production ;;
+              agent_disabled_lockfile) echo /tmp/fake-agent-disabled ;;
+              agent_catalog_run_lockfile) echo /tmp/fake-agent-run ;;
+            esac ;;
+          "agent --disable") touch /tmp/fake-agent-disabled ;;
+          "agent --enable") rm -f /tmp/fake-agent-disabled ;;
+        esac
+        exit 0
+        FAKE
+        chmod 0755 /usr/local/sbin/puppet; rm -f /tmp/puppet.log /tmp/fake-agent-disabled /tmp/fake-agent-run
+      SH
+    end
+
+    def unfake_puppet
+      run_shell('rm -f /usr/local/sbin/puppet /tmp/puppet.log /tmp/fake-agent-disabled /tmp/fake-agent-run')
+    end
+
+    def puppet_calls
+      run_shell('cat /tmp/puppet.log 2>/dev/null')['stdout'].lines.map(&:strip).grep(/^agent /)
+    end
+
+    it 'disables the agent for the copy and enables it again' do
+      fake_puppet
+      archive = backup
+      data = restore('archive' => archive, 'scope' => 'config').result
+      expect(data['status']).to eq('restored')
+      expect(data['agent_disabled']).to be(true)
+      expect(puppet_calls).to eq(["agent --disable ovadm backup in progress", 'agent --enable',
+                                  "agent --disable ovadm restore of #{File.basename(archive)} in progress", 'agent --enable'])
+      expect(run_shell('test -e /tmp/fake-agent-disabled && echo yes || echo no')['stdout'].strip).to eq('no')
+    ensure
+      unfake_puppet
+    end
+
+    it 'leaves an agent the operator had disabled alone, and touches nothing with dry_run' do
+      fake_puppet
+      archive = backup
+      run_shell('touch /tmp/fake-agent-disabled; rm -f /tmp/puppet.log')
+      data = restore('archive' => archive, 'scope' => 'config').result
+      expect(data['agent_disabled']).to be(false)
+      expect(run_shell('test -e /tmp/fake-agent-disabled && echo yes || echo no')['stdout'].strip).to eq('yes')
+      run_shell('rm -f /tmp/fake-agent-disabled /tmp/puppet.log')
+      data = restore('archive' => archive, 'scope' => 'config', 'dry_run' => true).result
+      expect(data['status']).to eq('dry_run')
+      expect(data['agent_disabled']).to be(false)
+      expect(puppet_calls).to eq([])
+    ensure
+      unfake_puppet
+    end
+
+    it 'waits for an agent run in progress before touching the files' do
+      fake_puppet
+      archive = backup
+      run_shell('echo 4242 > /tmp/fake-agent-run; nohup bash -c "sleep 8; rm -f /tmp/fake-agent-run" >/dev/null 2>&1 &')
+      started = Time.now
+      data = restore('archive' => archive, 'scope' => 'config').result
+      expect(data['status']).to eq('restored')
+      expect(Time.now - started).to be >= 8
+    ensure
+      unfake_puppet
+    end
+  end
+
   context 'on a rebuilt host' do
     it 'takes the OpenVoxDB settings out of the restored puppet.conf when asked, and leaves the rest' do
       run_shell(<<~SH)

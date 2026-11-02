@@ -187,6 +187,32 @@ RSpec.describe 'ovadm::backup_create task' do
     end
   end
 
+  context 'with the agent' do
+    it 'disables the agent for the copy, enables it again, and says so' do
+      run_shell(<<~SH)
+        cat > /usr/local/sbin/puppet <<'FAKE'
+        #!/bin/bash
+        echo "$*" >> /tmp/puppet.log
+        case "$1 $2" in
+          "config print") case "$3" in certname) hostname -f ;; cadir) echo /etc/puppetlabs/puppetserver/ca ;; ssldir) echo /etc/puppetlabs/puppet/ssl ;; codedir) echo /etc/puppetlabs/code ;; environment) echo production ;; agent_disabled_lockfile) echo /tmp/fake-agent-disabled ;; agent_catalog_run_lockfile) echo /tmp/fake-agent-run ;; esac ;;
+          "agent --disable") touch /tmp/fake-agent-disabled ;;
+          "agent --enable") rm -f /tmp/fake-agent-disabled ;;
+        esac
+        exit 0
+        FAKE
+        chmod 0755 /usr/local/sbin/puppet; rm -f /tmp/puppet.log /tmp/fake-agent-disabled
+      SH
+      result = run_bolt_task('ovadm::backup_create')
+      expect(result.exit_code).to eq(0)
+      expect(result.result['agent_disabled']).to be(true)
+      calls = run_shell('cat /tmp/puppet.log')['stdout'].lines.map(&:strip).grep(/^agent /)
+      expect(calls).to eq(['agent --disable ovadm backup in progress', 'agent --enable'])
+      expect(run_shell('test -e /tmp/fake-agent-disabled && echo yes || echo no')['stdout'].strip).to eq('no')
+    ensure
+      run_shell('rm -f /usr/local/sbin/puppet /tmp/puppet.log /tmp/fake-agent-disabled')
+    end
+  end
+
   context 'with static catalog scripts' do
     it 'takes the commands conf.d names with the configuration, and records them in the manifest' do
       run_shell(<<~SH)

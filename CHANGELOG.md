@@ -7,6 +7,16 @@ Notable changes to ovadm are recorded here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- `backup_create` and `backup_restore` disable the agent while the files are
+  copied (`puppet agent --disable`), wait up to five minutes for a run that
+  is already under way, and enable it again when they finish, on every exit
+  path. An agent the operator had disabled before stays disabled. Without
+  this, a scheduled run could change files under `tar` during a backup, or
+  apply the site's code over files still being put back during a restore,
+  before the plan's own agent run. Both tasks report `agent_disabled` (#107).
+
 ## [0.10.0] - 2026-11-01
 
 ### Added

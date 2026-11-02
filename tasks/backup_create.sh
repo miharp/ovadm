@@ -3,7 +3,9 @@
 # of the selected items, a manifest describing the host they came from, and
 # the topology the server sees. Self-contained on purpose: every input is a
 # PT_* variable with a default, so the same script runs from a Bolt task or
-# from a timer, and it needs only coreutils, tar and gzip. The topology comes
+# from a timer, and it needs only coreutils, tar and gzip. The agent is
+# disabled while the files are copied, so no scheduled run changes them under
+# tar; an agent that was disabled already stays so. The topology comes
 # from topology.sh beside this script, which Bolt ships as a task file.
 #
 # Archive layout, under one directory named like the archive:
@@ -173,12 +175,48 @@ start_services() {
   done
   stopped=()
 }
+# --- the agent -------------------------------------------------------------------------
+# A scheduled agent run in the middle of the copy would change files under tar, or sign a certificate. Disable the agent
+# for the duration, as an operator would by hand, and wait for a run already
+# under way to finish. An agent the operator had disabled before stays
+# disabled afterwards.
+agent_disabled_here=false
+agent_lock_wait=300
+disable_agent() {
+  local disabled_lock run_lock waited=0
+  command -v puppet >/dev/null 2>&1 || return 0
+  disabled_lock=$(puppet config print agent_disabled_lockfile --section agent 2>/dev/null || true)
+  run_lock=$(puppet config print agent_catalog_run_lockfile --section agent 2>/dev/null || true)
+  if [ -n "$disabled_lock" ] && [ ! -e "$disabled_lock" ]; then
+    if puppet agent --disable "$1" >/dev/null 2>&1; then
+      agent_disabled_here=true
+    else
+      warn 'could not disable the agent; a scheduled run may land during the copy'
+    fi
+  fi
+  [ -n "$run_lock" ] || return 0
+  while [ -e "$run_lock" ] && [ "$waited" -lt "$agent_lock_wait" ]; do
+    sleep 5
+    waited=$((waited + 5))
+  done
+  if [ -e "$run_lock" ]; then
+    fail "an agent run (pid $(cat "$run_lock" 2>/dev/null || echo '?')) has not finished after ${agent_lock_wait} s; wait for it, then run this again"
+  fi
+  return 0
+}
+enable_agent() {
+  [ "$agent_disabled_here" = true ] || return 0
+  puppet agent --enable >/dev/null 2>&1 || warn 'could not enable the agent again; run puppet agent --enable'
+}
 work=''
 cleanup() {
   start_services
+  enable_agent
   [ -n "$work" ] && rm -rf "$work"
 }
 trap cleanup EXIT
+
+disable_agent 'ovadm backup in progress'
 
 if [ "$stop_services" = true ]; then
   for svc in puppetserver puppetdb; do
@@ -399,6 +437,6 @@ mv "$work/out" "$archive"
 size=$(stat -c %s "$archive")
 
 warnings_json=$(printf '%s\n' "${warnings[@]}" | json_lines)
-printf '{"status":"created","archive":%s,"size_bytes":%s,"files":%s,"certname":%s,"created":%s,"ca_serial_moved":%s,"services_stopped":%s,"warnings":%s}\n' \
+printf '{"status":"created","archive":%s,"size_bytes":%s,"files":%s,"certname":%s,"created":%s,"ca_serial_moved":%s,"services_stopped":%s,"agent_disabled":%s,"warnings":%s}\n' \
   "$(json_str "$archive")" "$size" "$file_count" "$(json_str "$certname")" "$(json_str "$created")" \
-  "$serial_moved" "$stopped_json" "$warnings_json"
+  "$serial_moved" "$stopped_json" "$agent_disabled_here" "$warnings_json"
