@@ -4,7 +4,8 @@
 # version, and, when the CA is in scope, that the CA on the host has not
 # signed or revoked certificates the archive does not know. Then stops the
 # services that are running, extracts the items in scope over the live tree
-# with owners and modes as archived, and starts the services again. Package
+# with owners and modes as archived, and starts the services again, with the
+# agent disabled meanwhile so no scheduled run lands in the middle. Package
 # manager leftovers (*.rpmnew, *.rpmsave, *.dpkg-dist, *.dpkg-old) are never
 # put back. With dry_run, reports what would change and touches nothing.
 set -euo pipefail
@@ -74,7 +75,40 @@ start_services() {
   done
   stopped=()
 }
-cleanup() { start_services; rm -rf "$work"; }
+# --- the agent -------------------------------------------------------------------------
+# A scheduled agent run in the middle of the copy would apply the site's code over files still being put back. Disable the agent
+# for the duration, as an operator would by hand, and wait for a run already
+# under way to finish. An agent the operator had disabled before stays
+# disabled afterwards.
+agent_disabled_here=false
+agent_lock_wait=300
+disable_agent() {
+  local disabled_lock run_lock waited=0
+  command -v puppet >/dev/null 2>&1 || return 0
+  disabled_lock=$(puppet config print agent_disabled_lockfile --section agent 2>/dev/null || true)
+  run_lock=$(puppet config print agent_catalog_run_lockfile --section agent 2>/dev/null || true)
+  if [ -n "$disabled_lock" ] && [ ! -e "$disabled_lock" ]; then
+    if puppet agent --disable "$1" >/dev/null 2>&1; then
+      agent_disabled_here=true
+    else
+      warn 'could not disable the agent; a scheduled run may land during the copy'
+    fi
+  fi
+  [ -n "$run_lock" ] || return 0
+  while [ -e "$run_lock" ] && [ "$waited" -lt "$agent_lock_wait" ]; do
+    sleep 5
+    waited=$((waited + 5))
+  done
+  if [ -e "$run_lock" ]; then
+    fail "an agent run (pid $(cat "$run_lock" 2>/dev/null || echo '?')) has not finished after ${agent_lock_wait} s; wait for it, then run this again"
+  fi
+  return 0
+}
+enable_agent() {
+  [ "$agent_disabled_here" = true ] || return 0
+  puppet agent --enable >/dev/null 2>&1 || warn 'could not enable the agent again; run puppet agent --enable'
+}
+cleanup() { start_services; enable_agent; rm -rf "$work"; }
 trap cleanup EXIT
 
 # --- unpack and check the archive --------------------------------------------
@@ -338,10 +372,10 @@ scope_json=$(printf '%s\n' "${scope_items[@]}" | json_lines)
 excluded_json=$(printf '%s\n' "${excluded[@]}" | json_lines)
 stripped=()
 report() {
-  printf '{"status":"%s","archive":%s,"certname":%s,"scope":%s,"excluded":%s,"in_scope":%s,"changed":%s,"missing":%s,"unchanged":%s,"ca":%s,"services_stopped":%s,"settings_stripped":%s,"missing_gems":{"puppetserver":%s,"agent":%s},"warnings":%s}\n' \
+  printf '{"status":"%s","archive":%s,"certname":%s,"scope":%s,"excluded":%s,"in_scope":%s,"changed":%s,"missing":%s,"unchanged":%s,"ca":%s,"services_stopped":%s,"agent_disabled":%s,"settings_stripped":%s,"missing_gems":{"puppetserver":%s,"agent":%s},"warnings":%s}\n' \
     "$1" "$(json_str "$archive")" "$(json_str "$certname")" "$scope_json" "$excluded_json" "$in_scope" \
     "$(printf '%s\n' "${changed[@]}" | json_lines)" "$(printf '%s\n' "${missing[@]}" | json_lines)" "$unchanged" \
-    "$ca_json" "$2" "$(printf '%s\n' "${stripped[@]}" | json_lines)" "$gems_server" "$gems_agent" "$(printf '%s\n' "${warnings[@]}" | json_lines)"
+    "$ca_json" "$2" "$agent_disabled_here" "$(printf '%s\n' "${stripped[@]}" | json_lines)" "$gems_server" "$gems_agent" "$(printf '%s\n' "${warnings[@]}" | json_lines)"
 }
 
 if [ "$dry_run" = true ]; then
@@ -360,6 +394,7 @@ service_running() {
   esac
   return 1
 }
+disable_agent "ovadm restore of $(basename "$archive") in progress"
 for svc in puppetserver puppetdb; do
   if service_running "$svc"; then
     systemctl stop "$svc" >&2 || fail "could not stop $svc"

@@ -1,5 +1,5 @@
 {
-  "description": "Back up an OpenVox primary server into one archive under destination: the selected items' files as they are on the host, a manifest of the host (versions, gems, deployed code, CA serial, OpenVoxDB schema) and the topology the server sees, with checksums of every file. Returns the archive path and size",
+  "description": "Back up an OpenVox primary server into one archive under destination: the selected items' files as they are on the host, a manifest of the host (versions, gems, deployed code, CA serial, OpenVoxDB schema) and the topology the server sees, with checksums of every file. The agent is disabled while the files are copied and enabled again afterwards. Returns the archive path and size",
   "input_method": "environment",
   "files": ["ovadm/tasks/topology.sh"],
   "parameters": {
