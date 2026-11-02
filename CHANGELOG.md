@@ -7,6 +7,8 @@ Notable changes to ovadm are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-11-02
+
 ### Changed
 
 - `backup_create` and `backup_restore` disable the agent while the files are
@@ -471,7 +473,8 @@ covers the module as it stands.
 - CI: plan unit tests, acceptance tests on Rocky 9, Ubuntu 22.04, Ubuntu 24.04 and
   Debian 12, and an end-to-end install test covering both topologies.
 
-[Unreleased]: https://github.com/miharp/ovadm/compare/v0.10.0...HEAD
+[Unreleased]: https://github.com/miharp/ovadm/compare/v0.11.0...HEAD
+[0.11.0]: https://github.com/miharp/ovadm/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/miharp/ovadm/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/miharp/ovadm/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/miharp/ovadm/compare/v0.7.1...v0.8.0
