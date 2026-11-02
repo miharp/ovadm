@@ -187,6 +187,24 @@ RSpec.describe 'ovadm::backup_create task' do
     end
   end
 
+  context 'without room under destination' do
+    it 'refuses before copying anything, naming the sizes' do
+      run_shell(<<~SH)
+        cat > /usr/local/sbin/df <<'FAKE'
+        #!/bin/bash
+        printf 'Filesystem 1-blocks Used Available Capacity Mounted on\n/dev/fake 1000000 999000 1024 100%% /\n'
+        FAKE
+        chmod 0755 /usr/local/sbin/df
+      SH
+      result = run_bolt_task('ovadm::backup_create')
+      expect(result.exit_code).to eq(1)
+      expect(result.result['_error']['msg']).to match(%r{\Anot enough space under /var/backups/openvox for the backup: about [0-9.]+[KMG]?i?B needed \(the staging copy and the archive side by side\), 1\.0KiB free on /\z})
+      expect(run_shell("ls -A #{destination} 2>/dev/null")['stdout'].strip).to eq('')
+    ensure
+      run_shell('rm -f /usr/local/sbin/df')
+    end
+  end
+
   context 'with the agent' do
     it 'disables the agent for the copy, enables it again, and says so' do
       run_shell(<<~SH)
