@@ -112,6 +112,21 @@ cleanup() { start_services; enable_agent; rm -rf "$work"; }
 trap cleanup EXIT
 
 # --- unpack and check the archive --------------------------------------------
+# The whole archive is unpacked beside it first, so its uncompressed size has
+# to be free there; gzip keeps that size in its trailer. An encrypted archive
+# gives no cheap size, so the check is skipped for it.
+human() { numfmt --to=iec-i --suffix=B "$1" 2>/dev/null || printf '%s bytes' "$1"; }
+case "$archive" in
+  *.gz)
+    if command -v df >/dev/null 2>&1 && command -v gzip >/dev/null 2>&1; then
+      needed=$(gzip -l "$archive" 2>/dev/null | awk 'NR==2 {print $2}')
+      read -r avail mount < <(df -P -B1 "$work" 2>/dev/null | awk 'NR==2 {print $4, $6}') || true
+      if [ -n "${needed:-}" ] && [ -n "${avail:-}" ] && [ "$avail" -lt "$needed" ]; then
+        fail "not enough space under $(dirname "$work") to unpack the archive: $(human "$needed") needed, $(human "$avail") free on $mount"
+      fi
+    fi
+    ;;
+esac
 case "$archive" in
   *.age)
     command -v age >/dev/null 2>&1 || fail 'the archive is encrypted and age is not installed'

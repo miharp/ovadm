@@ -229,6 +229,25 @@ fi
 
 # --- copy ---------------------------------------------------------------------------
 install -d -m 0700 "$destination" || fail "cannot create $destination"
+
+# Room for the copy: the staging copy and the archive sit side by side under
+# destination for a moment, so twice the size of the paths has to be free
+# there. The size comes from a dry tar run, exact and cheap for a tree this
+# size; df is coreutils, and without it the check is skipped with a warning.
+human() { numfmt --to=iec-i --suffix=B "$1" 2>/dev/null || printf '%s bytes' "$1"; }
+if [ "${#paths[@]}" -gt 0 ]; then
+  if command -v df >/dev/null 2>&1; then
+    # tar may exit 1 here too, for a file changing under it; the count still stands.
+    needed=$({ tar -C / --anchored "${excludes[@]}" -cf - "${paths[@]}" 2>/dev/null || true; } | wc -c | tr -d ' ')
+    needed=$((needed * 2))
+    read -r avail mount < <(df -P -B1 "$destination" 2>/dev/null | awk 'NR==2 {print $4, $6}') || true
+    if [ -n "${avail:-}" ] && [ "$avail" -lt "$needed" ]; then
+      fail "not enough space under $destination for the backup: about $(human "$needed") needed (the staging copy and the archive side by side), $(human "$avail") free on $mount"
+    fi
+  else
+    warn 'df is not available; the free space under destination was not checked'
+  fi
+fi
 created=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 stamp=$(date -u +%Y%m%dT%H%M%SZ)
 name="openvox-backup-${certname}-${stamp}"
@@ -241,9 +260,23 @@ serial_before=''
 
 # Through a pipe rather than cp, so owners and modes survive and the
 # excludes apply to whole subtrees. Relative names, so tar has nothing to
-# strip and nothing to warn about.
-if [ "${#paths[@]}" -gt 0 ] && ! tar -C / --anchored "${excludes[@]}" -cf - "${paths[@]}" | tar -C "$stage/files" -xpf -; then
-  fail 'copying the files failed'
+# strip and nothing to warn about. tar exits 1 when a file changed or went
+# away while it was read: the copy holds what tar saw, which is reported
+# rather than fatal; the serial check speaks for the CA directory, the one
+# place that changes on its own.
+if [ "${#paths[@]}" -gt 0 ]; then
+  tar_err="$work/tar.err"
+  set +e
+  tar -C / --anchored "${excludes[@]}" -cf - "${paths[@]}" 2>"$tar_err" | tar -C "$stage/files" -xpf -
+  tar_status=("${PIPESTATUS[@]}")
+  set -e
+  if [ "${tar_status[0]}" -eq 1 ]; then
+    changed=$(sed -n 's/^tar: \(.*\): [Ff]ile \(changed as we read it\|removed before we read it\)$/\/\1/p' "$tar_err" | tr '\n' ' ' | sed 's/ $//')
+    warn "file(s) changed while being copied: ${changed:-see the tar output}; the archive holds what tar read. Take the backup again if they matter"
+  elif [ "${tar_status[0]}" -ne 0 ]; then
+    fail "copying the files failed: $(head -c 300 "$tar_err" | tr '\n' ' ')"
+  fi
+  [ "${tar_status[1]}" -eq 0 ] || fail 'copying the files failed while writing the staging copy'
 fi
 
 # The record of what r10k deployed, in place, when the tree itself is not

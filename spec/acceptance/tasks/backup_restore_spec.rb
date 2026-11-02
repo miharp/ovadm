@@ -249,6 +249,24 @@ RSpec.describe 'ovadm::backup_restore task' do
     end
   end
 
+  context 'without room to unpack' do
+    it 'refuses before touching anything' do
+      archive = backup
+      run_shell(<<~SH)
+        cat > /usr/local/sbin/df <<'FAKE'
+        #!/bin/bash
+        printf 'Filesystem 1-blocks Used Available Capacity Mounted on\n/dev/fake 1000000 999000 1024 100%% /\n'
+        FAKE
+        chmod 0755 /usr/local/sbin/df
+      SH
+      result = restore('archive' => archive, 'scope' => 'config')
+      expect(result.exit_code).to eq(1)
+      expect(result.result['_error']['msg']).to match(%r{\Anot enough space under /var/backups/openvox to unpack the archive: [0-9.]+[KMG]?i?B needed, 1\.0KiB free on /\z})
+    ensure
+      run_shell('rm -f /usr/local/sbin/df')
+    end
+  end
+
   context 'with the agent' do
     def fake_puppet
       run_shell(<<~SH)

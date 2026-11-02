@@ -16,6 +16,15 @@ Notable changes to ovadm are recorded here. The format follows
   this, a scheduled run could change files under `tar` during a backup, or
   apply the site's code over files still being put back during a restore,
   before the plan's own agent run. Both tasks report `agent_disabled` (#107).
+- `backup_create` checks the free space under `destination` before it copies
+  anything (twice the size of the paths, since the staging copy and the
+  archive sit side by side for a moment) and `backup_restore` checks the
+  space beside the archive against its uncompressed size before unpacking;
+  both refuse with the two sizes in the message rather than failing part
+  way. A file that changes or disappears while `tar` reads it no longer
+  fails the backup: the copy holds what `tar` saw, the warning names the
+  file, and the CA `serial` check still speaks for the one directory that
+  changes on its own (#108).
 
 ## [0.10.0] - 2026-11-01
 
