@@ -10,7 +10,7 @@ describe 'ovadm::backup' do
     {
       'status' => 'created', 'archive' => archive, 'size_bytes' => 40_960, 'files' => 12,
       'certname' => server, 'created' => '2026-10-21T18:00:00Z', 'ca_serial_moved' => false,
-      'services_stopped' => [], 'warnings' => []
+      'ca_changed' => false, 'ca_changed_files' => [], 'services_stopped' => [], 'warnings' => []
     }
   end
 
@@ -90,13 +90,13 @@ describe 'ovadm::backup' do
     expect(result.value.msg).to include('Nothing to back up')
   end
 
-  it 'prints the warnings the task returns, and that the CA moved' do
+  it 'prints the warnings the task returns, and that the CA changed' do
     allow_task('ovadm::backup_create').always_return(created.merge(
-      'ca_serial_moved' => true,
+      'ca_changed' => true, 'ca_changed_files' => ['ca_crl.pem', 'inventory.txt'],
       'warnings' => ['eyaml private key /etc/puppetlabs/eyaml/keys/private_key.pkcs7.pem (named in /etc/puppetlabs/code/environments/production/hiera.yaml) is not in the archive; add it to extra_paths']
     ))
     allow_task('ovadm::backup_verify').always_return(verified)
-    expect_out_message.with_params("WARNING #{server}: a certificate was signed or revoked while the CA directory was copied; take the backup again")
+    expect_out_message.with_params("WARNING #{server}: a certificate was signed or revoked while the CA directory was copied (ca_crl.pem, inventory.txt changed); take the backup again")
     expect_out_message.with_params("WARNING #{server}: eyaml private key /etc/puppetlabs/eyaml/keys/private_key.pkcs7.pem (named in /etc/puppetlabs/code/environments/production/hiera.yaml) is not in the archive; add it to extra_paths")
 
     expect(run_plan('ovadm::backup', { 'server_host' => server })).to be_ok

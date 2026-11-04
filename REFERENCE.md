@@ -38,7 +38,7 @@
 * [`set_csr_attributes`](#set_csr_attributes): Set pp_role in csr_attributes.yaml (the agent's csr_attributes setting, by default /etc/puppetlabs/puppet/csr_attributes.yaml) so the node's
 * [`sign_csr`](#sign_csr): Sign a pending CSR on the OpenVox CA server
 * [`topology`](#topology): Report the deployment topology from the primary server: certname and whether it is the CA, the compilers (signed certificates carrying pp_rol
-* [`wait_until_service_ready`](#wait_until_service_ready): Poll until puppetserver responds on port 8140 or a timeout expires. On a timeout, the error says why: the service state and the last error pu
+* [`wait_until_service_ready`](#wait_until_service_ready): Poll until puppetserver responds on port 8140, and with puppetdb=true until OpenVoxDB responds on its plain-text port as well, or a timeout e
 
 ### Plans
 
@@ -131,7 +131,7 @@ Environment to run against, passed as --environment. Omitted, the agent uses the
 
 ### <a name="backup_create"></a>`backup_create`
 
-Back up an OpenVox primary server into one archive under destination: the selected items' files as they are on the host, a manifest of the host (versions, gems, deployed code, CA serial, OpenVoxDB schema) and the topology the server sees, with checksums of every file. The agent is disabled while the files are copied and enabled again afterwards. Returns the archive path and size
+Back up an OpenVox primary server into one archive under destination: the selected items' files as they are on the host, a manifest of the host (versions, gems, deployed code, CA state, OpenVoxDB schema) and the topology the server sees, with checksums of every file. The agent is disabled while the files are copied and enabled again afterwards. Returns the archive path and size
 
 **Supports noop?** false
 
@@ -553,7 +553,7 @@ Report the deployment topology from the primary server: certname and whether it 
 
 ### <a name="wait_until_service_ready"></a>`wait_until_service_ready`
 
-Poll until puppetserver responds on port 8140 or a timeout expires. On a timeout, the error says why: the service state and the last error puppetserver logged, such as its startup memory check
+Poll until puppetserver responds on port 8140, and with puppetdb=true until OpenVoxDB responds on its plain-text port as well, or a timeout expires. On a timeout, the error says why: the service state and the last error the service logged, such as puppetserver's startup memory check
 
 **Supports noop?** false
 
@@ -563,7 +563,13 @@ Poll until puppetserver responds on port 8140 or a timeout expires. On a timeout
 
 Data type: `Optional[Integer]`
 
-Maximum seconds to wait before failing (default: 300)
+Maximum seconds to wait before failing, for both services together (default: 300)
+
+##### `puppetdb`
+
+Data type: `Optional[Boolean]`
+
+Also wait for OpenVoxDB, on the port its jetty.ini names (default: false)
 
 ## Plans
 

@@ -1,10 +1,14 @@
 {
-  "description": "Poll until puppetserver responds on port 8140 or a timeout expires. On a timeout, the error says why: the service state and the last error puppetserver logged, such as its startup memory check",
+  "description": "Poll until puppetserver responds on port 8140, and with puppetdb=true until OpenVoxDB responds on its plain-text port as well, or a timeout expires. On a timeout, the error says why: the service state and the last error the service logged, such as puppetserver's startup memory check",
   "input_method": "environment",
   "parameters": {
     "max_wait": {
-      "description": "Maximum seconds to wait before failing (default: 300)",
+      "description": "Maximum seconds to wait before failing, for both services together (default: 300)",
       "type": "Optional[Integer]"
+    },
+    "puppetdb": {
+      "description": "Also wait for OpenVoxDB, on the port its jetty.ini names (default: false)",
+      "type": "Optional[Boolean]"
     }
   },
   "supports_noop": false

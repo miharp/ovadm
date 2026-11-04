@@ -42,7 +42,8 @@
 #
 # @return
 #   The `backup_create` result: `archive`, `size_bytes`, `files`,
-#   `certname`, `created`, `ca_serial_moved`, `warnings`, as `backup`;
+#   `certname`, `created`, `ca_changed`, `ca_changed_files`, `warnings`,
+#   as `backup`;
 #   `archives`, the archive path per target name; and `verify`, the
 #   `backup_verify` result per target name (empty when `verify` is off).
 #
@@ -84,8 +85,9 @@ plan ovadm::backup(
     $v = $result.value
     $mb = sprintf('%.1f', $v['size_bytes'] / 1048576.0)
     out::message("${result.target.name}: ${v['archive']} (${mb} MB, ${v['files']} files)")
-    if $v['ca_serial_moved'] {
-      out::message("WARNING ${result.target.name}: a certificate was signed or revoked while the CA directory was copied; take the backup again")
+    if $v['ca_changed'] {
+      $changed = join($v['ca_changed_files'], ', ')
+      out::message("WARNING ${result.target.name}: a certificate was signed or revoked while the CA directory was copied (${changed} changed); take the backup again")
     }
     $v['warnings'].each |$w| {
       out::message("WARNING ${result.target.name}: ${w}")
