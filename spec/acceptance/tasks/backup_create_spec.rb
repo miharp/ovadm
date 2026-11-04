@@ -65,6 +65,8 @@ RSpec.describe 'ovadm::backup_create task' do
       expect(data['archive']).to match(%r{\A#{destination}/openvox-backup-#{Regexp.escape(fqdn)}-\d{8}T\d{6}Z\.tar\.gz\z})
       expect(data['certname']).to eq(fqdn)
       expect(data['ca_serial_moved']).to be(false)
+      expect(data['ca_changed']).to be(false)
+      expect(data['ca_changed_files']).to eq([])
       expect(data['services_stopped']).to eq([])
       expect(data['size_bytes']).to be > 0
       expect(run_shell("stat -c %a #{data['archive']}")['stdout'].strip).to eq('600')
@@ -93,7 +95,7 @@ RSpec.describe 'ovadm::backup_create task' do
       manifest = JSON.parse(read_from(data['archive'], "#{name}/ovadm/manifest.json"))
       expect(manifest).to include('format' => 1, 'name' => name, 'certname' => fqdn, 'created' => data['created'])
       expect(manifest['backup']).to include('ca' => true, 'config' => true, 'code' => true, 'include_code_tree' => false, 'extra_paths' => [])
-      expect(manifest['ca']).to eq('serial_before' => '0x0005', 'serial_after' => '0x0005', 'serial_moved' => false)
+      expect(manifest['ca']).to eq('serial_before' => '0x0005', 'serial_after' => '0x0005', 'serial_moved' => false, 'changed' => false, 'changed_files' => [])
       expect(manifest['environments']).to eq('production' => { 'signature' => 'abc123def', 'deployed' => '2026-10-20T10:00:05+00:00' })
       expect(manifest['openvox_server_module']).to eq('in_last_catalog' => false, 'version' => '0.1.1')
       expect(manifest['packages'].keys).to include('openvox-server', 'openvoxdb')

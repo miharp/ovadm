@@ -115,8 +115,10 @@ plan ovadm::subplans::restore_pass(
   }
 
   # Up, whatever state the host was in: a restore means the server should run.
+  # When the copy stopped OpenVoxDB, the task started it again; the agent run
+  # below sends its report there, so wait for it as well.
   run_command('systemctl start puppetserver', $target)
-  run_task('ovadm::wait_until_service_ready', $target)
+  run_task('ovadm::wait_until_service_ready', $target, { 'puppetdb' => 'puppetdb' in $restore['services_stopped'] })
 
   if $deploy_code and 'code' in $restore['scope'] {
     $r10k = run_command('test -x /opt/puppetlabs/puppet/bin/r10k', $target, '_catch_errors' => true)
