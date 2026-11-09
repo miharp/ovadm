@@ -7,6 +7,37 @@ Notable changes to ovadm are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-11-09
+
+### Changed
+
+- `backup_create` checksums the CA's `serial`, `ca_crl.pem` and
+  `inventory.txt` before and after the copy, where it used to read `serial`
+  alone. A revocation changes `ca_crl.pem` and leaves `serial` where it was,
+  so a certificate revoked during the copy went unnoticed. The result and
+  the manifest gain `ca_changed` and `ca_changed_files`; `ca_serial_moved`
+  stays. The warning from `ovadm::backup` names the files that changed
+  (#112).
+- `wait_until_service_ready` takes `puppetdb=true` to wait for OpenVoxDB as
+  well, on the plain-text port its `jetty.ini` names. The result lists the
+  `services` it waited for, and a timeout names the one that did not answer.
+  `ovadm::restore` asks for it when the copy stopped puppetdb, so the agent
+  run that follows does not fail on report submission (#112).
+
+### Fixed
+
+- `backup_restore`, on a host whose CA directory is gone, reads OpenVoxDB's
+  plain-text port from `jetty.ini` for the node list it compares with the
+  archive's inventory. It assumed 8080, so on a host with the port moved the
+  comparison was skipped. The warning names the port it tried (#112).
+- The by-hand recipes in `documentation/backup_restore.md` are the ones on
+  the OpenVox docs page as merged: one script under `set -euo pipefail`,
+  `database.ini` parsed with `sed` (a password containing `=` survives) and
+  its user and database names used, the three-file CA check, a
+  configuration rollback that leaves the CA and the certificates alone, and
+  status checks that gate the agent start and read the OpenVoxDB port from
+  `jetty.ini` (#112).
+
 ## [0.11.0] - 2026-11-02
 
 ### Changed
@@ -473,7 +504,8 @@ covers the module as it stands.
 - CI: plan unit tests, acceptance tests on Rocky 9, Ubuntu 22.04, Ubuntu 24.04 and
   Debian 12, and an end-to-end install test covering both topologies.
 
-[Unreleased]: https://github.com/miharp/ovadm/compare/v0.11.0...HEAD
+[Unreleased]: https://github.com/miharp/ovadm/compare/v0.12.0...HEAD
+[0.12.0]: https://github.com/miharp/ovadm/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/miharp/ovadm/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/miharp/ovadm/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/miharp/ovadm/compare/v0.8.0...v0.9.0
