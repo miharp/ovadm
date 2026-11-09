@@ -581,8 +581,10 @@ tar -C / -xzpf "$backup/etc-puppetlabs.tar.gz" \
   --exclude=etc/puppetlabs/puppet/ssl \
   --exclude=etc/puppetlabs/puppetdb/ssl
 systemctl start puppetserver puppetdb
+db_port=$(sed -n 's/^port *= *//p' /etc/puppetlabs/puppetdb/conf.d/jetty.ini)
+db_port=${db_port:-8080}
 curl -sfk https://localhost:8140/status/v1/simple &&
-  curl -sf http://localhost:8080/status/v1/simple &&
+  curl -sf http://localhost:${db_port}/status/v1/simple &&
   systemctl start puppet
 ```
 
@@ -594,13 +596,13 @@ paths after the archive, for example `etc/puppetlabs/puppetserver/conf.d`.
 Leave out any `*.rpmnew` or `*.dpkg-dist` the archive holds. Files added
 since the backup stay in place; remove any you do not want yourself.
 
-`systemctl start` returns once the services are up, which takes a minute or
-two; each status endpoint then prints `running`. A service that answers with
-an error instead makes `curl --fail` exit non-zero, and the agent stays
-stopped until you have fixed it and run the line again. OpenVoxDB answers on
-the port its `jetty.ini` names, 8080 unless changed. Run the agent on the
-server once afterwards, so that a module that manages it takes its files
-over again.
+The `db_port` lines read OpenVoxDB's plain-text port from `jetty.ini` and
+fall back to the default, 8080. `systemctl start` returns once the services
+are up, which takes a minute or two; each status endpoint then prints
+`running`. A service that answers with an error instead makes `curl --fail`
+exit non-zero, and the agent stays stopped until you have fixed it and run
+the line again. Run the agent on the server once afterwards, so that a
+module that manages it takes its files over again.
 
 The other two by-hand procedures, a lost CA directory with the fleet intact
 and a rebuild on a new host, are on the OpenVox docs page
