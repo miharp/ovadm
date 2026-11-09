@@ -255,15 +255,25 @@ work=$(mktemp -d "$destination/.backup.XXXXXX")
 stage="$work/$name"
 mkdir -p "$stage/files" "$stage/ovadm"
 
+# A signing moves serial and adds a line to inventory.txt; a revocation
+# changes ca_crl.pem alone. Checksum all three before and after the copy.
+ca_state_files=(serial ca_crl.pem inventory.txt)
+ca_state() {
+  local f
+  for f in "${ca_state_files[@]}"; do
+    if [ -f "$cadir/$f" ]; then sha256sum < "$cadir/$f" | cut -d' ' -f1; else echo missing; fi
+  done
+}
 serial_before=''
 [ -f "$cadir/serial" ] && serial_before=$(tr -d '[:space:]' < "$cadir/serial")
+mapfile -t ca_before < <(ca_state)
 
 # Through a pipe rather than cp, so owners and modes survive and the
 # excludes apply to whole subtrees. Relative names, so tar has nothing to
 # strip and nothing to warn about. tar exits 1 when a file changed or went
 # away while it was read: the copy holds what tar saw, which is reported
-# rather than fatal; the serial check speaks for the CA directory, the one
-# place that changes on its own.
+# rather than fatal; the CA state check speaks for the CA directory, the
+# one place that changes on its own.
 if [ "${#paths[@]}" -gt 0 ]; then
   tar_err="$work/tar.err"
   set +e
@@ -311,6 +321,14 @@ serial_after=''
 [ -f "$cadir/serial" ] && serial_after=$(tr -d '[:space:]' < "$cadir/serial")
 serial_moved=false
 [ "$serial_before" != "$serial_after" ] && serial_moved=true
+mapfile -t ca_after < <(ca_state)
+ca_changed=false
+ca_changed_files=()
+for i in "${!ca_state_files[@]}"; do
+  [ "${ca_before[$i]}" = "${ca_after[$i]}" ] || ca_changed_files+=("${ca_state_files[$i]}")
+done
+[ "${#ca_changed_files[@]}" -gt 0 ] && ca_changed=true
+ca_changed_json=$(printf '%s\n' "${ca_changed_files[@]}" | json_lines)
 
 # Recorded before they are started again, which empties the list.
 stopped_json=$(printf '%s\n' "${stopped[@]}" | json_lines)
@@ -441,7 +459,7 @@ cat > "$stage/ovadm/manifest.json" <<MANIFEST
   "ovadm_version": $(json_str "$ovadm_version"),
   "backup": {"ca": $want_ca, "config": $want_config, "code": $want_code, "include_code_tree": $take_tree, "extra_paths": $extra_json, "static_catalog_scripts": $static_json, "stop_services": $stop_services, "services_stopped": $stopped_json},
   "paths": {"cadir": $(json_str "$cadir"), "ssldir": $(json_str "$ssldir"), "codedir": $(json_str "$codedir")},
-  "ca": {"serial_before": $(json_str "$serial_before"), "serial_after": $(json_str "$serial_after"), "serial_moved": $serial_moved},
+  "ca": {"serial_before": $(json_str "$serial_before"), "serial_after": $(json_str "$serial_after"), "serial_moved": $serial_moved, "changed": $ca_changed, "changed_files": $ca_changed_json},
   "packages": {
 $packages
   },
@@ -470,6 +488,6 @@ mv "$work/out" "$archive"
 size=$(stat -c %s "$archive")
 
 warnings_json=$(printf '%s\n' "${warnings[@]}" | json_lines)
-printf '{"status":"created","archive":%s,"size_bytes":%s,"files":%s,"certname":%s,"created":%s,"ca_serial_moved":%s,"services_stopped":%s,"agent_disabled":%s,"warnings":%s}\n' \
+printf '{"status":"created","archive":%s,"size_bytes":%s,"files":%s,"certname":%s,"created":%s,"ca_serial_moved":%s,"ca_changed":%s,"ca_changed_files":%s,"services_stopped":%s,"agent_disabled":%s,"warnings":%s}\n' \
   "$(json_str "$archive")" "$size" "$file_count" "$(json_str "$certname")" "$(json_str "$created")" \
-  "$serial_moved" "$stopped_json" "$agent_disabled_here" "$warnings_json"
+  "$serial_moved" "$ca_changed" "$ca_changed_json" "$stopped_json" "$agent_disabled_here" "$warnings_json"

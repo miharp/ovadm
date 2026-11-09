@@ -346,7 +346,9 @@ if [ "$want_ca" = true ]; then
     # The record of who enrolled since the backup went with the directory.
     # OpenVoxDB's node list is the next best one: every node that has
     # checked in is there.
-    if command -v curl >/dev/null 2>&1 && nodes=$(curl -sf --max-time 5 http://localhost:8080/pdb/query/v4/nodes 2>/dev/null); then
+    pdb_port=$(sed -n 's/^[[:space:]]*port[[:space:]]*=[[:space:]]*//p' /etc/puppetlabs/puppetdb/conf.d/jetty.ini 2>/dev/null | head -1 | tr -d '[:space:]' || true)
+    pdb_port=${pdb_port:-8080}
+    if command -v curl >/dev/null 2>&1 && nodes=$(curl -sf --max-time 5 "http://localhost:$pdb_port/pdb/query/v4/nodes" 2>/dev/null); then
       known=$(sed -n 's|.*/CN=||p' "$top/files${cadir}/inventory.txt" 2>/dev/null | sort -u)
       while IFS= read -r n; do
         [ -n "$n" ] || continue
@@ -359,7 +361,7 @@ if [ "$want_ca" = true ]; then
         warn "no CA on this host; the archive's is put in place. OpenVoxDB lists no node the archive's inventory lacks"
       fi
     else
-      warn "no CA on this host; the archive's is put in place. OpenVoxDB did not answer on localhost:8080, so the hosts enrolled since the backup could not be listed; compare its node list with the archive's inventory.txt"
+      warn "no CA on this host; the archive's is put in place. OpenVoxDB did not answer on localhost:$pdb_port, so the hosts enrolled since the backup could not be listed; compare its node list with the archive's inventory.txt"
     fi
   fi
   ca_json=$(printf '{"live_ca_differs":%s,"signed_after_backup":%s,"revoked_after_backup":%s,"openvoxdb_nodes_unknown_to_archive":%s}' \
