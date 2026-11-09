@@ -255,8 +255,8 @@ work=$(mktemp -d "$destination/.backup.XXXXXX")
 stage="$work/$name"
 mkdir -p "$stage/files" "$stage/ovadm"
 
-# A signing moves serial; a revocation changes ca_crl.pem and inventory.txt
-# and leaves serial alone. Checksum all three before and after the copy.
+# A signing moves serial and adds a line to inventory.txt; a revocation
+# changes ca_crl.pem alone. Checksum all three before and after the copy.
 ca_state_files=(serial ca_crl.pem inventory.txt)
 ca_state() {
   local f
