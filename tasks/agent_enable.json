@@ -1,0 +1,11 @@
+{
+  "description": "Enable the Puppet agent again (puppet agent --enable) after ovadm::agent_disable. Run it only on the hosts where that task reported disabled_here, so an agent the operator had disabled stays disabled",
+  "input_method": "environment",
+  "parameters": {
+    "only_message": {
+      "description": "Enable the agent only when the message it was disabled with starts with this text; an agent disabled with another message is left alone and reported as left_disabled. Without it, a disabled agent is enabled whatever its message",
+      "type": "Optional[String[1]]"
+    }
+  },
+  "supports_noop": false
+}
