@@ -1,0 +1,19 @@
+{
+  "description": "Disable the Puppet agent with a message (puppet agent --disable) and wait for a run already under way to finish, so nothing applies a catalog while an operation changes the host. An agent that was already disabled is left as it is. Reports disabled_here: whether this task, or an earlier run of the same operation, is the one that disabled it, and so whether ovadm::agent_enable should enable it afterwards",
+  "input_method": "environment",
+  "parameters": {
+    "message": {
+      "description": "Why the agent is disabled; puppet agent prints it when someone tries to run it (default: ovadm operation in progress)",
+      "type": "Optional[String[1]]"
+    },
+    "reclaim": {
+      "description": "Treat an agent already disabled with a message that starts with this text as disabled by an earlier, interrupted run of the same operation: report disabled_here true, so it is enabled again at the end. Without it, any agent already disabled is the operator's",
+      "type": "Optional[String[1]]"
+    },
+    "max_wait": {
+      "description": "Maximum seconds to wait for an agent run in progress before failing (default: 300)",
+      "type": "Optional[Integer[0]]"
+    }
+  },
+  "supports_noop": false
+}

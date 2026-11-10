@@ -7,6 +7,30 @@ Notable changes to ovadm are recorded here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- `ovadm::upgrade` disables the Puppet agent on the server and on every
+  compiler named, for the whole upgrade, and enables it again at the end,
+  on the failure path too. It used to be disabled only on the server, and
+  only while the pre-upgrade backup copied files, so a scheduled run could
+  apply the site's code to a server in the middle of the upgrade: with a
+  version or collection pin, that moved a package back, or a compiler ahead
+  of the server. The plan waits up to five minutes for a run under way
+  before it starts and upgrades nothing if one does not finish. An agent
+  that was already disabled stays disabled, and one an interrupted run of
+  the plan left disabled is enabled by the next run. The result gains
+  `agents_held` (#114).
+- `documentation/upgrade.md` says what a site whose code pins the server's
+  version or collection does so the first agent run after the upgrade does
+  not undo it: deploy the new pin, then run the plan (#114).
+
+### Added
+
+- `ovadm::agent_disable` and `ovadm::agent_enable` tasks: disable the agent
+  with a message and wait for a run under way, then enable it again.
+  `agent_disable` reports whether it was the one to disable the agent, and
+  ignores a run lock whose process is gone (#114).
+
 ## [0.12.0] - 2026-11-09
 
 ### Changed

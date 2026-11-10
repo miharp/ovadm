@@ -14,6 +14,8 @@
 
 ### Tasks
 
+* [`agent_disable`](#agent_disable): Disable the Puppet agent with a message (puppet agent --disable) and wait for a run already under way to finish, so nothing applies a catalog
+* [`agent_enable`](#agent_enable): Enable the Puppet agent again (puppet agent --enable) after ovadm::agent_disable. Run it only on the hosts where that task reported disabled_
 * [`agent_runonce`](#agent_runonce): Run the Puppet agent once and return the exit status
 * [`backup_create`](#backup_create): Back up an OpenVox primary server into one archive under destination: the selected items' files as they are on the host, a manifest of the ho
 * [`backup_restore`](#backup_restore): Put the files of an ovadm::backup_create archive back on the host it came from: checks every checksum, the certname, the openvox-server versi
@@ -108,6 +110,46 @@ Struct[{
 ```
 
 ## Tasks
+
+### <a name="agent_disable"></a>`agent_disable`
+
+Disable the Puppet agent with a message (puppet agent --disable) and wait for a run already under way to finish, so nothing applies a catalog while an operation changes the host. An agent that was already disabled is left as it is. Reports disabled_here: whether this task, or an earlier run of the same operation, is the one that disabled it, and so whether ovadm::agent_enable should enable it afterwards
+
+**Supports noop?** false
+
+#### Parameters
+
+##### `message`
+
+Data type: `Optional[String[1]]`
+
+Why the agent is disabled; puppet agent prints it when someone tries to run it (default: ovadm operation in progress)
+
+##### `reclaim`
+
+Data type: `Optional[String[1]]`
+
+Treat an agent already disabled with a message that starts with this text as disabled by an earlier, interrupted run of the same operation: report disabled_here true, so it is enabled again at the end. Without it, any agent already disabled is the operator's
+
+##### `max_wait`
+
+Data type: `Optional[Integer[0]]`
+
+Maximum seconds to wait for an agent run in progress before failing (default: 300)
+
+### <a name="agent_enable"></a>`agent_enable`
+
+Enable the Puppet agent again (puppet agent --enable) after ovadm::agent_disable. Run it only on the hosts where that task reported disabled_here, so an agent the operator had disabled stays disabled
+
+**Supports noop?** false
+
+#### Parameters
+
+##### `only_message`
+
+Data type: `Optional[String[1]]`
+
+Enable the agent only when the message it was disabled with starts with this text; an agent disabled with another message is left alone and reported as left_disabled. Without it, a disabled agent is enabled whatever its message
 
 ### <a name="agent_runonce"></a>`agent_runonce`
 
@@ -1135,6 +1177,12 @@ The target node running OpenVox Server
 Upgrades within a major version, to a new major version (8 to 9), and from
 Puppet Server to OpenVox (7 to 8). The server is upgraded first, then the
 compilers.
+
+The Puppet agent on the server and on every compiler named is disabled for
+the whole upgrade (`puppet agent --disable`, after waiting for a run under
+way to finish) and enabled again at the end, whether the upgrade succeeded
+or not, so a scheduled run cannot apply the site's code to a server in the
+middle of it. An agent that was already disabled stays disabled.
 
 #### Parameters
 

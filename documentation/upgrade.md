@@ -17,6 +17,70 @@ it. Compilers hold nothing unique and are not backed up. What the archive
 holds, and how to use it when the upgrade goes wrong, is on the
 [backup and restore](backup_restore.md#an-upgrade-gone-wrong) page.
 
+## The agent during the upgrade
+
+After the prechecks and before the backup, the plan disables the Puppet agent
+on the server and on every compiler in `compiler_hosts`, with
+`puppet agent --disable` and a message that names the upgrade. It waits up to
+five minutes for a run already under way to finish, and enables the agents
+again when the last compiler is ready. A scheduled run, from the `puppet`
+service or from cron, therefore cannot land on a server in the middle of the
+upgrade, and someone who runs the agent by hand there is told why not:
+
+```text
+Notice: Skipping run of Puppet configuration client; administratively disabled (Reason: 'ovadm upgrade to 8.13.0 in progress');
+Use 'puppet agent --enable' to re-enable.
+```
+
+- **An agent that was already disabled** is left as it is and stays disabled
+  afterwards. The plan names the host and the message it was disabled with.
+- **If the upgrade fails**, the agents the plan disabled are enabled again
+  before it stops with the error.
+- **If the plan itself is interrupted** (the connection is lost, or you stop
+  Bolt), the agents stay disabled with that message. Run the plan again: it
+  recognises its own message and enables them at the end. Or run
+  `puppet agent --enable` on each host.
+- **A run still under way after five minutes** stops the plan before anything
+  is upgraded.
+
+Only the servers the plan upgrades are touched; the agents on your other
+nodes keep running.
+
+### When your Puppet code pins the version
+
+The first agent run after the upgrade applies your site's code to the
+upgraded servers. Code that pins `openvox-server` to a version, or its
+package repository to a major version, undoes the upgrade if the pin still
+names the old one. The
+[openvox_server](https://forge.puppet.com/modules/miharp/openvox_server)
+module pins when it is given `package_version` or `collection`, and a pinned
+version there is allowed to downgrade.
+
+So change the pin first, and run the plan straight afterwards:
+
+1. Set the new version or collection in your control repository and deploy
+   it.
+2. Run `ovadm::upgrade` for the same version.
+
+Between the two steps a scheduled run can move a server on its own. The plan
+waits for it, then finds that server already on the target version. Within a
+major version that is harmless. Before a move to a new major version, where
+the server has to go first, close the gap by disabling the agents yourself
+before step 1 and enabling them after step 2; the plan leaves an agent you
+disabled alone:
+
+```bash
+bolt command run "puppet agent --disable 'moving to OpenVox 9'" \
+  --targets ovox-server.example.com,ovox-compiler01.example.com
+# deploy the new pin, run ovadm::upgrade, then:
+bolt command run 'puppet agent --enable' \
+  --targets ovox-server.example.com,ovox-compiler01.example.com
+```
+
+Without a pin there is nothing to change. openvox_server with no
+`package_version` keeps the version that is installed, and with no
+`collection` it stays on the collection the host is on.
+
 ## Standard topology
 
 ```bash
@@ -42,7 +106,7 @@ bolt plan run ovadm::upgrade \
   ovox_server_version=8.13.0
 ```
 
-The server is upgraded first, then all compilers. Compilers are currently upgraded simultaneously — plan for a brief compilation outage during the compiler restart window, or take them out of your load balancer rotation beforehand.
+The server is upgraded first, then all compilers. The agent is disabled on all of them from the start, as [above](#the-agent-during-the-upgrade). Compilers are currently upgraded simultaneously — plan for a brief compilation outage during the compiler restart window, or take them out of your load balancer rotation beforehand.
 
 ## Internal package mirror
 

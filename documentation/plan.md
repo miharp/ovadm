@@ -123,6 +123,8 @@ Tasks are the atomic operations that plans compose. The following are implemente
 | Task | Description | Notes |
 |------|-------------|-------|
 | `ovadm::agent_runonce` | Run the agent once on a target | Used for CSR submission and initial catalog application |
+| `ovadm::agent_disable` | Disable the agent with a message and wait for a run under way to finish | Reports `disabled_here`, so an agent the operator had disabled is not enabled afterwards; used by `ovadm::upgrade` |
+| `ovadm::agent_enable` | Enable the agent again after `ovadm::agent_disable` | With `only_message`, leaves an agent disabled for another reason alone |
 
 ### Status & Introspection
 
@@ -200,6 +202,7 @@ Goal: in-place version upgrade with service continuity.
 - [x] `ovadm::subplans::upgrade_server` plan
 - [x] `ovadm::upgrade` plan (standard topology)
 - [x] Major version upgrades, including from Puppet Server 7 ([#60](https://github.com/miharp/ovadm/issues/60))
+- [x] `ovadm::agent_disable` / `ovadm::agent_enable` tasks; the agent is disabled on the server and compilers for the whole upgrade ([#114](https://github.com/miharp/ovadm/issues/114))
 
 **Deliverable:** `bolt plan run ovadm::upgrade server_host=<target> ovox_version=8.x.x` upgrades cleanly.
 
