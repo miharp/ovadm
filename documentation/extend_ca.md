@@ -55,7 +55,8 @@ The plan, in order:
 3. Takes a backup with `ovadm::backup` and prints the archive's path.
 4. Stops puppetserver on the server, re-signs the CA certificates and the
    CA's CRLs, replaces the server's own copy of the bundle, and starts
-   puppetserver again. The server is down for as long as a restart takes.
+   puppetserver again. The server is down for as long as a restart takes:
+   about a minute on a small VM with OpenVoxDB beside it.
 5. Gives each compiler the new bundle and restarts its puppetserver, one
    compiler at a time.
 6. Pushes the bundle to the hosts in `agent_hosts`, if you named any.
@@ -79,7 +80,7 @@ CA on ovox-server.example.com extended.
 | --------- | ---- | ------- |
 | `compiler_hosts` | Compilers to give the bundle and a restart | none |
 | `agent_hosts` | Other hosts to push the bundle to | none |
-| `ttl` | How long from now the CA should run: a number and `s`, `m`, `h`, `d` or `y`, at most `50y` | `15y` |
+| `ttl` | How long from now the CA should run: a number and `s`, `m`, `h`, `d` or `y` (365 days, as in `ca_ttl`), at most `50y` | `15y` |
 | `regenerate_server_cert` | Replace the server's own certificate: `true` always, `false` never | only when it has expired |
 | `skip_backup` | Do not take the backup | `false` |
 | `backup_destination` | Directory on the server for the backup | `/var/backups/openvox` |

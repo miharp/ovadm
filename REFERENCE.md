@@ -1031,7 +1031,8 @@ Default value: `undef`
 Data type: `Pattern[/\A\d+[smhdy]\z/]`
 
 How long from now the CA certificates should run, as a number and a unit
-(`s`, `m`, `h`, `d`, `y`), at most `50y`
+(`s`, `m`, `h`, `d`, `y`), at most `50y`. A year is 365 days, as in
+Puppet's `ca_ttl`.
 
 Default value: `'15y'`
 
