@@ -27,11 +27,12 @@ ovadm is an [OpenBolt](https://github.com/OpenVoxProject/openbolt) module for de
 | ---- | ----------- |
 | `ovadm::install` | Install OpenVox Server (Standard or Large topology) |
 | `ovadm::upgrade` | Upgrade an existing deployment in-place |
-| `ovadm::status` | Report health and topology: prechecks, service state, installed version, compilers, and where OpenVoxDB and PostgreSQL are |
+| `ovadm::status` | Report health and topology: prechecks, service state, installed version, compilers, where OpenVoxDB and PostgreSQL are, and when the CA and the server certificate expire |
 | `ovadm::add_compiler` | Add a compiler node to an existing deployment |
 | `ovadm::add_agent` | Install and enroll agent nodes from the workstation |
 | `ovadm::backup` | Back up the CA, certificates, configuration and the deployed code record into one checked archive on the server |
 | `ovadm::restore` | Put an archive back on the server it came from: all of it, or the CA, the configuration or the code |
+| `ovadm::extend_ca` | Extend the CA certificate, before or after it expires, and put the new bundle on the server, the compilers and the hosts you name |
 
 ## Installing
 
@@ -66,6 +67,7 @@ Copy `inventory.yaml.example` to `inventory.yaml` and fill in your target detail
 - [Managing compilers](https://github.com/miharp/ovadm/blob/main/documentation/add_compiler.md) - Adding and removing compiler nodes
 - [Adding agents](https://github.com/miharp/ovadm/blob/main/documentation/add_agent.md) - Enrolling stock hosts as agents, pointed at the server, a compiler or a load balancer
 - [Backup and restore](https://github.com/miharp/ovadm/blob/main/documentation/backup_restore.md) - What a primary server holds, in three tiers, `ovadm::backup` and `ovadm::restore`, and the same by hand
+- [Extending the CA](https://github.com/miharp/ovadm/blob/main/documentation/extend_ca.md) - When the CA certificate expires, `ovadm::extend_ca` before and after that day, and who gets the new bundle
 - [Reference](https://github.com/miharp/ovadm/blob/main/REFERENCE.md) - Every plan and task with its parameters, generated from the code
 - [Architecture](https://github.com/miharp/ovadm/blob/main/documentation/architecture.md) - Topologies, plan structure, cert extensions, peadm comparison
 - [Docker testing](https://github.com/miharp/ovadm/blob/main/documentation/docker_testing.md) - Local three-node dev environment

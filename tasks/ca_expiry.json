@@ -1,0 +1,11 @@
+{
+  "description": "Report when the certificates a host depends on expire. On the CA: each certificate in the CA directory's bundle with its role, expiry and whether its private key is on disk (extendable says whether ovadm::ca_extend can re-sign the bundle, problems why not), and each CRL the CA keeps. On any host: its copy of the CA bundle and whether it matches the CA directory, its copy of the CRLs, its own certificate, and OpenVoxDB's copy of the CA. Reads files only, so it works with the services stopped; reports not_installed on a host without the OpenVox agent",
+  "input_method": "environment",
+  "parameters": {
+    "include_bundle": {
+      "description": "On the CA, also return the bundle and the CRLs in PEM (ca.bundle, ca.crl), as ovadm::ca_bundle_install takes them (default: false)",
+      "type": "Optional[Boolean]"
+    }
+  },
+  "supports_noop": false
+}

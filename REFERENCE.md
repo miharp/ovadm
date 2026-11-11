@@ -20,6 +20,9 @@
 * [`backup_create`](#backup_create): Back up an OpenVox primary server into one archive under destination: the selected items' files as they are on the host, a manifest of the ho
 * [`backup_restore`](#backup_restore): Put the files of an ovadm::backup_create archive back on the host it came from: checks every checksum, the certname, the openvox-server versi
 * [`backup_verify`](#backup_verify): Check an archive that ovadm::backup_create wrote: it unpacks, every file matches its checksum, the manifest is present, and (with check_host)
+* [`ca_bundle_install`](#ca_bundle_install): Install an extended CA bundle, as ovadm::ca_extend returns it, on a host: its trusted copy (localcacert), the CRLs beside it (hostcrl, only w
+* [`ca_expiry`](#ca_expiry): Report when the certificates a host depends on expire. On the CA: each certificate in the CA directory's bundle with its role, expiry and whe
+* [`ca_extend`](#ca_extend): Extend the CA on the CA host: re-sign every certificate in the CA directory's bundle with a later expiry and nothing else changed (same subje
 * [`ca_setup`](#ca_setup): Create the CA with `puppetserver ca setup` (root + intermediate, 15-year lifetime) before the first service start. Skipped when a CA already
 * [`configure_ca_renewal`](#configure_ca_renewal): Set certificate auto-renewal settings in ca.conf on the CA. Takes effect on the next puppetserver (re)start and only affects certificates sig
 * [`configure_compiler_ssl`](#configure_compiler_ssl): Configure puppetserver SSL on a compiler to use the puppet-CA-signed node certificate
@@ -33,6 +36,7 @@
 * [`os_identification`](#os_identification): Detect OS family, name, version, and architecture
 * [`precheck`](#precheck): Validate target readiness: OS family, Java version, port 8140, host firewall, NTP sync, and enough memory for OpenVox Server's heap; for an a
 * [`select_java`](#select_java): Make sure the installed openvox-server has a supported Java: on 8, point the java alternative at Java 17 or 21 when the default is neither; o
+* [`server_cert_regen`](#server_cert_regen): Replace the CA host's own certificate with a new one from its own CA, for a server certificate that has expired: on a CA puppetserver generat
 * [`service_restart`](#service_restart): Restart the puppetserver service
 * [`service_start`](#service_start): Start the puppetserver service
 * [`service_status`](#service_status): Report running status of OpenVox Server services
@@ -49,6 +53,7 @@
 * [`ovadm::add_agent`](#ovadm--add_agent): Add one or more agent nodes to an existing OpenVox Server deployment
 * [`ovadm::add_compiler`](#ovadm--add_compiler): Add one or more compiler nodes to an existing OpenVox Server deployment
 * [`ovadm::backup`](#ovadm--backup): Back up an OpenVox primary server to one archive
+* [`ovadm::extend_ca`](#ovadm--extend_ca): Extend the CA certificate of an OpenVox deployment
 * [`ovadm::install`](#ovadm--install): Install a new OpenVox Server deployment
 * [`ovadm::restore`](#ovadm--restore): Restore an OpenVox primary server from an `ovadm::backup` archive
 * [`ovadm::status`](#ovadm--status): Check the status of an OpenVox Server deployment
@@ -309,6 +314,60 @@ Data type: `Optional[String[1]]`
 
 Path of an age identity file, needed to read a .tar.gz.age archive
 
+### <a name="ca_bundle_install"></a>`ca_bundle_install`
+
+Install an extended CA bundle, as ovadm::ca_extend returns it, on a host: its trusted copy (localcacert), the CRLs beside it (hostcrl, only where the host keeps one and never an older set) and OpenVoxDB's copy of the CA where there is one. Refuses a bundle that is expired, incomplete, or not the CA that signed the host's own certificate, so it refreshes what a host trusts and cannot change it. Reports each file as updated or unchanged, and the host certificate's expiry. Services are not restarted: puppetserver and OpenVoxDB read the bundle when they start
+
+**Supports noop?** false
+
+#### Parameters
+
+##### `bundle`
+
+Data type: `String[1]`
+
+The CA bundle in PEM, the bundle value ovadm::ca_extend returns
+
+##### `crl`
+
+Data type: `Optional[String[1]]`
+
+The CA's CRLs in PEM, the crl value ovadm::ca_extend returns. Omit to leave the host's CRLs alone
+
+### <a name="ca_expiry"></a>`ca_expiry`
+
+Report when the certificates a host depends on expire. On the CA: each certificate in the CA directory's bundle with its role, expiry and whether its private key is on disk (extendable says whether ovadm::ca_extend can re-sign the bundle, problems why not), and each CRL the CA keeps. On any host: its copy of the CA bundle and whether it matches the CA directory, its copy of the CRLs, its own certificate, and OpenVoxDB's copy of the CA. Reads files only, so it works with the services stopped; reports not_installed on a host without the OpenVox agent
+
+**Supports noop?** false
+
+#### Parameters
+
+##### `include_bundle`
+
+Data type: `Optional[Boolean]`
+
+On the CA, also return the bundle and the CRLs in PEM (ca.bundle, ca.crl), as ovadm::ca_bundle_install takes them (default: false)
+
+### <a name="ca_extend"></a>`ca_extend`
+
+Extend the CA on the CA host: re-sign every certificate in the CA directory's bundle with a later expiry and nothing else changed (same subject, issuer, serial, key and extensions), so every certificate the CA issued stays valid. Handles a single self-signed CA certificate and a root plus intermediate, expired or not, and re-signs the CA's CRLs (ca_crl.pem, infra_crl.pem) to run as long as their issuer, keeping the revoked entries. Refuses an externally issued CA and a running puppetserver. Keeps a copy of each file it replaces beside it (<name>.<timestamp>.bak) and returns the new bundle and CRLs for ovadm::ca_bundle_install. Writes only to the CA directory. With --noop, reports what would change
+
+**Supports noop?** true
+
+#### Parameters
+
+##### `ttl`
+
+Data type: `Optional[Pattern[/\A\d+[smhdy]\z/]]`
+
+How long from now the CA certificates should run, as a number and a unit (s, m, h, d or y), at most 50y (default: 15y, what puppetserver ca setup gives a new CA)
+
+##### `force`
+
+Data type: `Optional[Boolean]`
+
+Extend while puppetserver is running. The server keeps using the old certificate until it is restarted, and a revocation made in that moment can be lost (default: false)
+
 ### <a name="ca_setup"></a>`ca_setup`
 
 Create the CA with `puppetserver ca setup` (root + intermediate, 15-year lifetime) before the first service start. Skipped when a CA already exists.
@@ -534,6 +593,20 @@ The OpenVox major version about to be installed or upgraded to, when known. On 9
 Make sure the installed openvox-server has a supported Java: on 8, point the java alternative at Java 17 or 21 when the default is neither; on packages with a Java launcher (9), leave the alternative alone and check that the launcher finds one
 
 **Supports noop?** false
+
+### <a name="server_cert_regen"></a>`server_cert_regen`
+
+Replace the CA host's own certificate with a new one from its own CA, for a server certificate that has expired: on a CA puppetserver generated for itself, the server's certificate expires in the same second as the CA. Keeps the old certificate, keys and signed copy in a directory beside ssldir, then issues the replacement offline with puppetserver ca generate --ca-client and the old certificate's subject alternative names; puts the old files back if that fails. Replaces OpenVoxDB's copies of the certificate and key when they are copies of the one retired. Refuses a running puppetserver and a host that is not the CA. Reports the new expiry, the names carried over and any extension the new certificate lacks
+
+**Supports noop?** false
+
+#### Parameters
+
+##### `force`
+
+Data type: `Optional[Boolean]`
+
+Replace the certificate while puppetserver is running. The server keeps serving the old one until it is restarted (default: false)
 
 ### <a name="service_restart"></a>`service_restart`
 
@@ -894,6 +967,123 @@ for an encrypted archive, which the server cannot read back: run
 `ovadm::backup_verify` with `age_identity` where the identity is.
 
 Default value: `true`
+
+### <a name="ovadm--extend_ca"></a>`ovadm::extend_ca`
+
+Re-signs the CA certificate (a single self-signed one, or a root and its
+intermediate) and the CA's CRLs with a later expiry, on the server that is
+the CA, and puts the new bundle where it is needed. The keys do not change,
+so every certificate the CA has issued stays valid and no agent is
+re-enrolled. Works before the CA expires and after.
+
+The server is stopped for the change and started again; each compiler
+named is given the bundle and restarted in turn. Agents whose copy of the
+CA is still valid fetch the new one themselves within a day
+(`ca_refresh_interval`). An agent whose copy has expired cannot, and
+neither can anything else that keeps a copy of its own: name those hosts
+in `agent_hosts`.
+
+The Puppet agent on the server and the compilers is disabled for the
+duration and enabled again at the end, as in `ovadm::upgrade`, so a
+scheduled run cannot start the server in the middle.
+
+#### Parameters
+
+The following parameters are available in the `ovadm::extend_ca` plan:
+
+* [`server_host`](#-ovadm--extend_ca--server_host)
+* [`compiler_hosts`](#-ovadm--extend_ca--compiler_hosts)
+* [`agent_hosts`](#-ovadm--extend_ca--agent_hosts)
+* [`ttl`](#-ovadm--extend_ca--ttl)
+* [`regenerate_server_cert`](#-ovadm--extend_ca--regenerate_server_cert)
+* [`skip_backup`](#-ovadm--extend_ca--skip_backup)
+* [`backup_destination`](#-ovadm--extend_ca--backup_destination)
+* [`distribute_only`](#-ovadm--extend_ca--distribute_only)
+* [`dry_run`](#-ovadm--extend_ca--dry_run)
+
+##### <a name="-ovadm--extend_ca--server_host"></a>`server_host`
+
+Data type: `TargetSpec`
+
+The OpenVox Server node that is the CA
+
+##### <a name="-ovadm--extend_ca--compiler_hosts"></a>`compiler_hosts`
+
+Data type: `Optional[TargetSpec]`
+
+Compiler pool nodes (Large topology). Each gets the new bundle and a
+puppetserver restart, one at a time.
+
+Default value: `undef`
+
+##### <a name="-ovadm--extend_ca--agent_hosts"></a>`agent_hosts`
+
+Data type: `Optional[TargetSpec]`
+
+Hosts to push the new bundle to: agents whose copy of the CA has
+expired, and hosts that keep a copy nothing refreshes, such as an
+OpenVoxDB on its own host. A failure on one does not stop the others.
+
+Default value: `undef`
+
+##### <a name="-ovadm--extend_ca--ttl"></a>`ttl`
+
+Data type: `Pattern[/\A\d+[smhdy]\z/]`
+
+How long from now the CA certificates should run, as a number and a unit
+(`s`, `m`, `h`, `d`, `y`), at most `50y`
+
+Default value: `'15y'`
+
+##### <a name="-ovadm--extend_ca--regenerate_server_cert"></a>`regenerate_server_cert`
+
+Data type: `Optional[Boolean]`
+
+Replace the server's own certificate with a new one from the CA. By
+default this happens only when that certificate has expired, which is
+the case on a CA puppetserver generated for itself: there the server's
+certificate expires in the same second as the CA. `true` replaces it
+regardless, `false` never does.
+
+Default value: `undef`
+
+##### <a name="-ovadm--extend_ca--skip_backup"></a>`skip_backup`
+
+Data type: `Boolean`
+
+Do not take a backup of the server first. The backup is `ovadm::backup`
+with its defaults, under `backup_destination`.
+
+Default value: `false`
+
+##### <a name="-ovadm--extend_ca--backup_destination"></a>`backup_destination`
+
+Data type: `String[1]`
+
+Directory on the server for the backup archive
+
+Default value: `'/var/backups/openvox'`
+
+##### <a name="-ovadm--extend_ca--distribute_only"></a>`distribute_only`
+
+Data type: `Boolean`
+
+Do not extend anything: take the bundle the CA has now and put it on the
+server, the compilers and the hosts in `agent_hosts`. For the hosts left
+out of an earlier run, and for a compiler or agent host that failed in
+one. Safe to repeat: a host that already has the bundle is not touched,
+though each compiler named is restarted.
+
+Default value: `false`
+
+##### <a name="-ovadm--extend_ca--dry_run"></a>`dry_run`
+
+Data type: `Boolean`
+
+Report what would change and stop. Nothing is written and no service is
+touched.
+
+Default value: `false`
 
 ### <a name="ovadm--install"></a>`ovadm::install`
 

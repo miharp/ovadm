@@ -1,0 +1,11 @@
+{
+  "description": "Replace the CA host's own certificate with a new one from its own CA, for a server certificate that has expired: on a CA puppetserver generated for itself, the server's certificate expires in the same second as the CA. Keeps the old certificate, keys and signed copy in a directory beside ssldir, then issues the replacement offline with puppetserver ca generate --ca-client and the old certificate's subject alternative names; puts the old files back if that fails. Replaces OpenVoxDB's copies of the certificate and key when they are copies of the one retired. Refuses a running puppetserver and a host that is not the CA. Reports the new expiry, the names carried over and any extension the new certificate lacks",
+  "input_method": "environment",
+  "parameters": {
+    "force": {
+      "description": "Replace the certificate while puppetserver is running. The server keeps serving the old one until it is restarted (default: false)",
+      "type": "Optional[Boolean]"
+    }
+  },
+  "supports_noop": false
+}

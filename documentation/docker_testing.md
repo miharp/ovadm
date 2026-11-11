@@ -96,6 +96,37 @@ bolt plan run ovadm::upgrade server_host=puppet \
 
 On an arm64 machine, Puppet's el9 repository has no `puppetserver`, but the Ubuntu one does, which is why the image is Ubuntu.
 
+## CA extension test
+
+`ovadm::extend_ca` runs against the same containers once the Large topology is up:
+
+```bash
+bolt plan run ovadm::extend_ca \
+  server_host=puppet compiler_hosts=compiler01 agent_hosts=agent01 \
+  --inventoryfile docker/inventory.yaml
+```
+
+`ovadm-agent` is left out on purpose: its next run shows an agent working with the bundle from before the extension, and `touch -d '2 days ago'` on its `ssl/certs/ca.pem` makes the run after that fetch the new one.
+
+To test against a CA that has really expired, swap the CA `ovadm::install` made for one puppetserver generates itself with a short `ca_ttl`, which also gives the server a certificate that expires with it:
+
+```bash
+docker exec ovadm-server bash -c '
+  export PATH=/opt/puppetlabs/bin:$PATH
+  systemctl stop puppetserver
+  rm -rf /etc/puppetlabs/puppetserver/ca /etc/puppetlabs/puppet/ssl
+  install -d -o puppet -g puppet -m 0771 /etc/puppetlabs/puppet/ssl
+  puppet config set ca_ttl 10m --section server
+  systemctl start puppetserver'
+# once it is up: back to five-year certificates for the agents
+docker exec ovadm-server bash -c '
+  export PATH=/opt/puppetlabs/bin:$PATH
+  puppet config delete ca_ttl --section server
+  systemctl restart puppetserver'
+```
+
+Enroll `agent01` with `ovadm::add_agent`, wait out the ten minutes, and run the plan. The `Extend an expired CA` job in `.github/workflows/install-test.yml` does this with six.
+
 ## API access
 
 Port 8140 is forwarded to `localhost:8140` on the server container:

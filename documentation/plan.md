@@ -43,6 +43,7 @@ A server plus one or more compilers to distribute compilation load across large 
 | `ovadm::add_agent` | Install and enroll agent nodes from the workstation | P2 |
 | `ovadm::backup` | Back up the server into one checked archive | P1 |
 | `ovadm::restore` | Put an archive back on the server it came from, by scope | P1 |
+| `ovadm::extend_ca` | Extend the CA certificate and distribute the new bundle | P1 |
 
 ### Subplans (internal)
 
@@ -110,6 +111,10 @@ Tasks are the atomic operations that plans compose. The following are implemente
 | `ovadm::ca_setup` | Create the CA with `puppetserver ca setup` (root + intermediate, 15 years) | Must run before first puppetserver start; skipped when `ca_crt.pem` exists |
 | `ovadm::sign_csr` | Sign a pending CSR on the CA; handles already-signed gracefully | |
 | `ovadm::configure_ca_renewal` | Set `allow-auto-renewal` / `auto-renewal-cert-ttl` in `ca.conf` | Run before first puppetserver start; opt-in via `ovadm::install` `enable_cert_auto_renewal` |
+| `ovadm::ca_expiry` | Report when the CA certificates, the CRLs, the host's copy of the CA and its own certificate expire, and whether the CA can be extended on this host | Read-only, any host; `ovadm::status` and `ovadm::extend_ca` |
+| `ovadm::ca_extend` | Re-sign the CA certificates and the CA's CRLs with a later expiry and nothing else changed | The CA host, puppetserver stopped; both CA layouts, expired or not; supports `--noop` |
+| `ovadm::ca_bundle_install` | Install the extended bundle and CRLs on a host: `localcacert`, `hostcrl`, OpenVoxDB's copy | Refuses a bundle that is not the CA of the host's own certificate |
+| `ovadm::server_cert_regen` | Replace the CA host's own certificate, keeping its subject alternative names | For a server certificate that expired with a self-generated CA |
 
 ### Configuration Management
 
