@@ -7,6 +7,32 @@ Notable changes to ovadm are recorded here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `ovadm::extend_ca` plan: extends the CA certificate, before or after it
+  has expired, by re-signing it with the same key and a later end date, so
+  every certificate the CA issued stays valid. It handles a root with an
+  intermediate and a single self-signed certificate, re-signs the CA's CRLs
+  (a root's CRL is written once at setup and expires with the root), takes a
+  backup first, stops and starts the server, gives each compiler the new
+  bundle and a restart, and pushes the bundle to the hosts named in
+  `agent_hosts`. When the server's own certificate has expired with the CA,
+  as it does on a CA puppetserver generated for itself, the plan replaces
+  it and keeps its subject alternative names. `dry_run` reports what would
+  change; `distribute_only` pushes the current bundle to hosts an earlier
+  run left out. See `documentation/extend_ca.md` (#117).
+- `ovadm::ca_expiry`, `ovadm::ca_extend`, `ovadm::ca_bundle_install` and
+  `ovadm::server_cert_regen` tasks, which the plan runs and which can be
+  used one at a time (#117).
+
+### Changed
+
+- `ovadm::status` reports when each CA certificate and the host's own
+  certificate expire, and warns when a CA certificate has less than a year
+  left, when a CRL or the host's certificate has less than 30 days, and when
+  the server's or OpenVoxDB's copy of the CA is not the one in the CA
+  directory. The result gains `ca_expiry` (#117).
+
 ## [0.13.0] - 2026-11-10
 
 ### Changed

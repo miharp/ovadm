@@ -1,0 +1,15 @@
+{
+  "description": "Extend the CA on the CA host: re-sign every certificate in the CA directory's bundle with a later expiry and nothing else changed (same subject, issuer, serial, key and extensions), so every certificate the CA issued stays valid. Handles a single self-signed CA certificate and a root plus intermediate, expired or not, and re-signs the CA's CRLs (ca_crl.pem, infra_crl.pem) to run as long as their issuer, keeping the revoked entries. Refuses an externally issued CA and a running puppetserver. Keeps a copy of each file it replaces beside it (<name>.<timestamp>.bak) and returns the new bundle and CRLs for ovadm::ca_bundle_install. Writes only to the CA directory. With --noop, reports what would change",
+  "input_method": "environment",
+  "parameters": {
+    "ttl": {
+      "description": "How long from now the CA certificates should run, as a number and a unit (s, m, h, d or y), at most 50y (default: 15y, what puppetserver ca setup gives a new CA)",
+      "type": "Optional[Pattern[/\\A\\d+[smhdy]\\z/]]"
+    },
+    "force": {
+      "description": "Extend while puppetserver is running. The server keeps using the old certificate until it is restarted, and a revocation made in that moment can be lost (default: false)",
+      "type": "Optional[Boolean]"
+    }
+  },
+  "supports_noop": true
+}

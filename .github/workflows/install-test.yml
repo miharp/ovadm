@@ -146,6 +146,219 @@ jobs:
             server_host=puppet \
             --inventoryfile docker/inventory.yaml
 
+      - name: Extend the CA
+        run: |
+          # A revoked certificate first, so the CRL the plan re-signs has an
+          # entry to carry over.
+          docker exec ovadm-server bash -c '
+            export PATH=/opt/puppetlabs/bin:$PATH
+            puppetserver ca generate --certname throwaway
+            puppetserver ca revoke --certname throwaway
+            cp /etc/puppetlabs/puppetserver/ca/ca_crt.pem /root/ca_crt.before.pem'
+          compilers=''
+          if [ '${{ matrix.topology }}' = large ]; then compilers='compiler_hosts=compiler01'; fi
+          bundle exec bolt plan run ovadm::extend_ca \
+            server_host=puppet $compilers agent_hosts=agent01 ttl=20y \
+            --inventoryfile docker/inventory.yaml
+
+      - name: Verify the extended CA
+        run: |
+          set -e
+          # Same subjects, serials, keys and extensions as before; only the
+          # expiry moved, to twenty years out. The CRLs run as long, kept the
+          # revocation, and the server's trusted copy is the new bundle.
+          docker exec ovadm-server /opt/puppetlabs/puppet/bin/ruby -ropenssl -e '
+            read = ->(path, type, marker) { File.read(path).scan(/-----BEGIN #{marker}-----.+?-----END #{marker}-----/m).map { |pem| type.new(pem) } }
+            cadir  = "/etc/puppetlabs/puppetserver/ca"
+            before = read.call("/root/ca_crt.before.pem", OpenSSL::X509::Certificate, "CERTIFICATE")
+            after  = read.call("#{cadir}/ca_crt.pem", OpenSSL::X509::Certificate, "CERTIFICATE")
+            abort "the bundle no longer holds two certificates" unless after.length == 2
+            before.zip(after).each do |was, now|
+              same = %i[subject issuer serial not_before].all? { |field| was.send(field).to_s == now.send(field).to_s } &&
+                     was.public_key.to_der == now.public_key.to_der &&
+                     was.extensions.map(&:to_der) == now.extensions.map(&:to_der)
+              abort "#{now.subject} changed in more than its expiry" unless same
+              years = (now.not_after - Time.now) / (365 * 86_400.0)
+              puts format("%s expires %s (%.1f years out)", now.subject, now.not_after, years)
+              abort "#{now.subject} was not extended to 20 years" unless years > 19.9
+            end
+            crls = read.call("#{cadir}/ca_crl.pem", OpenSSL::X509::CRL, "X509 CRL")
+            abort "a CRL does not run as long as the CA" unless crls.all? { |crl| crl.next_update >= after.map(&:not_after).min }
+            abort "the revocation is gone from the CRL" unless crls.first.revoked.length == 1
+          '
+          docker exec ovadm-server cat /etc/puppetlabs/puppetserver/ca/ca_crt.pem > "$RUNNER_TEMP/ca_crt.pem"
+          docker exec ovadm-server cat /etc/puppetlabs/puppet/ssl/certs/ca.pem | cmp - "$RUNNER_TEMP/ca_crt.pem"
+          # agent01 was named in agent_hosts, so it holds the new bundle now.
+          docker exec ovadm-agent01 cat /etc/puppetlabs/puppet/ssl/certs/ca.pem | cmp - "$RUNNER_TEMP/ca_crt.pem"
+          docker exec ovadm-agent01 /opt/puppetlabs/bin/puppet agent -t | tee "$RUNNER_TEMP/agent01.log"
+          grep -q 'Catalog compiled by ${{ matrix.agent_server }}' "$RUNNER_TEMP/agent01.log"
+
+      - name: Verify an agent the plan did not touch
+        run: |
+          set -e
+          ca=/etc/puppetlabs/puppet/ssl/certs/ca.pem
+          # With the bundle from before the extension, the agent still gets
+          # its catalog: the keys are the ones its copy vouches for.
+          if docker exec ovadm-agent cat "$ca" | cmp -s - "$RUNNER_TEMP/ca_crt.pem"; then
+            echo 'the agent already holds the new bundle, so this would show nothing'
+            exit 1
+          fi
+          docker exec ovadm-agent /opt/puppetlabs/bin/puppet agent -t --server ${{ matrix.agent_server }} \
+            | tee "$RUNNER_TEMP/agent.log"
+          grep -q 'Catalog compiled by ${{ matrix.agent_server }}' "$RUNNER_TEMP/agent.log"
+          # Once its copy is older than ca_refresh_interval, it fetches the
+          # new bundle by itself.
+          docker exec ovadm-agent touch -d '2 days ago' "$ca"
+          docker exec ovadm-agent /opt/puppetlabs/bin/puppet agent -t --server ${{ matrix.agent_server }}
+          docker exec ovadm-agent cat "$ca" | cmp - "$RUNNER_TEMP/ca_crt.pem"
+
+      - name: Check status after the extension
+        run: |
+          bundle exec bolt plan run ovadm::status \
+            server_host=puppet \
+            --inventoryfile docker/inventory.yaml | tee "$RUNNER_TEMP/status.log"
+          test "$(grep -c '✓ CA certificate' "$RUNNER_TEMP/status.log")" -eq 2
+
+      - name: Tear down
+        if: always()
+        run: docker compose down
+
+  extend-expired-ca:
+    name: Extend an expired CA
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+
+      - name: Start containers
+        run: docker compose up -d --build puppet agent01
+
+      - name: Install OpenVox Server
+        run: |
+          bundle exec bolt plan run ovadm::install \
+            server_host=puppet \
+            --inventoryfile docker/inventory.yaml
+
+      - name: Swap the CA for one puppetserver generates itself, good for six minutes
+        run: |
+          # Without `puppetserver ca setup`, the server makes a single
+          # self-signed CA certificate on first start and signs its own
+          # certificate in the same moment, both for ca_ttl. That is the CA of
+          # a server installed before ovadm 0.2.0 or brought over from Puppet
+          # 7, here with minutes left instead of years.
+          docker exec ovadm-server bash -c '
+            set -e
+            export PATH=/opt/puppetlabs/bin:$PATH
+            systemctl stop puppetserver
+            rm -rf /etc/puppetlabs/puppetserver/ca /etc/puppetlabs/puppet/ssl
+            install -d -o puppet -g puppet -m 0771 /etc/puppetlabs/puppet/ssl
+            puppet config set ca_ttl 6m --section server
+            systemctl start puppetserver'
+          bundle exec bolt task run ovadm::wait_until_service_ready --targets puppet \
+            --inventoryfile docker/inventory.yaml
+          # Certificates signed from here on get the usual five years, so the
+          # agent's own certificate outlives the CA.
+          docker exec ovadm-server bash -c '
+            set -e
+            export PATH=/opt/puppetlabs/bin:$PATH
+            test "$(grep -c "BEGIN CERTIFICATE" /etc/puppetlabs/puppetserver/ca/ca_crt.pem)" -eq 1
+            test ! -e /etc/puppetlabs/puppetserver/ca/root_key.pem
+            puppet config delete ca_ttl --section server
+            systemctl restart puppetserver'
+          bundle exec bolt task run ovadm::wait_until_service_ready --targets puppet \
+            --inventoryfile docker/inventory.yaml
+
+      - name: Enroll an agent while the CA is valid
+        run: |
+          bundle exec bolt plan run ovadm::add_agent \
+            server_host=puppet agent_hosts=agent01 \
+            --inventoryfile docker/inventory.yaml
+          docker exec ovadm-agent01 /opt/puppetlabs/bin/puppet agent -t
+
+      - name: Wait for the CA to expire
+        timeout-minutes: 8
+        run: |
+          until ! docker exec ovadm-server openssl x509 -noout -checkend 0 \
+            -in /etc/puppetlabs/puppet/ssl/certs/puppet.pem >/dev/null; do
+            sleep 10
+          done
+          docker exec ovadm-server openssl x509 -noout -subject -enddate \
+            -in /etc/puppetlabs/puppetserver/ca/ca_crt.pem
+          docker exec ovadm-server openssl x509 -noout -subject -enddate -ext subjectAltName \
+            -in /etc/puppetlabs/puppet/ssl/certs/puppet.pem | tee "$RUNNER_TEMP/server-cert.before"
+
+      - name: Verify the deployment is down, and that status says why
+        run: |
+          set +e
+          docker exec ovadm-agent01 /opt/puppetlabs/bin/puppet agent -t 2>&1 | tee "$RUNNER_TEMP/agent01.log"
+          set -e
+          grep -q 'has expired' "$RUNNER_TEMP/agent01.log"
+          # An agent cannot fetch a new bundle with an expired one either.
+          docker exec ovadm-agent01 touch -d '2 days ago' /etc/puppetlabs/puppet/ssl/certs/ca.pem
+          set +e
+          docker exec ovadm-agent01 /opt/puppetlabs/bin/puppet agent -t 2>&1 | tee "$RUNNER_TEMP/agent01.log"
+          set -e
+          grep -q 'Refreshing CA certificate' "$RUNNER_TEMP/agent01.log"
+          grep -q 'certificate has expired' "$RUNNER_TEMP/agent01.log"
+          bundle exec bolt plan run ovadm::status \
+            server_host=puppet \
+            --inventoryfile docker/inventory.yaml | tee "$RUNNER_TEMP/status.log"
+          grep -q '✗ CA certificate CN=Puppet CA: puppet (root): expired' "$RUNNER_TEMP/status.log"
+          grep -q '✗ certificate of puppet: expired' "$RUNNER_TEMP/status.log"
+
+      - name: Extend the CA, without the agent
+        run: |
+          bundle exec bolt plan run ovadm::extend_ca \
+            server_host=puppet \
+            --inventoryfile docker/inventory.yaml | tee "$RUNNER_TEMP/extend.log"
+          grep -q "the server's certificate was replaced" "$RUNNER_TEMP/extend.log"
+          grep -q 'The CA had expired, so no agent can fetch the new bundle by itself' "$RUNNER_TEMP/extend.log"
+
+      - name: Verify the server, and that the agent is still locked out
+        run: |
+          set -e
+          docker exec ovadm-server bash -c '
+            set -e
+            cd /etc/puppetlabs/puppetserver/ca
+            test "$(grep -c "BEGIN CERTIFICATE" ca_crt.pem)" -eq 1
+            # Fourteen years, in seconds: both now run fifteen.
+            openssl x509 -noout -checkend 441504000 -in ca_crt.pem
+            test "$(openssl x509 -noout -serial -in ca_crt.pem)" = "$(openssl x509 -noout -serial -in ca_crt.pem.*.bak)"
+            test "$(sha256sum < ca_crt.pem)" = "$(sha256sum < /etc/puppetlabs/puppet/ssl/certs/ca.pem)"
+            openssl x509 -noout -checkend 441504000 -in /etc/puppetlabs/puppet/ssl/certs/puppet.pem
+            openssl verify -CAfile ca_crt.pem signed/agent01.pem /etc/puppetlabs/puppet/ssl/certs/puppet.pem
+            ls -d /etc/puppetlabs/puppet/ssl.server-cert.*.bak
+            /opt/puppetlabs/bin/puppet agent -t'
+          # The new certificate answers to the names the old one did.
+          docker exec ovadm-server openssl x509 -noout -ext subjectAltName \
+            -in /etc/puppetlabs/puppet/ssl/certs/puppet.pem | tee "$RUNNER_TEMP/server-cert.after"
+          grep -q 'DNS:puppet' "$RUNNER_TEMP/server-cert.after"
+          set +e
+          docker exec ovadm-agent01 /opt/puppetlabs/bin/puppet agent -t 2>&1 | tee "$RUNNER_TEMP/agent01.log"
+          set -e
+          grep -q 'certificate has expired' "$RUNNER_TEMP/agent01.log"
+
+      - name: Push the bundle to the agent
+        run: |
+          set -e
+          bundle exec bolt plan run ovadm::extend_ca \
+            server_host=puppet agent_hosts=agent01 distribute_only=true \
+            --inventoryfile docker/inventory.yaml
+          docker exec ovadm-agent01 /opt/puppetlabs/bin/puppet agent -t | tee "$RUNNER_TEMP/agent01.log"
+          grep -q 'Catalog compiled by puppet' "$RUNNER_TEMP/agent01.log"
+
+      - name: Check status
+        run: |
+          bundle exec bolt plan run ovadm::status \
+            server_host=puppet \
+            --inventoryfile docker/inventory.yaml | tee "$RUNNER_TEMP/status.log"
+          grep -q '✓ CA certificate CN=Puppet CA: puppet (root)' "$RUNNER_TEMP/status.log"
+          grep -q '✓ certificate of puppet' "$RUNNER_TEMP/status.log"
+
       - name: Tear down
         if: always()
         run: docker compose down
