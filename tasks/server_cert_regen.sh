@@ -142,7 +142,10 @@ lost=$(LC_ALL=C comm -23 <(tr ',' '\n' <<<"$old_extensions" | LC_ALL=C sort) <(t
 
 # OpenVoxDB keeps copies of the server's certificate and key when it runs on
 # the same host. They are replaced only when the copy is the certificate just
-# retired; a certificate OpenVoxDB was given separately is left alone.
+# retired; a certificate OpenVoxDB was given separately is left alone. Where
+# OpenVoxDB reads the server's own files instead (the same path, or a link to
+# it), there is nothing to copy, but it loaded the old ones and is reported
+# as updated all the same, so that it is restarted.
 openvoxdb='null'
 jetty_ini='/etc/puppetlabs/puppetdb/conf.d/jetty.ini'
 pdb_cert='/etc/puppetlabs/puppetdb/ssl/public.pem'
@@ -154,13 +157,18 @@ if [ -f "$jetty_ini" ]; then
   [ -n "$v" ] && pdb_key="$v"
 fi
 if [ -f "$pdb_cert" ] && [ -f "$pdb_key" ] && [ -f "${backup}${hostcert}" ]; then
-  if [ "$(sha256sum < "$pdb_cert")" = "$(sha256sum < "${backup}${hostcert}")" ]; then
-    install -d -m 0700 "${backup}$(dirname "$pdb_cert")"
-    cp -p "$pdb_cert" "${backup}${pdb_cert}"
-    cp -p "$pdb_key" "${backup}${pdb_key}"
+  if [ "$pdb_cert" -ef "$hostcert" ] || [ "$(sha256sum < "$pdb_cert")" = "$(sha256sum < "${backup}${hostcert}")" ]; then
     # Written into the existing files, so they keep their owner and mode.
-    cat "$hostcert" > "$pdb_cert"
-    cat "$hostprivkey" > "$pdb_key"
+    if ! [ "$pdb_cert" -ef "$hostcert" ]; then
+      install -d -m 0700 "${backup}$(dirname "$pdb_cert")"
+      cp -p "$pdb_cert" "${backup}${pdb_cert}"
+      cat "$hostcert" > "$pdb_cert"
+    fi
+    if ! [ "$pdb_key" -ef "$hostprivkey" ]; then
+      install -d -m 0700 "${backup}$(dirname "$pdb_key")"
+      cp -p "$pdb_key" "${backup}${pdb_key}"
+      cat "$hostprivkey" > "$pdb_key"
+    fi
     openvoxdb='"updated"'
   else
     openvoxdb='"left"'

@@ -122,6 +122,38 @@ RSpec.describe 'ovadm::ca_bundle_install task' do
         expect(result.result['openvoxdb_ca']).to eq('path' => '/opt/pdb/trust.pem', 'action' => 'updated')
         expect(cat('/opt/pdb/trust.pem')).to eq(@new['bundle'])
       end
+
+      # No second file to write, but OpenVoxDB loaded the old one: the plan
+      # restarts it on 'updated', so the task has to say so.
+      it "reports OpenVoxDB as updated where jetty.ini names the host's own bundle" do
+        run_shell(<<~SH)
+          set -e
+          cat #{CaFixture::ORIGINALS}/ca_crt.pem > #{localcacert}
+          install -d /etc/puppetlabs/puppetdb/conf.d
+          printf '[jetty]\\nssl-ca-cert = #{localcacert}\\n' > /etc/puppetlabs/puppetdb/conf.d/jetty.ini
+        SH
+        result = run_bolt_task('ovadm::ca_bundle_install', @new)
+        again  = run_bolt_task('ovadm::ca_bundle_install', @new)
+        run_shell('rm -rf /etc/puppetlabs/puppetdb/conf.d')
+        expect(result.result).to include('status' => 'installed', 'changed' => [localcacert])
+        expect(result.result['openvoxdb_ca']).to eq('path' => localcacert, 'action' => 'updated', 'shared_with' => localcacert)
+        expect(again.result).to include('status' => 'unchanged', 'changed' => [])
+        expect(again.result['openvoxdb_ca']).to eq('path' => localcacert, 'action' => 'unchanged', 'shared_with' => localcacert)
+      end
+
+      it "and where OpenVoxDB's ca.pem is a link to it, which it leaves a link" do
+        run_shell(<<~SH)
+          set -e
+          cat #{CaFixture::ORIGINALS}/ca_crt.pem > #{localcacert}
+          install -d /etc/puppetlabs/puppetdb/ssl
+          ln -sf #{localcacert} #{pdb_ca}
+        SH
+        result = run_bolt_task('ovadm::ca_bundle_install', @new)
+        expect(result.result).to include('status' => 'installed', 'changed' => [localcacert])
+        expect(result.result['openvoxdb_ca']).to eq('path' => pdb_ca, 'action' => 'updated', 'shared_with' => localcacert)
+        expect(run_shell("readlink #{pdb_ca}")['stdout'].strip).to eq(localcacert)
+        expect(cat(pdb_ca)).to eq(@new['bundle'])
+      end
     end
 
     context 'on a host whose bundle and certificate have both expired' do

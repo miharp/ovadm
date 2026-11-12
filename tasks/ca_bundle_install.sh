@@ -168,8 +168,13 @@ begin
     line = File.readlines(jetty_ini).find { |l| l =~ /^\s*ssl-ca-cert\s*=/ }
     pdb_ca = line.split('=', 2)[1].strip if line
   end
-  if !File.file?(pdb_ca) || File.identical?(pdb_ca, localcacert)
+  if !File.file?(pdb_ca)
     result['openvoxdb_ca'] = nil
+  elsif File.identical?(pdb_ca, localcacert)
+    # OpenVoxDB reads the host's own bundle: the same path, or a link to it.
+    # There is no second file to write, but OpenVoxDB loaded the old one and
+    # needs its restart as much as it would for a copy.
+    result['openvoxdb_ca'] = { 'path' => pdb_ca, 'action' => result['localcacert']['action'], 'shared_with' => localcacert }
   elsif same_certs.call(pdb_ca)
     result['openvoxdb_ca'] = { 'path' => pdb_ca, 'action' => 'unchanged' }
   else

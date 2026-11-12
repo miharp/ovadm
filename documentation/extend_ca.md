@@ -105,13 +105,17 @@ written and no service is touched.
 | A compiler | From the plan, when named in `compiler_hosts`. Its agent would fetch the files too, but puppetserver reads them only when it starts | To be named, so that it is restarted |
 | An agent whose copy is still valid | By itself, on the first run after its copy is a day old (`ca_refresh_interval`). Until then its old copy works: the keys are the same | Nothing |
 | An agent whose copy has expired | Not by itself: it cannot verify the server to ask | To be named in `agent_hosts`, or the [hand step](#agents-the-plan-cannot-reach) |
-| OpenVoxDB on the server | From the plan: its copy in `/etc/puppetlabs/puppetdb/ssl/` is replaced and OpenVoxDB restarted | Nothing more |
+| OpenVoxDB on the server | From the plan: its copy in `/etc/puppetlabs/puppetdb/ssl/` is replaced and OpenVoxDB restarted. Where `jetty.ini` points it at the server's own file, there is no copy and OpenVoxDB is restarted all the same. An OpenVoxDB that is not running is left stopped | Nothing more |
 | OpenVoxDB on another host, or anything else that keeps its own copy of the CA | Nothing refreshes such a copy. It works until the old end date, then stops | To be named in `agent_hosts`, and its service restarted |
 
 A host in `agent_hosts` is checked before it is touched: the bundle is
 installed only where it is the CA that signed the host's own certificate. A
 failure on one host does not stop the others; the plan finishes them and then
 fails, naming the ones it could not do.
+
+`agent_hosts` may hold the server and the compilers as well, as a group of
+every host does. Each host is handled once: the server as the server, a
+compiler as a compiler.
 
 ### Hosts left out
 
@@ -173,7 +177,8 @@ the old certificate and its key are moved aside and `puppetserver ca generate
 - The old certificate, its keys and the CA's signed copy are kept in
   `/etc/puppetlabs/puppet/ssl.server-cert.<timestamp>.bak/`.
 - Where OpenVoxDB on the server uses copies of the server's certificate and
-  key, they are replaced with the new ones.
+  key, they are replaced with the new ones, and OpenVoxDB is restarted. It
+  is restarted too where it reads the server's own files.
 
 Agents do not notice: the new certificate comes from the CA they trust.
 

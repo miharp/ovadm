@@ -1023,6 +1023,8 @@ Data type: `Optional[TargetSpec]`
 Hosts to push the new bundle to: agents whose copy of the CA has
 expired, and hosts that keep a copy nothing refreshes, such as an
 OpenVoxDB on its own host. A failure on one does not stop the others.
+The server and the compilers may be among them, as when a group names
+every host: they are handled as the server and as compilers, once.
 
 Default value: `undef`
 

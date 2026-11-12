@@ -28,6 +28,8 @@
 #   Hosts to push the new bundle to: agents whose copy of the CA has
 #   expired, and hosts that keep a copy nothing refreshes, such as an
 #   OpenVoxDB on its own host. A failure on one does not stop the others.
+#   The server and the compilers may be among them, as when a group names
+#   every host: they are handled as the server and as compilers, once.
 #
 # @param ttl
 #   How long from now the CA certificates should run, as a number and a unit
@@ -92,13 +94,18 @@ plan ovadm::extend_ca(
   }
   $server = $servers[0]
   $name   = $server.name
+  # Each host is handled once, in the first role it is named in: the server,
+  # then a compiler, then one of the rest. A group in agent_hosts may well
+  # hold the server and the compilers, and a host handled twice would have
+  # its second result stand for both.
   $compilers = $compiler_hosts ? {
     undef   => [],
-    default => get_targets($compiler_hosts),
+    default => get_targets($compiler_hosts).filter |$t| { $t.name != $name },
   }
+  $compiler_names = $compilers.map |$t| { $t.name }
   $agents = $agent_hosts ? {
     undef   => [],
-    default => get_targets($agent_hosts),
+    default => get_targets($agent_hosts).filter |$t| { $t.name != $name and !($t.name in $compiler_names) },
   }
 
   # What is there now, and whether it can be extended at all.
@@ -205,15 +212,20 @@ plan ovadm::extend_ca(
       })
       $on_server = run_task('ovadm::ca_bundle_install', $server, $bundle_params).first.value
       $openvoxdb_changed = ($on_server['openvoxdb_ca'] != undef and $on_server['openvoxdb_ca']['action'] == 'updated')
-      if $openvoxdb_changed {
+      # Only an OpenVoxDB that is running has the old bundle loaded. One that
+      # is stopped, or gone with its files left behind, is not waited for.
+      $openvoxdb_running = ($openvoxdb_changed and run_command('systemctl is-active --quiet puppetdb', $server, '_catch_errors' => true).ok)
+      if $openvoxdb_running {
         run_command('systemctl try-restart puppetdb', $server, '_catch_errors' => true)
         out::message("${name}: OpenVoxDB's copy of the CA was replaced and OpenVoxDB restarted")
+      } elsif $openvoxdb_changed {
+        out::message("${name}: OpenVoxDB's copy of the CA was replaced. OpenVoxDB is not running there, so it was not restarted.")
       }
       if $on_server['changed'].empty {
         out::message("${name}: already has the bundle")
       } else {
         run_task('ovadm::service_restart', $server)
-        run_task('ovadm::wait_until_service_ready', $server, { 'puppetdb' => $openvoxdb_changed })
+        run_task('ovadm::wait_until_service_ready', $server, { 'puppetdb' => $openvoxdb_running })
         out::message("${name}: updated ${on_server['changed'].join(', ')}, puppetserver restarted")
       }
       ({ 'extended' => undef, 'regenerated' => undef, 'bundle_params' => $bundle_params, 'on_server' => $on_server })
@@ -258,8 +270,9 @@ plan ovadm::extend_ca(
         ({ 'extended' => $extended, 'regenerated' => $regenerated, 'bundle_params' => $bundle_params, 'on_server' => $on_server })
       }
 
-      # OpenVoxDB reads its copies when it starts; only one that is running
-      # is restarted.
+      # OpenVoxDB reads its copies when it starts. Only one that is running
+      # has the old ones loaded: it is restarted and waited for. One that is
+      # stopped, or gone with its files left behind, is neither.
       $openvoxdb_changed = $changed =~ Error ? {
         true    => false,
         default => (
@@ -267,16 +280,19 @@ plan ovadm::extend_ca(
           or ($changed['regenerated'] != undef and $changed['regenerated']['openvoxdb'] == 'updated')
         ),
       }
-      if $openvoxdb_changed {
+      $openvoxdb_running = ($openvoxdb_changed and run_command('systemctl is-active --quiet puppetdb', $server, '_catch_errors' => true).ok)
+      if $openvoxdb_running {
         run_command('systemctl try-restart puppetdb', $server, '_catch_errors' => true)
         out::message("${name}: OpenVoxDB's copies were replaced and OpenVoxDB restarted")
+      } elsif $openvoxdb_changed {
+        out::message("${name}: OpenVoxDB's copies were replaced. OpenVoxDB is not running there, so it was not restarted.")
       }
       run_task('ovadm::service_start', $server)
       if $changed =~ Error {
         out::message("${name}: the change failed and puppetserver was started again as it was.")
         fail_plan($changed)
       }
-      run_task('ovadm::wait_until_service_ready', $server, { 'puppetdb' => $openvoxdb_changed })
+      run_task('ovadm::wait_until_service_ready', $server, { 'puppetdb' => $openvoxdb_running })
       $changed
     }
 

@@ -249,8 +249,36 @@ describe 'ovadm::extend_ca' do
     it 'restarts OpenVoxDB and waits for it when its copies were replaced' do
       allow_the_rest(report: ca_report(days_left: -3, own_days_left: -3))
       allow_task('ovadm::server_cert_regen').always_return(regenerated.merge('openvoxdb' => 'updated'))
+      allow_command('systemctl is-active --quiet puppetdb').always_return('stdout' => '', 'stderr' => '')
       expect_command('systemctl try-restart puppetdb').with_targets([server]).be_called_times(1)
       expect_task('ovadm::wait_until_service_ready').with_targets([server]).with_params('puppetdb' => true)
+                                                    .be_called_times(1).always_return('status' => 'ready')
+
+      expect(run_plan('ovadm::extend_ca', { 'server_host' => server })).to be_ok
+    end
+
+    it 'restarts OpenVoxDB when the file replaced is one it reads directly' do
+      allow_the_rest
+      shared = { 'path' => '/etc/puppetlabs/puppet/ssl/certs/ca.pem', 'action' => 'updated',
+                 'shared_with' => '/etc/puppetlabs/puppet/ssl/certs/ca.pem' }
+      allow_task('ovadm::ca_bundle_install').always_return(installed(server, openvoxdb: shared))
+      allow_command('systemctl is-active --quiet puppetdb').always_return('stdout' => '', 'stderr' => '')
+      expect_command('systemctl try-restart puppetdb').with_targets([server]).be_called_times(1)
+      expect_task('ovadm::wait_until_service_ready').with_targets([server]).with_params('puppetdb' => true)
+                                                    .be_called_times(1).always_return('status' => 'ready')
+
+      expect(run_plan('ovadm::extend_ca', { 'server_host' => server })).to be_ok
+    end
+
+    it 'neither restarts nor waits for an OpenVoxDB that is not running' do
+      allow_the_rest
+      allow_task('ovadm::ca_bundle_install').always_return(
+        installed(server, openvoxdb: { 'path' => '/etc/puppetlabs/puppetdb/ssl/ca.pem', 'action' => 'updated' })
+      )
+      expect_command('systemctl is-active --quiet puppetdb').with_targets([server]).be_called_times(1)
+                                                            .error_with('msg' => 'inactive', 'kind' => 'puppetlabs.tasks/command-error')
+      expect_command('systemctl try-restart puppetdb').not_be_called
+      expect_task('ovadm::wait_until_service_ready').with_targets([server]).with_params('puppetdb' => false)
                                                     .be_called_times(1).always_return('status' => 'ready')
 
       expect(run_plan('ovadm::extend_ca', { 'server_host' => server })).to be_ok
@@ -310,6 +338,33 @@ describe 'ovadm::extend_ca' do
       expect(result.value.msg).to include("#{agent} did not get the new bundle", 'distribute_only=true')
       expect(result.value.details['failed']).to eq(agent => 'it has no certificate from this CA (not_enrolled)')
       expect(result.value.details['installed'].keys).to eq([server, compiler])
+    end
+
+    it 'handles a compiler named in agent_hosts too as a compiler, once, and keeps its failure' do
+      allow_the_rest
+      # The bundle goes on, the restart fails. A second pass over the same
+      # host as an agent would report the bundle as there and nothing wrong.
+      expect_task('ovadm::ca_bundle_install').with_targets([compiler]).always_return(installed(compiler)).be_called_times(1)
+      expect_task('ovadm::ca_bundle_install').with_targets([agent]).always_return(installed(agent)).be_called_times(1)
+      expect_task('ovadm::service_restart').with_targets([compiler]).error_with('kind' => 'ovadm/service', 'msg' => 'puppetserver did not start')
+
+      result = run_plan('ovadm::extend_ca', 'server_host' => server, 'compiler_hosts' => [compiler],
+                                            'agent_hosts' => [server, compiler, agent])
+      expect(result).not_to be_ok
+      expect(result.value.msg).to include("#{compiler} did not get the new bundle", 'distribute_only=true')
+      expect(result.value.details['failed']).to eq(compiler => 'puppetserver did not start')
+      expect(result.value.details['installed'].keys).to contain_exactly(server, agent)
+    end
+
+    it 'does not treat the server as a compiler or as an agent host when it is named as one' do
+      allow_the_rest
+      expect_task('ovadm::ca_bundle_install').with_targets([server]).always_return(installed(server)).be_called_times(1)
+      expect_task('ovadm::service_restart').not_be_called
+
+      result = run_plan('ovadm::extend_ca', 'server_host' => server, 'compiler_hosts' => [server], 'agent_hosts' => [server])
+      expect(result).to be_ok
+      expect(result.value['installed']).to eq(server => ['/etc/puppetlabs/puppet/ssl/certs/ca.pem'])
+      expect(result.value['agents_held']).to eq([server])
     end
 
     it 'names a host whose own certificate the extension does not help' do
