@@ -5,7 +5,7 @@ Notable changes to ovadm are recorded here. The format follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html) — while ovadm is in
 0.x, a minor version may carry breaking changes.
 
-## [Unreleased]
+## [0.14.0] - 2026-11-12
 
 ### Added
 
@@ -556,7 +556,7 @@ covers the module as it stands.
 - CI: plan unit tests, acceptance tests on Rocky 9, Ubuntu 22.04, Ubuntu 24.04 and
   Debian 12, and an end-to-end install test covering both topologies.
 
-[Unreleased]: https://github.com/miharp/ovadm/compare/v0.13.0...HEAD
+[0.14.0]: https://github.com/miharp/ovadm/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/miharp/ovadm/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/miharp/ovadm/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/miharp/ovadm/compare/v0.10.0...v0.11.0
