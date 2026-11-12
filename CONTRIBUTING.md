@@ -152,10 +152,13 @@ A release is a git tag. Pushing one publishes the module to the
 [Forge](https://forge.puppet.com/modules/miharp/ovadm) and cuts a GitHub release
 from the same commit, so a `Puppetfile` can pin either and get the same code.
 
-1. In a PR: add the version's section to `CHANGELOG.md`, set the same version in
-   `metadata.json`, and update the version in the README's `Puppetfile`
-   examples. While ovadm is in 0.x, a minor bump covers breaking changes;
-   reserve patch bumps for fixes.
+1. In a PR: rename the `## [Unreleased]` heading in `CHANGELOG.md` to the
+   version and date and add the version's compare link at the bottom, set the
+   same version in `metadata.json`, and update the version in the README's
+   `Puppetfile` examples. Do not leave an empty `Unreleased` heading behind:
+   the Forge shows the changelog as it is in the release. The first change
+   merged after a release adds the heading again. While ovadm is in 0.x, a
+   minor bump covers breaking changes; reserve patch bumps for fixes.
 2. After it merges, tag the merge commit on `main` with the version from
    `metadata.json` and push:
 
