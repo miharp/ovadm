@@ -14,7 +14,7 @@ Notable changes to ovadm are recorded here. The format follows
   the next is touched, so the rest of the pool keeps compiling. A compiler
   that fails stops the plan, which prints what that compiler reported and
   names the compilers already upgraded and the ones it did not touch. The
-  default is unchanged: all compilers at once.
+  default is unchanged: all compilers at once (#121).
 
 ## [0.14.0] - 2026-11-12
 
