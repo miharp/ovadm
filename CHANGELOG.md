@@ -5,6 +5,17 @@ Notable changes to ovadm are recorded here. The format follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html) — while ovadm is in
 0.x, a minor version may carry breaking changes.
 
+## [Unreleased]
+
+### Added
+
+- `rolling` parameter on `ovadm::upgrade`: upgrades the compilers one at a
+  time, in the order given, each one restarted and answering again before
+  the next is touched, so the rest of the pool keeps compiling. A compiler
+  that fails stops the plan, which prints what that compiler reported and
+  names the compilers already upgraded and the ones it did not touch. The
+  default is unchanged: all compilers at once (#121).
+
 ## [0.14.0] - 2026-11-12
 
 ### Added
