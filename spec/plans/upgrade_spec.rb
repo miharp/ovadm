@@ -77,6 +77,51 @@ describe 'ovadm::upgrade' do
       })
       expect(result).to be_ok
     end
+
+    it 'upgrades the compilers all at once unless asked to roll' do
+      allow_plan('ovadm::backup').always_return(backup_result)
+      allow_plan('ovadm::subplans::precheck')
+      allow_plan('ovadm::subplans::upgrade_server')
+      expect_plan('ovadm::subplans::upgrade_compilers').with_params(
+        'compiler_hosts'      => compiler,
+        'rolling'             => false,
+        'ovox_server_version' => server_version,
+        'package_url'         => nil,
+        'ovox_major'          => 8,
+        'apt_base_url'        => nil,
+        'yum_base_url'        => nil
+      ).be_called_times(1)
+
+      result = run_plan('ovadm::upgrade', {
+        'server_host'         => server,
+        'ovox_server_version' => server_version,
+        'compiler_hosts'      => compiler
+      })
+      expect(result).to be_ok
+    end
+
+    it 'passes rolling to upgrade_compilers' do
+      allow_plan('ovadm::backup').always_return(backup_result)
+      allow_plan('ovadm::subplans::precheck')
+      allow_plan('ovadm::subplans::upgrade_server')
+      expect_plan('ovadm::subplans::upgrade_compilers').with_params(
+        'compiler_hosts'      => compiler,
+        'rolling'             => true,
+        'ovox_server_version' => server_version,
+        'package_url'         => nil,
+        'ovox_major'          => 8,
+        'apt_base_url'        => nil,
+        'yum_base_url'        => nil
+      ).be_called_times(1)
+
+      result = run_plan('ovadm::upgrade', {
+        'server_host'         => server,
+        'ovox_server_version' => server_version,
+        'compiler_hosts'      => compiler,
+        'rolling'             => true
+      })
+      expect(result).to be_ok
+    end
   end
 
   context 'the agents' do

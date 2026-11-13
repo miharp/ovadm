@@ -1369,7 +1369,7 @@ The target node running OpenVox Server
 
 Upgrades within a major version, to a new major version (8 to 9), and from
 Puppet Server to OpenVox (7 to 8). The server is upgraded first, then the
-compilers.
+compilers: all at once, or one at a time with `rolling`.
 
 The Puppet agent on the server and on every compiler named is disabled for
 the whole upgrade (`puppet agent --disable`, after waiting for a run under
@@ -1384,6 +1384,7 @@ The following parameters are available in the `ovadm::upgrade` plan:
 * [`server_host`](#-ovadm--upgrade--server_host)
 * [`ovox_server_version`](#-ovadm--upgrade--ovox_server_version)
 * [`compiler_hosts`](#-ovadm--upgrade--compiler_hosts)
+* [`rolling`](#-ovadm--upgrade--rolling)
 * [`package_url`](#-ovadm--upgrade--package_url)
 * [`ovox_major`](#-ovadm--upgrade--ovox_major)
 * [`apt_base_url`](#-ovadm--upgrade--apt_base_url)
@@ -1414,6 +1415,19 @@ Data type: `Optional[TargetSpec]`
 Compiler pool nodes to upgrade (Large topology)
 
 Default value: `undef`
+
+##### <a name="-ovadm--upgrade--rolling"></a>`rolling`
+
+Data type: `Boolean`
+
+Upgrade the compilers one at a time, in the order given in
+`compiler_hosts`, waiting for each to answer again before starting the
+next, so the rest of the pool keeps compiling. A compiler that fails
+stops the plan and the ones after it are left on the version they had.
+By default the compilers are upgraded, and restart, all at once. Has no
+effect without `compiler_hosts`.
+
+Default value: `false`
 
 ##### <a name="-ovadm--upgrade--package_url"></a>`package_url`
 
