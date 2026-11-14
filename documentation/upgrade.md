@@ -106,7 +106,43 @@ bolt plan run ovadm::upgrade \
   ovox_server_version=8.13.0
 ```
 
-The server is upgraded first, then all compilers. The agent is disabled on all of them from the start, as [above](#the-agent-during-the-upgrade). Compilers are currently upgraded simultaneously — plan for a brief compilation outage during the compiler restart window, or take them out of your load balancer rotation beforehand.
+The server is upgraded first, then the compilers. The agent is disabled on all of them from the start, as [above](#the-agent-during-the-upgrade).
+
+By default the compilers are upgraded all at once: each step runs on every compiler together, so they all restart in the same minute and nothing in the pool compiles until they are back. That is the quickest way through, and it suits a maintenance window or a pool the main server can stand in for.
+
+### One compiler at a time
+
+Add `rolling=true` to keep the pool compiling during the upgrade:
+
+```bash
+bolt plan run ovadm::upgrade \
+  server_host=ovox-server.example.com \
+  compiler_hosts=ovox-compiler01.example.com,ovox-compiler02.example.com \
+  ovox_server_version=8.13.0 \
+  rolling=true
+```
+
+The plan then takes the compilers in the order you list them. Each one is upgraded, restarted and answering again before the next is touched, and the plan prints a line as it starts each:
+
+```text
+Upgrading compiler ovox-compiler01.example.com (1 of 2).
+Upgrading compiler ovox-compiler02.example.com (2 of 2).
+```
+
+What to expect:
+
+- **It takes longer.** The time for one compiler, a minute or two, is spent once per compiler.
+- **One compiler is out at a time.** The others need the capacity to carry its share. A load balancer with a health check stops sending agents to the compiler that is restarting. Without one, an agent run that reaches it fails, and the agent's next run succeeds.
+- **The pool runs two versions until the last compiler is done.** That is already true between the server and the compilers in any upgrade, and it is fine within a major version. For a move to a new major version, upgrading all at once keeps that period shortest.
+- **A failure stops the plan there.** The compilers after the failed one are not touched and keep compiling on the version they had. The plan prints what the failed compiler reported, then which compilers were upgraded and which were not:
+
+  ```text
+  Compiler ovox-compiler02.example.com failed: The task failed with exit code 1 and no stdout, but stderr contained:
+  Job for puppetserver.service failed because the control process exited with error code.
+  The plan stops here. Upgraded before it: ovox-compiler01.example.com. Not touched, and still on the version they had: ovox-compiler03.example.com.
+  ```
+
+  Fix the failed compiler and run the plan again with the same parameters. A host already on the target version has nothing to install, but the plan takes a new backup and restarts each service again, one compiler at a time.
 
 ## Internal package mirror
 

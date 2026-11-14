@@ -2,7 +2,7 @@
 #
 # Upgrades within a major version, to a new major version (8 to 9), and from
 # Puppet Server to OpenVox (7 to 8). The server is upgraded first, then the
-# compilers.
+# compilers: all at once, or one at a time with `rolling`.
 #
 # The Puppet agent on the server and on every compiler named is disabled for
 # the whole upgrade (`puppet agent --disable`, after waiting for a run under
@@ -19,6 +19,14 @@
 #
 # @param compiler_hosts
 #   Compiler pool nodes to upgrade (Large topology)
+#
+# @param rolling
+#   Upgrade the compilers one at a time, in the order given in
+#   `compiler_hosts`, waiting for each to answer again before starting the
+#   next, so the rest of the pool keeps compiling. A compiler that fails
+#   stops the plan and the ones after it are left on the version they had.
+#   By default the compilers are upgraded, and restart, all at once. Has no
+#   effect without `compiler_hosts`.
 #
 # @param package_url
 #   Direct URL to an openvox-server rpm or deb to install instead of the
@@ -59,6 +67,7 @@ plan ovadm::upgrade(
   TargetSpec           $server_host,
   Optional[String[1]]  $ovox_server_version = undef,
   Optional[TargetSpec] $compiler_hosts      = undef,
+  Boolean              $rolling             = false,
   Optional[String[1]]  $package_url         = undef,
   Optional[Integer[8]] $ovox_major          = undef,
   Optional[String[1]]  $apt_base_url        = undef,
@@ -144,7 +153,10 @@ plan ovadm::upgrade(
     run_plan('ovadm::subplans::upgrade_server', { 'server_host' => $server_host } + $node_params)
 
     if $compiler_hosts {
-      run_plan('ovadm::subplans::upgrade_compilers', { 'compiler_hosts' => $compiler_hosts } + $node_params)
+      run_plan('ovadm::subplans::upgrade_compilers', {
+        'compiler_hosts' => $compiler_hosts,
+        'rolling'        => $rolling,
+      } + $node_params)
     }
 
     $archives
