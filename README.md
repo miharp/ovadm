@@ -107,7 +107,7 @@ See [CONTRIBUTING.md](https://github.com/miharp/ovadm/blob/main/CONTRIBUTING.md)
 
 ## Status
 
-This project is experimental. It may move under the [OpenVox project](https://openvoxproject.org) organization if it gains community support.
+This project is experimental. It may move under [Vox Pupuli](https://voxpupuli.org) or the [OpenVox project](https://openvoxproject.org) if it gains community support.
 
 ## License
 
