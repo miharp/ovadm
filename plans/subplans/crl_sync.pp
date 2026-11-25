@@ -74,7 +74,12 @@ plan ovadm::subplans::crl_sync(
         }
         out::message("${r.target.name}: ${what}")
         if $r.value['host_cert_revoked'] == true {
-          out::message("WARNING ${r.target.name}: its own certificate (${r.value['certname']}) is revoked. Agents refuse it; stop puppetserver there and take it out of the pool.")
+          # A compiler is a server to its agents; any other host is a client.
+          $advice = $r.value['certname'] in $topo['compilers'] ? {
+            true    => 'Agents refuse it; stop puppetserver there and take it out of the pool.',
+            default => "${name} and every compiler that has this CRL refuse it.",
+          }
+          out::message("WARNING ${r.target.name}: its own certificate (${r.value['certname']}) is revoked. ${advice}")
         }
       }
       $memo + { $r.target.name => { 'problem' => $problem, 'value' => $r.ok ? { true => $r.value, default => undef } } }

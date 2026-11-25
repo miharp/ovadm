@@ -142,6 +142,17 @@ describe 'ovadm::subplans::crl_sync' do
     expect(result.value['host_cert_revoked']).to eq([compiler02])
   end
 
+  it 'says of a revoked host that is not a compiler who refuses it' do
+    agent = 'agent07.example.com'
+    crl_install_returns(agent => installed(agent, revoked: true))
+    expect_out_message.with_params(
+      "WARNING #{agent}: its own certificate (#{agent}) is revoked. #{server} and every compiler that has this CRL refuse it.",
+    )
+
+    result = run_plan('ovadm::subplans::crl_sync', params.merge('hosts' => [compiler01, compiler02, agent]))
+    expect(result.value['host_cert_revoked']).to eq([agent])
+  end
+
   it 'names the compilers the server knows of that were not among the hosts' do
     expect_out_message.with_params(
       "WARNING #{server} knows of 1 compiler(s) that did not get the CRL: #{compiler02}. " \

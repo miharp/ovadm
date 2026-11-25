@@ -286,3 +286,15 @@ server half a second later and served by the compiler until the plan ran; the co
 reloading the CRL the plan wrote without a restart; a compiler with a CRL
 that had run out refusing a valid agent, and serving it again after
 `ovadm::sync_crl`; an agent with a CRL that had run out failing as above.
+
+Also on virtual machines over SSH, with SELinux enforcing: a server and a
+compiler on AlmaLinux 10, agents on AlmaLinux 9 and Ubuntu 24.04. The CRL
+file kept its mode, owner and SELinux type, nothing was denied, and neither
+puppetserver restarted. A revoked agent was cleaned and enrolled again, and
+the compiler served its new certificate. An agent went on taking catalogs
+from a revoked compiler until `ovadm::sync_crl` gave it the CRL, and then
+refused it:
+
+```text
+Error: certificate verify failed [certificate revoked for CN=ovox-compiler01.example.com]
+```
