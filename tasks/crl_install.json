@@ -1,0 +1,11 @@
+{
+  "description": "Install the CA's CRLs on a host as its hostcrl: the list an agent checks the server against and a compiler checks every client against. Refuses a CRL that is not signed by the CA the host already trusts or that has run out, and keeps the host's copy when it is the same or newer (by CRL number). Reports updated, unchanged, kept_newer, absent (the host keeps no CRL) or not_enrolled, the CRLs before and after, and whether the host's own certificate is on the list. Nothing is restarted: puppetserver reloads the file when it changes",
+  "input_method": "environment",
+  "parameters": {
+    "crl": {
+      "description": "The CA's CRLs in PEM, the ca.crl value ovadm::ca_expiry returns with include_bundle",
+      "type": "String[1]"
+    }
+  },
+  "supports_noop": false
+}

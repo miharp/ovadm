@@ -13,7 +13,11 @@
 #   `ca_expiry` is when the CA certificates, the CRLs and the host's own
 #   certificate expire. The report warns when a CA certificate has less than
 #   a year left, or a CRL or the host's certificate less than 30 days, and
-#   names `ovadm::extend_ca` for the first two.
+#   names `ovadm::extend_ca` for the first two. It also warns when a host's
+#   copy of the CRL is behind the CA's (when the CA is among the hosts
+#   checked) or close to its end, naming `ovadm::sync_crl`, when the host's
+#   own certificate is on that copy, and when a compiler the server knows of
+#   is revoked.
 #
 plan ovadm::status(
   TargetSpec $server_host,
@@ -31,6 +35,16 @@ plan ovadm::status(
   # can only fetch the new one while its copy is still valid.
   $ca_warn_days   = 365
   $cert_warn_days = 30
+
+  # The CRL numbers the CA has now, by issuer, to hold every other host's
+  # copy against. Empty when the CA is not among the hosts checked.
+  $ca_crl_numbers = $expiry.reduce({}) |$memo, $r| {
+    $ca_dir = $r.value['ca']
+    $ca_dir ? {
+      undef   => $memo,
+      default => $memo + $ca_dir['crls'].filter |$c| { $c['path'] !~ /infra_crl\.pem\z/ }.map |$c| { [$c['issuer'], $c['crl_number']] }.convert_to(Hash),
+    }
+  }
 
   out::message("ovadm ${ovadm_version}")
 
@@ -72,7 +86,17 @@ plan ovadm::status(
       true    => 'CA',
       default => 'no CA directory',
     }
-    $compilers = $topo['compilers']
+    # A revoked compiler stays listed until its certificate is cleaned.
+    $compilers_revoked = $topo['compilers_revoked'] ? {
+      undef   => [],
+      default => $topo['compilers_revoked'],
+    }
+    $compilers = $topo['compilers'].map |$c| {
+      $c in $compilers_revoked ? {
+        true    => "${c} (revoked)",
+        default => $c,
+      }
+    }
     $compiler_label = $compilers.length ? {
       0       => 'no compilers',
       1       => "1 compiler: ${compilers[0]}",
@@ -137,8 +161,27 @@ plan ovadm::status(
     if $exp['openvoxdb_ca'] and $exp['openvoxdb_ca']['matches_local'] == false {
       out::message("  ! ${exp['openvoxdb_ca']['path']}, OpenVoxDB's copy of the CA, differs from the host's; ovadm::extend_ca with distribute_only=true replaces it")
     }
+    # The host's own copy of the CRLs, where it is not the CA: an agent
+    # checks the server against it, and a compiler every client. Nothing
+    # but an agent run refreshes it.
+    if $ca == undef and $exp['host_crl'] {
+      $exp['host_crl']['crls'].each |$c| {
+        $at_ca = $ca_crl_numbers[$c['issuer']]
+        if $c['expired'] {
+          out::message("  ✗ copy of the CRL of ${c['issuer']}: ran out on ${c['next_update']}, so every certificate checked against it is refused; ovadm::sync_crl replaces it")
+        } elsif $at_ca != undef and $c['crl_number'] != undef and $c['crl_number'] < $at_ca {
+          out::message("  ! copy of the CRL of ${c['issuer']}: behind the CA's (number ${c['crl_number']}, the CA has ${at_ca}), so this host does not refuse the certificates revoked since; ovadm::sync_crl replaces it")
+        } elsif $c['days_left'] < $cert_warn_days {
+          out::message("  ! copy of the CRL of ${c['issuer']}: runs out on ${c['next_update']}, in ${c['days_left']} days; ovadm::sync_crl replaces it")
+        } elsif $at_ca != undef {
+          out::message("  ✓ copy of the CRL of ${c['issuer']}: the same as the CA's (number ${c['crl_number']}, ${c['revoked']} revoked)")
+        }
+      }
+    }
     $own = $exp['host_cert']
-    if $own and $own['not_after'] {
+    if $own and $own['revoked'] == true {
+      out::message("  ✗ certificate of ${exp['certname']}: revoked. Nothing that has the current CRL accepts it.")
+    } elsif $own and $own['not_after'] {
       if $own['expired'] {
         out::message("  ✗ certificate of ${exp['certname']}: expired on ${own['not_after']}")
       } elsif $own['days_left'] < $cert_warn_days {

@@ -44,6 +44,8 @@ A server plus one or more compilers to distribute compilation load across large 
 | `ovadm::backup` | Back up the server into one checked archive | P1 |
 | `ovadm::restore` | Put an archive back on the server it came from, by scope | P1 |
 | `ovadm::extend_ca` | Extend the CA certificate and distribute the new bundle | P1 |
+| `ovadm::revoke` | Revoke certificates on the CA and install the CRL on the compilers | P1 |
+| `ovadm::sync_crl` | Install the CA's CRL on compilers and other hosts | P1 |
 
 ### Subplans (internal)
 
@@ -115,6 +117,8 @@ Tasks are the atomic operations that plans compose. The following are implemente
 | `ovadm::ca_extend` | Re-sign the CA certificates and the CA's CRLs with a later expiry and nothing else changed | The CA host, puppetserver stopped; both CA layouts, expired or not; supports `--noop` |
 | `ovadm::ca_bundle_install` | Install the extended bundle and CRLs on a host: `localcacert`, `hostcrl`, OpenVoxDB's copy | Refuses a bundle that is not the CA of the host's own certificate |
 | `ovadm::server_cert_regen` | Replace the CA host's own certificate, keeping its subject alternative names | For a server certificate that expired with a self-generated CA |
+| `ovadm::cert_revoke` | Revoke certificates with `puppetserver ca revoke`, or revoke and delete them with `puppetserver ca clean` | The CA host, puppetserver running; refuses the server's own certname; reports each certname |
+| `ovadm::crl_install` | Install the CA's CRLs as a host's `hostcrl` | Any host; refuses a CRL the host's CA did not sign or that has run out, never replaces a newer one; nothing restarted |
 
 ### Configuration Management
 

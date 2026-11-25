@@ -5,6 +5,35 @@ Notable changes to ovadm are recorded here. The format follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html) — while ovadm is in
 0.x, a minor version may carry breaking changes.
 
+## [Unreleased]
+
+### Added
+
+- `ovadm::revoke` plan: revokes certificates on the CA and installs the
+  CA's CRL on every compiler named, so the hosts are refused everywhere when
+  the plan ends. `puppetserver ca revoke` alone reaches the server only: a
+  compiler checks clients against the copy of the CRL the agent on the same
+  host keeps, which nothing but an agent run refreshes, and goes on
+  compiling catalogs for a revoked host until then. `clean=true` also
+  deletes each certificate from the CA. The plan refuses the server's own
+  certificate, restarts nothing, and warns when the server knows of a
+  compiler that was not named. See `documentation/crl.md` (#124).
+- `ovadm::sync_crl` plan: installs the CA's CRL on the compilers and other
+  hosts named, for a revocation made another way and for a host whose copy
+  of the CRL has run out (#124).
+- `ovadm::cert_revoke` and `ovadm::crl_install` tasks, which the plans run
+  and which can be used one at a time (#124).
+
+### Changed
+
+- `ovadm::status` reports each host's own copy of the CRL: behind the CA's
+  when the CA is among the hosts checked, within 30 days of its end, or run
+  out, which makes a compiler refuse every agent. It also says when a
+  host's own certificate is revoked, and marks a revoked compiler in the
+  topology line (#124).
+- `ovadm::topology` returns `compilers_revoked`, and `ovadm::ca_expiry`
+  returns `revoked` for the host's own certificate (#124).
+
 ## [0.15.0] - 2026-11-14
 
 ### Added

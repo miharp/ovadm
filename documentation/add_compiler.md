@@ -96,15 +96,18 @@ what the Hetzner lab had to supply by hand around the plan, in that order.
 
 ovadm does not have a `remove_compiler` plan. The compiler is stateless — deleting the VM leaves no broken state on the server.
 
-The one cleanup step is revoking the compiler's certificate from the CA, which is required if you ever want to reuse that hostname:
+The one cleanup step is revoking the compiler's certificate and deleting it from the CA, which is required if you ever want to reuse that hostname. Take the compiler out of the pool first, then name the compilers that remain, so each of them gets the new CRL:
 
 ```bash
-puppetserver ca clean --certname ovox-compiler03.example.com
+bolt plan run ovadm::revoke \
+  server_host=ovox-server.example.com \
+  compiler_hosts=ovox-compiler01.example.com,ovox-compiler02.example.com \
+  certnames=ovox-compiler03.example.com clean=true
 ```
 
-Run this on the OpenVox Server node directly, or via `bolt command run` if you prefer not to SSH in.
+That is `puppetserver ca clean --certname ovox-compiler03.example.com` on the server, followed by the CRL on the other compilers; see [Revoking certificates and the CRL](crl.md).
 
-If you skip this and later provision a new node with the same hostname, `ovadm::add_compiler` will detect the existing signed cert and skip signing (returning `already_signed`) — but the new node will be unable to connect because it has a different private key. Run `puppetserver ca clean` first in that case.
+If you skip this and later provision a new node with the same hostname, `ovadm::add_compiler` will detect the existing signed cert and skip signing (returning `already_signed`) — but the new node will be unable to connect because it has a different private key. Clean the certificate first in that case.
 
 ## Using an internal mirror
 

@@ -44,9 +44,20 @@ ca=false
 [ -f "$cadir/ca_crt.pem" ] && ca=true
 
 # --- compilers: signed certificates with pp_role=openvox_compiler ----------
+# A revoked certificate stays in signed/ until it is cleaned, so a compiler
+# that was revoked is still listed, and named again in compilers_revoked.
+# Serials are compared as the CRL prints them: upper case, no leading zeros.
+norm_serial() { printf '%s' "$1" | tr 'a-f' 'A-F' | sed 's/^0*//; s/^$/0/'; }
 compilers=''
+compilers_revoked=''
 server_role=''
 if [ -d "$cadir/signed" ] && command -v openssl >/dev/null 2>&1; then
+  revoked_serials=''
+  if [ -f "$cadir/ca_crl.pem" ]; then
+    revoked_serials=$(openssl crl -in "$cadir/ca_crl.pem" -noout -text 2>/dev/null \
+      | sed -n 's/^[[:space:]]*Serial Number:[[:space:]]*//p' \
+      | while IFS= read -r s; do norm_serial "$s"; printf '\n'; done || true)
+  fi
   for cert in "$cadir"/signed/*.pem; do
     [ -f "$cert" ] || continue
     name=$(basename "$cert" .pem)
@@ -58,6 +69,10 @@ if [ -d "$cadir/signed" ] && command -v openssl >/dev/null 2>&1; then
       server_role="$role"
     elif [ "$role" = 'openvox_compiler' ]; then
       compilers="${compilers:+$compilers,}$(json_str "$name")"
+      serial=$(norm_serial "$(openssl x509 -in "$cert" -noout -serial 2>/dev/null | sed 's/^serial=//')")
+      if [ -n "$revoked_serials" ] && printf '%s\n' "$revoked_serials" | grep -qxF "$serial"; then
+        compilers_revoked="${compilers_revoked:+$compilers_revoked,}$(json_str "$name")"
+      fi
     fi
   done
 fi
@@ -109,7 +124,7 @@ done
 pg_dump_present=false
 command -v pg_dump >/dev/null 2>&1 && pg_dump_present=true
 
-printf '{"certname":%s,"ca":%s,"server_role":%s,"compilers":[%s],"openvoxdb":{"server_urls":[%s],"version":%s,"database":%s},"postgresql":{"version":%s,"pg_dump":%s}}\n' \
-  "$(json_str "$certname")" "$ca" "$(json_str "$server_role")" "$compilers" \
+printf '{"certname":%s,"ca":%s,"server_role":%s,"compilers":[%s],"compilers_revoked":[%s],"openvoxdb":{"server_urls":[%s],"version":%s,"database":%s},"postgresql":{"version":%s,"pg_dump":%s}}\n' \
+  "$(json_str "$certname")" "$ca" "$(json_str "$server_role")" "$compilers" "$compilers_revoked" \
   "$server_urls" "$(json_str "$openvoxdb_version")" "$database" \
   "$(json_str "$postgresql_version")" "$pg_dump_present"

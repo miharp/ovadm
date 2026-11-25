@@ -24,10 +24,12 @@
 * [`ca_expiry`](#ca_expiry): Report when the certificates a host depends on expire. On the CA: each certificate in the CA directory's bundle with its role, expiry and whe
 * [`ca_extend`](#ca_extend): Extend the CA on the CA host: re-sign every certificate in the CA directory's bundle with a later expiry and nothing else changed (same subje
 * [`ca_setup`](#ca_setup): Create the CA with `puppetserver ca setup` (root + intermediate, 15-year lifetime) before the first service start. Skipped when a CA already
+* [`cert_revoke`](#cert_revoke): Revoke certificates on the CA with puppetserver ca revoke, or with clean=true revoke them and delete them from the CA with puppetserver ca cl
 * [`configure_ca_renewal`](#configure_ca_renewal): Set certificate auto-renewal settings in ca.conf on the CA. Takes effect on the next puppetserver (re)start and only affects certificates sig
 * [`configure_compiler_ssl`](#configure_compiler_ssl): Configure puppetserver SSL on a compiler to use the puppet-CA-signed node certificate
 * [`configure_puppet_conf`](#configure_puppet_conf): Write /etc/puppetlabs/puppet/puppet.conf with server identity and optional DNS alt names, keeping the directory settings (vardir, ssldir, ...
 * [`configure_repo`](#configure_repo): Configure the OpenVox package repository for this OS, removing the release packages of other OpenVox and Puppet major versions. With apt_base
+* [`crl_install`](#crl_install): Install the CA's CRLs on a host as its hostcrl: the list an agent checks the server against and a compiler checks every client against. Refus
 * [`get_version`](#get_version): Return the installed openvox-server version, or puppetserver's on a host not yet upgraded to OpenVox, and which package it is; version is 'no
 * [`infrastatus`](#infrastatus): Return a concise status summary: installed version, service state, and port 8140
 * [`install_agent`](#install_agent): Install the openvox-agent package from the configured repository
@@ -56,7 +58,9 @@
 * [`ovadm::extend_ca`](#ovadm--extend_ca): Extend the CA certificate of an OpenVox deployment
 * [`ovadm::install`](#ovadm--install): Install a new OpenVox Server deployment
 * [`ovadm::restore`](#ovadm--restore): Restore an OpenVox primary server from an `ovadm::backup` archive
+* [`ovadm::revoke`](#ovadm--revoke): Revoke certificates, on the CA and on every compiler
 * [`ovadm::status`](#ovadm--status): Check the status of an OpenVox Server deployment
+* [`ovadm::sync_crl`](#ovadm--sync_crl): Bring the CRL on compilers and other hosts up to date with the CA's
 * [`ovadm::upgrade`](#ovadm--upgrade): Upgrade an existing OpenVox Server deployment
 
 #### Private Plans
@@ -66,6 +70,7 @@
 * `ovadm::subplans::agent_package`: Install openvox-agent on agent hosts and point them at the server
 * `ovadm::subplans::cert_setup`: Submit and sign certificates for compiler hosts
 * `ovadm::subplans::configure`: Configure puppet.conf on an OpenVox Server node
+* `ovadm::subplans::crl_sync`: Install the CA's CRLs on hosts that hold a copy of their own
 * `ovadm::subplans::install`: Install OpenVox Server packages on a target
 * `ovadm::subplans::precheck`: Validate that a target is ready to run OpenVox Server
 * `ovadm::subplans::restore_pass`: One pass of a restore: the files of a scope, then the server up
@@ -336,7 +341,7 @@ The CA's CRLs in PEM, the crl value ovadm::ca_extend returns. Omit to leave the 
 
 ### <a name="ca_expiry"></a>`ca_expiry`
 
-Report when the certificates a host depends on expire. On the CA: each certificate in the CA directory's bundle with its role, expiry and whether its private key is on disk (extendable says whether ovadm::ca_extend can re-sign the bundle, problems why not), and each CRL the CA keeps. On any host: its copy of the CA bundle and whether it matches the CA directory, its copy of the CRLs, its own certificate, and OpenVoxDB's copy of the CA. Reads files only, so it works with the services stopped; reports not_installed on a host without the OpenVox agent
+Report when the certificates a host depends on expire. On the CA: each certificate in the CA directory's bundle with its role, expiry and whether its private key is on disk (extendable says whether ovadm::ca_extend can re-sign the bundle, problems why not), and each CRL the CA keeps. On any host: its copy of the CA bundle and whether it matches the CA directory, its copy of the CRLs, its own certificate and whether that copy of the CRLs lists it as revoked, and OpenVoxDB's copy of the CA. Reads files only, so it works with the services stopped; reports not_installed on a host without the OpenVox agent
 
 **Supports noop?** false
 
@@ -393,6 +398,26 @@ Certificate name for the server certificate (--certname); defaults to the certna
 Data type: `Optional[String[1]]`
 
 Common name for the intermediate CA certificate (--ca-name); defaults to 'Puppet CA: <fqdn>'
+
+### <a name="cert_revoke"></a>`cert_revoke`
+
+Revoke certificates on the CA with puppetserver ca revoke, or with clean=true revoke them and delete them from the CA with puppetserver ca clean. Reports each certname as revoked, already_revoked, not_signed (only a request exists) or not_found, and whether the CRL changed. Refuses the certname of the host it runs on, the CA server. The server applies the revocation within a second; a compiler does once its copy of the CRL is replaced (ovadm::crl_install)
+
+**Supports noop?** false
+
+#### Parameters
+
+##### `certnames`
+
+Data type: `Array[Pattern[/\A[A-Za-z0-9_][A-Za-z0-9._-]*\z/], 1]`
+
+The certnames to revoke
+
+##### `clean`
+
+Data type: `Optional[Boolean]`
+
+Also delete the certificate, or a pending request, from the CA, so the certname can be enrolled again (default: false)
 
 ### <a name="configure_ca_renewal"></a>`configure_ca_renewal`
 
@@ -489,6 +514,20 @@ Base URL of a mirror of yum.voxpupuli.org, with the same layout: the release pac
 Data type: `Optional[Boolean]`
 
 On Enterprise Linux, use the redhatfips repository (the packages OpenVox builds for hosts in FIPS mode) instead of el. Defaults to whether the kernel reports FIPS mode
+
+### <a name="crl_install"></a>`crl_install`
+
+Install the CA's CRLs on a host as its hostcrl: the list an agent checks the server against and a compiler checks every client against. Refuses a CRL that is not signed by the CA the host already trusts or that has run out, and keeps the host's copy when it is the same or newer (by CRL number). Reports updated, unchanged, kept_newer, absent (the host keeps no CRL) or not_enrolled, the CRLs before and after, and whether the host's own certificate is on the list. Nothing is restarted: puppetserver reloads the file when it changes
+
+**Supports noop?** false
+
+#### Parameters
+
+##### `crl`
+
+Data type: `String[1]`
+
+The CA's CRLs in PEM, the ca.crl value ovadm::ca_expiry returns with include_bundle
 
 ### <a name="get_version"></a>`get_version`
 
@@ -662,7 +701,7 @@ The certificate name to sign
 
 ### <a name="topology"></a>`topology`
 
-Report the deployment topology from the primary server: certname and whether it is the CA, the compilers (signed certificates carrying pp_role=openvox_compiler), where puppetdb.conf sends OpenVoxDB traffic, the OpenVoxDB package and database connection on this host, and the local PostgreSQL. Reads files and packages only, so it works with the services stopped
+Report the deployment topology from the primary server: certname and whether it is the CA, the compilers (signed certificates carrying pp_role=openvox_compiler) and which of them are revoked, where puppetdb.conf sends OpenVoxDB traffic, the OpenVoxDB package and database connection on this host, and the local PostgreSQL. Reads files and packages only, so it works with the services stopped
 
 **Supports noop?** false
 
@@ -1349,6 +1388,69 @@ are back and the services are up by then.
 
 Default value: `true`
 
+### <a name="ovadm--revoke"></a>`ovadm::revoke`
+
+Revokes the certificates named on the server that is the CA, then installs
+the CA's CRL on the compilers, so the hosts are refused everywhere when the
+plan ends. Nothing is restarted.
+
+`puppetserver ca revoke` alone reaches the server only: a compiler keeps
+its own copy of the CRL and goes on compiling catalogs for a revoked host
+until that copy is replaced. See `documentation/crl.md`.
+
+The server's own certificate is refused. A compiler's may be revoked, to
+retire it: the plan says so, since agents refuse a revoked compiler as soon
+as they have the new CRL, within a day.
+
+#### Parameters
+
+The following parameters are available in the `ovadm::revoke` plan:
+
+* [`server_host`](#-ovadm--revoke--server_host)
+* [`certnames`](#-ovadm--revoke--certnames)
+* [`compiler_hosts`](#-ovadm--revoke--compiler_hosts)
+* [`clean`](#-ovadm--revoke--clean)
+
+##### <a name="-ovadm--revoke--server_host"></a>`server_host`
+
+Data type: `TargetSpec`
+
+The OpenVox Server node that is the CA
+
+##### <a name="-ovadm--revoke--certnames"></a>`certnames`
+
+Data type:
+
+```puppet
+Variant[
+    Pattern[/\A[A-Za-z0-9_][A-Za-z0-9._-]*(,[A-Za-z0-9_][A-Za-z0-9._-]*)*\z/],
+    Array[Pattern[/\A[A-Za-z0-9_][A-Za-z0-9._-]*\z/], 1]
+  ]
+```
+
+The certnames to revoke: one, several separated by commas, or an array
+
+##### <a name="-ovadm--revoke--compiler_hosts"></a>`compiler_hosts`
+
+Data type: `Optional[TargetSpec]`
+
+Compiler pool nodes (Large topology). Each gets the CRL after the
+revocation. The plan warns when the server knows of a compiler that is
+not among them.
+
+Default value: `undef`
+
+##### <a name="-ovadm--revoke--clean"></a>`clean`
+
+Data type: `Boolean`
+
+Also delete each certificate, or pending request, from the CA
+(`puppetserver ca clean`), so the certname can be enrolled again. Without
+it the revoked certificate stays in the CA's `signed` directory, and a
+new request under the same name is refused.
+
+Default value: `false`
+
 ### <a name="ovadm--status"></a>`ovadm::status`
 
 Check the status of an OpenVox Server deployment
@@ -1364,6 +1466,55 @@ The following parameters are available in the `ovadm::status` plan:
 Data type: `TargetSpec`
 
 The target node running OpenVox Server
+
+### <a name="ovadm--sync_crl"></a>`ovadm::sync_crl`
+
+Reads the CRLs from the CA directory on the server and installs them on the
+hosts named. Nothing is restarted and no agent is run.
+
+The server applies a revocation within a second. A compiler checks
+clients against the copy of the CRL the Puppet agent on the same host
+keeps, which only an agent run refreshes, and only once that copy is a day
+old (`crl_refresh_interval`). Until then the compiler goes on serving the
+revoked host. Run this plan after a revocation made with `puppetserver ca
+revoke` or `puppetserver ca clean`; `ovadm::revoke` does both steps.
+
+Agents fetch the CRL themselves within a day, so they are named only when
+they cannot: a host whose copy has run out refuses the server it would
+fetch a new one from.
+
+#### Parameters
+
+The following parameters are available in the `ovadm::sync_crl` plan:
+
+* [`server_host`](#-ovadm--sync_crl--server_host)
+* [`compiler_hosts`](#-ovadm--sync_crl--compiler_hosts)
+* [`agent_hosts`](#-ovadm--sync_crl--agent_hosts)
+
+##### <a name="-ovadm--sync_crl--server_host"></a>`server_host`
+
+Data type: `TargetSpec`
+
+The OpenVox Server node that is the CA
+
+##### <a name="-ovadm--sync_crl--compiler_hosts"></a>`compiler_hosts`
+
+Data type: `Optional[TargetSpec]`
+
+Compiler pool nodes (Large topology). The plan warns when the server
+knows of a compiler that is not among the hosts named.
+
+Default value: `undef`
+
+##### <a name="-ovadm--sync_crl--agent_hosts"></a>`agent_hosts`
+
+Data type: `Optional[TargetSpec]`
+
+Other hosts to install the CRLs on: agents whose copy has run out, and
+anything else that keeps a copy of its own. The server and the compilers
+may be among them, as when a group names every host.
+
+Default value: `undef`
 
 ### <a name="ovadm--upgrade"></a>`ovadm::upgrade`
 
