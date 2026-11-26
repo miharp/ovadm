@@ -219,6 +219,80 @@ jobs:
             --inventoryfile docker/inventory.yaml | tee "$RUNNER_TEMP/status.log"
           test "$(grep -c '✓ CA certificate' "$RUNNER_TEMP/status.log")" -eq 2
 
+      - name: Show that a revocation made by hand stops at the server (large topology only)
+        # The reason ovadm::revoke exists: the server refuses the host within
+        # a second, and the compiler goes on answering it, because nothing
+        # replaces the compiler's own copy of the CRL.
+        if: matrix.topology == 'large'
+        run: |
+          set -e
+          docker exec ovadm-server bash -c '
+            export PATH=/opt/puppetlabs/bin:$PATH
+            puppetserver ca generate --certname byhand
+            puppetserver ca revoke --certname byhand'
+          docker exec ovadm-server tar -C /etc/puppetlabs/puppet/ssl -cf - certs/byhand.pem private_keys/byhand.pem \
+            | docker exec -i ovadm-compiler01 tar -C /root -xf -
+          ask() {
+            docker exec ovadm-compiler01 curl -s -o /dev/null -w '%{http_code}' \
+              --cert /root/certs/byhand.pem --key /root/private_keys/byhand.pem \
+              --cacert /etc/puppetlabs/puppet/ssl/certs/ca.pem \
+              "https://$1:8140/puppet/v3/node/byhand?environment=production" || true
+          }
+          # The server reloads its CRL within a second of the revocation;
+          # 000 is curl's code for a TLS handshake the server refused.
+          for attempt in 1 2 3 4 5 6 7 8 9 10; do
+            if [ "$(ask puppet)" = 000 ]; then break; fi
+            sleep 1
+          done
+          echo "server answers the revoked certificate with: $(ask puppet)"
+          echo "compiler answers the revoked certificate with: $(ask compiler01)"
+          test "$(ask puppet)" = 000
+          test "$(ask compiler01)" != 000
+          bundle exec bolt plan run ovadm::status \
+            server_host=puppet,compiler01 \
+            --inventoryfile docker/inventory.yaml | tee "$RUNNER_TEMP/status.log"
+          grep -q "behind the CA's" "$RUNNER_TEMP/status.log"
+
+      - name: Revoke an agent
+        # Last, since agent01 is of no use afterwards.
+        run: |
+          set -e
+          compilers=''
+          if [ '${{ matrix.topology }}' = large ]; then compilers='compiler_hosts=compiler01'; fi
+          bundle exec bolt plan run ovadm::revoke \
+            server_host=puppet $compilers certnames=agent01 \
+            --inventoryfile docker/inventory.yaml | tee "$RUNNER_TEMP/revoke.log"
+          grep -q '^agent01: revoked$' "$RUNNER_TEMP/revoke.log"
+          if [ '${{ matrix.topology }}' = large ]; then
+            grep -q '^compiler01: CRL updated' "$RUNNER_TEMP/revoke.log"
+          fi
+
+      - name: Verify the revocation
+        run: |
+          # The compiler reloads its CRL when the file changes, with no
+          # restart: allow it a few seconds, and no more.
+          for attempt in 1 2 3 4 5 6 7 8 9 10; do
+            docker exec ovadm-agent01 /opt/puppetlabs/bin/puppet agent -t > "$RUNNER_TEMP/agent01.log" 2>&1 || true
+            if ! grep -q 'Catalog compiled by' "$RUNNER_TEMP/agent01.log"; then break; fi
+            echo "attempt $attempt: ${{ matrix.agent_server }} still serves agent01"
+            sleep 3
+          done
+          cat "$RUNNER_TEMP/agent01.log"
+          set -e
+          ! grep -q 'Catalog compiled by' "$RUNNER_TEMP/agent01.log"
+          grep -q 'Could not retrieve catalog' "$RUNNER_TEMP/agent01.log"
+          # An agent that was not revoked is served as before.
+          docker exec ovadm-agent /opt/puppetlabs/bin/puppet agent -t --server ${{ matrix.agent_server }} \
+            | tee "$RUNNER_TEMP/agent.log"
+          grep -q 'Catalog compiled by ${{ matrix.agent_server }}' "$RUNNER_TEMP/agent.log"
+          if [ '${{ matrix.topology }}' = large ]; then
+            bundle exec bolt plan run ovadm::status \
+              server_host=puppet,compiler01 \
+              --inventoryfile docker/inventory.yaml | tee "$RUNNER_TEMP/status.log"
+            grep -q "the same as the CA's" "$RUNNER_TEMP/status.log"
+            ! grep -q "behind the CA's" "$RUNNER_TEMP/status.log"
+          fi
+
       - name: Tear down
         if: always()
         run: docker compose down

@@ -1,5 +1,5 @@
 {
-  "description": "Report the deployment topology from the primary server: certname and whether it is the CA, the compilers (signed certificates carrying pp_role=openvox_compiler), where puppetdb.conf sends OpenVoxDB traffic, the OpenVoxDB package and database connection on this host, and the local PostgreSQL. Reads files and packages only, so it works with the services stopped",
+  "description": "Report the deployment topology from the primary server: certname and whether it is the CA, the compilers (signed certificates carrying pp_role=openvox_compiler) and which of them are revoked, where puppetdb.conf sends OpenVoxDB traffic, the OpenVoxDB package and database connection on this host, and the local PostgreSQL. Reads files and packages only, so it works with the services stopped",
   "input_method": "environment",
   "parameters": {},
   "supports_noop": false

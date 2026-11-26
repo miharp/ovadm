@@ -1,0 +1,15 @@
+{
+  "description": "Revoke certificates on the CA with puppetserver ca revoke, or with clean=true revoke them and delete them from the CA with puppetserver ca clean. Reports each certname as revoked, already_revoked, not_signed (only a request exists) or not_found, and whether the CRL changed. Refuses the certname of the host it runs on, the CA server. The server applies the revocation within a second; a compiler does once its copy of the CRL is replaced (ovadm::crl_install)",
+  "input_method": "environment",
+  "parameters": {
+    "certnames": {
+      "description": "The certnames to revoke",
+      "type": "Array[Pattern[/\\A[A-Za-z0-9_][A-Za-z0-9._-]*\\z/], 1]"
+    },
+    "clean": {
+      "description": "Also delete the certificate, or a pending request, from the CA, so the certname can be enrolled again (default: false)",
+      "type": "Optional[Boolean]"
+    }
+  },
+  "supports_noop": false
+}

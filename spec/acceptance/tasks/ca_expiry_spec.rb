@@ -63,9 +63,27 @@ RSpec.describe 'ovadm::ca_expiry task' do
         expect(data['host_crl']).to include('path' => "#{CaFixture::SSLDIR}/crl.pem", 'expired' => false)
         expect(data['host_cert']).to include(
           'path' => "#{CaFixture::SSLDIR}/certs/#{certname}.pem", 'subject' => "CN=#{certname}",
-          'signed_by_local_ca' => true, 'expired' => false, 'days_left' => be_between(29, 30)
+          'signed_by_local_ca' => true, 'revoked' => false, 'expired' => false, 'days_left' => be_between(29, 30)
         )
         expect(data['openvoxdb_ca']).to be_nil
+      end
+
+      it "says when the host's own certificate is on its copy of the CRLs" do
+        hostcrl = "#{CaFixture::SSLDIR}/crl.pem"
+        run_shell("cp #{hostcrl} /root/crl.before")
+        write_crls(hostcrl, number: 4, revoked: [5, 7])
+        revoked = run_bolt_task('ovadm::ca_expiry').result['host_cert']['revoked']
+        run_shell("cat /root/crl.before > #{hostcrl}; rm -f /root/crl.before")
+        expect(revoked).to be(true)
+      end
+
+      it 'does not say either way on a host that keeps no CRL' do
+        hostcrl = "#{CaFixture::SSLDIR}/crl.pem"
+        run_shell("mv #{hostcrl} #{hostcrl}.aside")
+        report = run_bolt_task('ovadm::ca_expiry').result
+        run_shell("mv #{hostcrl}.aside #{hostcrl}")
+        expect(report['host_crl']).to be_nil
+        expect(report['host_cert']['revoked']).to be_nil
       end
 
       it 'returns the bundle and the CRLs when asked' do

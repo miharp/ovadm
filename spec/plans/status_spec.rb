@@ -175,6 +175,82 @@ describe 'ovadm::status' do
     end
   end
 
+  it 'marks a compiler whose certificate is revoked' do
+    allow_all_tasks(topology_result.merge('compilers' => ['compiler01.example.com', 'compiler02.example.com'], 'compilers_revoked' => ['compiler02.example.com']))
+    expect_out_message.with_params("  Topology: server #{server} (CA), 2 compilers: compiler01.example.com, compiler02.example.com (revoked)")
+
+    expect(run_plan('ovadm::status', { 'server_host' => server })).to be_ok
+  end
+
+  context "a host's own copy of the CRL" do
+    let(:compiler) { 'compiler01.example.com' }
+    let(:signer)   { 'CN=Puppet CA: ovox' }
+
+    def crl(number: 4, revoked: 3, days_left: 1824, path: nil)
+      described = { 'issuer' => signer, 'next_update' => '2031-11-24T13:13:03Z', 'days_left' => days_left,
+                    'expired' => days_left.negative?, 'crl_number' => number, 'revoked' => revoked }
+      path ? described.merge('path' => path) : described
+    end
+
+    # What ca_expiry says on a compiler: no CA directory, a copy of the CRLs.
+    def compiler_report(crls, revoked: false)
+      report = expiry_result.merge('certname' => compiler, 'ca' => nil)
+      report['local_ca'] = report['local_ca'].merge('matches_ca' => nil)
+      report['host_cert'] = report['host_cert'].merge('revoked' => revoked)
+      report.merge('host_crl' => { 'path' => '/etc/puppetlabs/puppet/ssl/crl.pem', 'crls' => crls })
+    end
+
+    # The CA at CRL number 4, and an infrastructure CRL that never counts.
+    def allow_server_and_compiler(compiler_expiry)
+      allow_all_tasks
+      ca = expiry_result(crls: [crl(path: '/etc/puppetlabs/puppetserver/ca/ca_crl.pem'),
+                                crl(number: 0, revoked: 0, path: '/etc/puppetlabs/puppetserver/ca/infra_crl.pem')])
+      allow_task('ovadm::ca_expiry').return_for_targets(server => ca, compiler => compiler_expiry)
+    end
+
+    it "warns when it is behind the CA's, and names the plan that replaces it" do
+      allow_server_and_compiler(compiler_report([crl(number: 2, revoked: 1)]))
+      expect_out_message.with_params(
+        "  ! copy of the CRL of #{signer}: behind the CA's (number 2, the CA has 4), " \
+        'so this host does not refuse the certificates revoked since; ovadm::sync_crl replaces it',
+      )
+
+      expect(run_plan('ovadm::status', { 'server_host' => [server, compiler] })).to be_ok
+    end
+
+    it "says so when it is the same as the CA's" do
+      allow_server_and_compiler(compiler_report([crl]))
+      expect_out_message.with_params("  ✓ copy of the CRL of #{signer}: the same as the CA's (number 4, 3 revoked)")
+
+      expect(run_plan('ovadm::status', { 'server_host' => [server, compiler] })).to be_ok
+    end
+
+    it 'says that a copy that has run out refuses everything' do
+      allow_server_and_compiler(compiler_report([crl(days_left: -1)]))
+      expect_out_message.with_params(
+        "  ✗ copy of the CRL of #{signer}: ran out on 2031-11-24T13:13:03Z, " \
+        'so every certificate checked against it is refused; ovadm::sync_crl replaces it',
+      )
+
+      expect(run_plan('ovadm::status', { 'server_host' => [server, compiler] })).to be_ok
+    end
+
+    it 'warns about a copy within 30 days of its end when the CA is not among the hosts' do
+      allow_all_tasks(bare_topology, expiry: compiler_report([crl(days_left: 12)]))
+      expect_out_message.with_params("  ! copy of the CRL of #{signer}: runs out on 2031-11-24T13:13:03Z, in 12 days; ovadm::sync_crl replaces it")
+
+      expect(run_plan('ovadm::status', { 'server_host' => compiler })).to be_ok
+    end
+
+    it "says when the host's own certificate is on it, in place of the expiry" do
+      allow_server_and_compiler(compiler_report([crl], revoked: true))
+      expect_out_message.with_params("  ✗ certificate of #{compiler}: revoked. Nothing that has the current CRL accepts it.")
+      expect_out_message.with_params("  ✓ certificate of #{compiler}: expires on 2041-11-07T17:17:44Z, in 5474 days").not_be_called
+
+      expect(run_plan('ovadm::status', { 'server_host' => [server, compiler] })).to be_ok
+    end
+  end
+
   it "reports ovadm's own version from metadata.json" do
     allow_all_tasks
 

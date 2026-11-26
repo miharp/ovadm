@@ -324,7 +324,8 @@ naming the certificates. With `force=true` it restores anyway; afterwards:
   is reissued next, and the next certificate with it is revoked from the
   start.
 - For each certificate revoked since the backup, revoke it again with
-  `puppetserver ca revoke --certname <host>`.
+  `puppetserver ca revoke --certname <host>`, or with
+  [`ovadm::revoke`](crl.md), which also gives the compilers the new CRL.
 
 The smaller both sets, the simpler the recovery, which is why backups follow
 signings and revocations.

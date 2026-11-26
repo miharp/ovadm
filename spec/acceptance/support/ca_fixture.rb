@@ -198,6 +198,68 @@ module CaFixture
     RB
   end
 
+  # Writes the CA's CRLs to a file as the CA would after more revocations:
+  # the signing CA's CRL issued again with this number, these revoked serials
+  # and this many days to run, followed by the CRLs of the rest of the chain
+  # as they are. foreign: true signs with a key the host's bundle does not
+  # know, under the same issuer name. Returns the PEM text.
+  def write_crls(path, number:, revoked:, days: 400, foreign: false)
+    container_ruby(<<~'RB', 'OUT' => path, 'NUMBER' => number, 'REVOKED' => revoked.join(','), 'DAYS' => days, 'FOREIGN' => foreign, 'CADIR' => CADIR)
+      require 'openssl'
+
+      cadir  = ENV['CADIR']
+      signer = OpenSSL::X509::Certificate.new(File.read("#{cadir}/ca_crt.pem"))
+      key    = ENV['FOREIGN'] == 'true' ? OpenSSL::PKey::RSA.new(2048) : OpenSSL::PKey.read(File.read("#{cadir}/ca_key.pem"))
+      rest   = File.read("#{cadir}/ca_crl.pem").scan(/-----BEGIN X509 CRL-----.+?-----END X509 CRL-----/m)
+                   .map { |pem| OpenSSL::X509::CRL.new(pem) }.reject { |crl| crl.issuer.cmp(signer.subject).zero? }
+
+      now = Time.now
+      crl = OpenSSL::X509::CRL.new
+      crl.version     = 1
+      crl.issuer      = signer.subject
+      crl.last_update = now - (500 * 86_400)
+      crl.next_update = now + (ENV['DAYS'].to_i * 86_400)
+      ENV['REVOKED'].split(',').each do |serial|
+        entry = OpenSSL::X509::Revoked.new
+        entry.serial = serial.to_i
+        entry.time   = now - 3600
+        crl.add_revoked(entry)
+      end
+      factory = OpenSSL::X509::ExtensionFactory.new
+      factory.issuer_certificate = signer
+      crl.add_extension(factory.create_extension('authorityKeyIdentifier', 'keyid:always'))
+      crl.add_extension(OpenSSL::X509::Extension.new('crlNumber', OpenSSL::ASN1::Integer(ENV['NUMBER'].to_i)))
+      crl.sign(key, OpenSSL::Digest.new('SHA256'))
+      File.write(ENV['OUT'], ([crl] + rest).map(&:to_pem).join)
+    RB
+    run_shell("cat #{path}")['stdout']
+  end
+
+  # Signs a certificate for another host into the CA's signed directory,
+  # with pp_role where given, as ovadm::add_compiler requests it.
+  def sign_host(name, serial:, pp_role: nil)
+    container_ruby(<<~'RB', 'NAME' => name, 'SERIAL' => serial, 'PP_ROLE' => pp_role.to_s, 'CADIR' => CADIR)
+      require 'openssl'
+
+      cadir  = ENV['CADIR']
+      signer = OpenSSL::X509::Certificate.new(File.read("#{cadir}/ca_crt.pem"))
+      key    = OpenSSL::PKey.read(File.read("#{cadir}/ca_key.pem"))
+      cert = OpenSSL::X509::Certificate.new
+      cert.version    = 2
+      cert.serial     = ENV['SERIAL'].to_i
+      cert.subject    = OpenSSL::X509::Name.parse("/CN=#{ENV['NAME']}")
+      cert.issuer     = signer.subject
+      cert.public_key = OpenSSL::PKey::RSA.new(2048)
+      cert.not_before = Time.now - 86_400
+      cert.not_after  = Time.now + (30 * 86_400)
+      unless ENV['PP_ROLE'].empty?
+        cert.add_extension(OpenSSL::X509::Extension.new('1.3.6.1.4.1.34380.1.1.13', OpenSSL::ASN1::UTF8String.new(ENV['PP_ROLE']).to_der, false))
+      end
+      cert.sign(key, OpenSSL::Digest.new('SHA256'))
+      File.write("#{cadir}/signed/#{ENV['NAME']}.pem", cert.to_pem)
+    RB
+  end
+
   def sha256(path)
     run_shell("sha256sum #{path}")['stdout'].split.first
   end

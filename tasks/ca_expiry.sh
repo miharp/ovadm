@@ -193,9 +193,11 @@ if File.file?(localcacert)
 end
 
 host_crl = nil
+local_crls = []
 if File.file?(hostcrl)
   begin
-    described = read_crls.call(hostcrl).map { |crl| describe_crl.call(crl) }
+    local_crls = read_crls.call(hostcrl)
+    described = local_crls.map { |crl| describe_crl.call(crl) }
     host_crl = { 'path' => hostcrl, 'crls' => described }.merge(soonest.call(described, 'next_update'))
   rescue SystemCallError, OpenSSL::OpenSSLError => e
     host_crl = { 'path' => hostcrl, 'error' => e.message, 'crls' => [] }
@@ -208,7 +210,11 @@ if File.file?(hostcert)
     cert = OpenSSL::X509::Certificate.new(File.read(hostcert))
     # Signed by a key in the local bundle, whatever the dates say.
     signer = local_certs.find { |c| c.subject.cmp(cert.issuer).zero? && cert.verify(c.public_key) }
-    host_cert = describe_cert.call(cert).merge('path' => hostcert, 'signed_by_local_ca' => !signer.nil?)
+    # On the host's own copy of the CRLs, which on a compiler may be behind
+    # the CA's: nil where the host keeps no CRL of the certificate's issuer.
+    issuer_crl = local_crls.find { |crl| crl.issuer.cmp(cert.issuer).zero? }
+    revoked = issuer_crl && issuer_crl.revoked.any? { |entry| entry.serial == cert.serial }
+    host_cert = describe_cert.call(cert).merge('path' => hostcert, 'signed_by_local_ca' => !signer.nil?, 'revoked' => revoked)
   rescue SystemCallError, OpenSSL::OpenSSLError => e
     host_cert = { 'path' => hostcert, 'error' => e.message }
   end

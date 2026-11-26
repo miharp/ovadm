@@ -1,6 +1,6 @@
 {
   "description": "Install an extended CA bundle, as ovadm::ca_extend returns it, on a host: its trusted copy (localcacert), the CRLs beside it (hostcrl, only where the host keeps one and never an older set) and OpenVoxDB's copy of the CA where there is one. Refuses a bundle that is expired, incomplete, or not the CA that signed the host's own certificate, so it refreshes what a host trusts and cannot change it. Reports each file as updated or unchanged, and the host certificate's expiry. Services are not restarted: puppetserver and OpenVoxDB read the bundle when they start",
-  "input_method": "environment",
+  "input_method": "stdin",
   "parameters": {
     "bundle": {
       "description": "The CA bundle in PEM, the bundle value ovadm::ca_extend returns",
