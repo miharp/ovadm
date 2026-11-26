@@ -166,6 +166,18 @@ RSpec.describe 'ovadm::crl_install task' do
         expect(result.result['crls'].map { |crl| [crl['issuer'], crl['crl_number'], crl['revoked']] }).to eq([[signer, 4, 2]])
         expect(cat(hostcrl)).to eq(newer)
       end
+
+      # Linux allows one environment variable, or one argument, 131,072
+      # bytes. A CA with a few thousand revocations has a longer CRL.
+      it 'installs a CRL too long for one environment variable' do
+        long = write_crls('/root/crls/long.pem', number: 5, revoked: (1000...7000).to_a)
+        expect(long.bytesize).to be > 131_072
+        result = run_bolt_task('ovadm::crl_install', { 'crl' => long })
+        expect(result.exit_code).to eq(0)
+        expect(result.result).to include('status' => 'updated', 'changed' => true)
+        expect(result.result['crls'].map { |crl| [crl['crl_number'], crl['revoked']] }).to eq([[5, 6000]])
+        expect(cat(hostcrl)).to eq(long)
+      end
     end
   end
 end

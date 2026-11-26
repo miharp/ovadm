@@ -12,6 +12,10 @@
 # certificate whose key signed this host's own certificate. A bundle from a
 # different CA is refused, so this cannot be used to change what a host
 # trusts, only to refresh it.
+#
+# The parameters come as JSON on standard input, not in the environment: the
+# CRL of a CA with a few thousand revocations is longer than Linux allows one
+# environment variable or one argument (131,072 bytes).
 set -euo pipefail
 
 export PATH="/opt/puppetlabs/bin:$PATH"
@@ -19,16 +23,19 @@ export PATH="/opt/puppetlabs/bin:$PATH"
 RUBY='/opt/puppetlabs/puppet/bin/ruby'
 
 if [ ! -x "$RUBY" ]; then
+  cat >/dev/null
   printf '{"status":"not_installed","changed":[]}\n'
   exit 0
 fi
 
 settings=''
 if command -v puppet >/dev/null 2>&1; then
-  settings=$(puppet config print certname localcacert hostcert hostcrl --section agent 2>/dev/null || true)
+  settings=$(puppet config print certname localcacert hostcert hostcrl --section agent 2>/dev/null </dev/null || true)
 fi
 
-PUPPET_SETTINGS="$settings" BUNDLE="${PT_bundle}" CRL="${PT_crl:-}" "$RUBY" <<'RUBY'
+# Ruby reads its script from the here-document, so the parameters move to
+# file descriptor 3 first.
+PUPPET_SETTINGS="$settings" "$RUBY" 3<&0 <<'RUBY'
 require 'fileutils'
 require 'json'
 require 'openssl'
@@ -57,8 +64,14 @@ now     = Time.now.utc
 name_of = ->(name) { name.to_s(OpenSSL::X509::Name::RFC2253) }
 
 begin
-  bundle = ENV.fetch('BUNDLE', '').scan(PEM_CERT).map { |pem| OpenSSL::X509::Certificate.new(pem) }
-  crls   = ENV.fetch('CRL', '').scan(PEM_CRL).map { |pem| OpenSSL::X509::CRL.new(pem) }
+  params = JSON.parse(IO.for_fd(3).read)
+rescue JSON::ParserError, SystemCallError => e
+  refuse.call("The task's parameters cannot be read (#{e.message}).")
+end
+
+begin
+  bundle = params['bundle'].to_s.scan(PEM_CERT).map { |pem| OpenSSL::X509::Certificate.new(pem) }
+  crls   = params['crl'].to_s.scan(PEM_CRL).map { |pem| OpenSSL::X509::CRL.new(pem) }
 rescue OpenSSL::OpenSSLError => e
   refuse.call("The bundle given cannot be read (#{e.message}).")
 end

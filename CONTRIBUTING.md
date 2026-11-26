@@ -121,6 +121,8 @@ sure they are gone.
 - Puppet plans follow the [Puppet Language Style Guide](https://www.puppet.com/docs/puppet/latest/style_guide.html)
 - Shell tasks use `set -euo pipefail` and output valid JSON on stdout
 - Task metadata (`.json`) must define `input_method`, `parameters`, and `supports_noop`
+- A task that takes a certificate bundle or a CRL uses `"input_method": "stdin"`:
+  Linux allows one environment variable 131,072 bytes, and a CRL grows past that
 
 ## Reference documentation
 

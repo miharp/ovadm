@@ -34,6 +34,15 @@ Notable changes to ovadm are recorded here. The format follows
 - `ovadm::topology` returns `compilers_revoked`, and `ovadm::ca_expiry`
   returns `revoked` for the host's own certificate (#124).
 
+### Fixed
+
+- `ovadm::extend_ca` installs a CRL of any length. The `ca_bundle_install`
+  task took the bundle and the CRLs as environment variables, and Linux
+  allows one variable 131,072 bytes: with a few thousand revocations on the
+  CA's CRL the task failed on every host with `Argument list too long`,
+  after the CA had been extended. The task reads its parameters from
+  standard input now, as the new `crl_install` does (#124).
+
 ## [0.15.0] - 2026-11-14
 
 ### Added

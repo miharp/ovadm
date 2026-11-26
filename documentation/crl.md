@@ -287,6 +287,9 @@ reloading the CRL the plan wrote without a restart; a compiler with a CRL
 that had run out refusing a valid agent, and serving it again after
 `ovadm::sync_crl`; an agent with a CRL that had run out failing as above.
 
+A CRL of 6,000 revocations, 171 kB, installed by the task over Bolt's docker
+transport and over SSH, there as root and through `sudo`.
+
 Also on virtual machines over SSH, with SELinux enforcing: a server and a
 compiler on AlmaLinux 10, agents on AlmaLinux 9 and Ubuntu 24.04. The CRL
 file kept its mode, owner and SELinux type, nothing was denied, and neither

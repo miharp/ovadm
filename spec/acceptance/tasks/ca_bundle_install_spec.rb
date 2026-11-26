@@ -156,6 +156,21 @@ RSpec.describe 'ovadm::ca_bundle_install task' do
       end
     end
 
+    # Linux allows one environment variable, or one argument, 131,072 bytes.
+    # A CA with a few thousand revocations has a longer CRL.
+    context 'given CRLs too long for one environment variable' do
+      it 'installs them with the bundle' do
+        new  = extended_ca(layout: 'intermediate', days: 400)
+        long = write_crls('/root/long-crl.pem', number: 1000, revoked: (1000...7000).to_a)
+        run_shell('rm -f /root/long-crl.pem')
+        expect(long.bytesize).to be > 131_072
+        result = run_bolt_task('ovadm::ca_bundle_install', { 'bundle' => new['bundle'], 'crl' => long })
+        expect(result.exit_code).to eq(0)
+        expect(result.result).to include('status' => 'installed', 'changed' => [localcacert, hostcrl])
+        expect(cat(hostcrl)).to eq(long)
+      end
+    end
+
     context 'on a host whose bundle and certificate have both expired' do
       it 'installs the bundle all the same: the certificate still says which CA it belongs to' do
         new = extended_ca(layout: 'single', days: -3, host_days: -3)
